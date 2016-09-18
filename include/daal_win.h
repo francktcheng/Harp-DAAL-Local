@@ -174,6 +174,8 @@
 #include "algorithms/qr/qr_batch.h"
 #include "algorithms/qr/qr_online.h"
 #include "algorithms/qr/qr_distributed.h"
+#include "algorithms/mf_sgd/mf_sgd_batch.h"
+#include "algorithms/mf_sgd/mf_sgd_types.h"
 #include "algorithms/pivoted_qr/pivoted_qr_types.h"
 #include "algorithms/pivoted_qr/pivoted_qr_batch.h"
 #include "algorithms/boosting/boosting_model.h"

@@ -109,6 +109,7 @@ CORE.ALGORITHMS     := adaboost                                                 
                        pca                                                            \
                        pivoted_qr                                                     \
                        qr                                                             \
+					   mf_sgd														  \
                        quantiles                                                      \
                        ridge_regression                                               \
                        sgd                                                            \
@@ -170,6 +171,7 @@ CORE.ALGORITHMS.INC := association_rules                                        
                        pca                                                       \
                        pivoted_qr                                                \
                        qr                                                        \
+					   mf_sgd													 \
                        quantiles                                                 \
                        ridge_regression                                          \
                        sorting                                                   \

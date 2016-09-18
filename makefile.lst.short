@@ -1,0 +1,143 @@
+#===============================================================================
+# Copyright 2014-2016 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+##  Content:
+##     Intel(R) Data Analytics Acceleration Library algorithms list
+##******************************************************************************
+
+CORE.ALGORITHMS     := classifier                                                     \
+					   implicit_als                                                   \
+                       kernel_function                                                \
+					   kmeans                                                         \
+                       lbfgs                                                          \
+					   objective_function                                             \
+                       objective_function/mse                                         \
+                       optimization_solver                                            \
+                       optimization_solver/sgd                                        \
+                       optimization_solver/lbfgs                                      \
+                       optimization_solver/adagrad                                    \
+                       pivoted_qr                                                     \
+                       qr                                                             \
+					   mf_sgd													      \
+                       sgd                                                            \
+                       svm
+
+CORE.ALGORITHMS.INC := association_rules                                         \
+                       boosting                                                  \
+                       cholesky                                                  \
+                       classifier                                                \
+                       covariance                                                \
+                       distance                                                  \
+                       em                                                        \
+                       implicit_als                                              \
+                       kernel_function                                           \
+                       kmeans                                                    \
+                       linear_regression                                         \
+                       math                                                      \
+                       moments                                                   \
+                       multi_class_classifier                                    \
+                       naive_bayes                                               \
+                       neural_networks                                           \
+                       neural_networks/initializers                              \
+                       neural_networks/initializers/uniform                      \
+                       neural_networks/initializers/xavier                       \
+                       neural_networks/layers                                    \
+                       neural_networks/layers/abs                                \
+                       neural_networks/layers/batch_normalization                \
+                       neural_networks/layers/concat                             \
+                       neural_networks/layers/convolution2d                      \
+                       neural_networks/layers/locallyconnected2d                 \
+                       neural_networks/layers/dropout                            \
+                       neural_networks/layers/fullyconnected                     \
+                       neural_networks/layers/logistic                           \
+                       neural_networks/layers/lrn                                \
+                       neural_networks/layers/pooling1d                          \
+                       neural_networks/layers/pooling2d                          \
+                       neural_networks/layers/pooling3d                          \
+                       neural_networks/layers/spatial_pooling2d                  \
+                       neural_networks/layers/prelu                              \
+                       neural_networks/layers/relu                               \
+                       neural_networks/layers/smoothrelu                         \
+                       neural_networks/layers/softmax                            \
+                       neural_networks/layers/loss                               \
+                       neural_networks/layers/split                              \
+                       neural_networks/layers/tanh                               \
+                       neural_networks/layers/lcn                                \
+                       normalization                                             \
+                       optimization_solver                                       \
+                       optimization_solver/mse                                   \
+                       optimization_solver/objective_function                    \
+                       optimization_solver/iterative_solver                      \
+                       optimization_solver/sgd                                   \
+                       optimization_solver/lbfgs                                 \
+                       optimization_solver/adagrad                               \
+                       outlier_detection                                         \
+                       pca                                                       \
+                       pivoted_qr                                                \
+                       qr                                                        \
+					   mf_sgd													 \
+                       quantiles                                                 \
+                       ridge_regression                                          \
+                       sorting                                                   \
+                       stump                                                     \
+                       svd                                                       \
+                       svm                                                       \
+                       weak_learner
+
+CORE.SERVICES       := compression
+
+JJ.ALGORITHMS       := implicit_als                                              \
+                       implicit_als/prediction                                   \
+                       implicit_als/prediction/ratings                           \
+                       implicit_als/training                                     \
+                       implicit_als/training/init                                \
+					   quality_metric                                            \
+                       quality_metric_set                                        \
+                       classifier                                                \
+                       classifier/prediction                                     \
+                       classifier/quality_metric                                 \
+                       classifier/quality_metric/binary_confusion_matrix         \
+                       classifier/quality_metric/multi_class_confusion_matrix    \
+                       classifier/training                                       \
+					   kmeans                                                    \
+                       kmeans/init                                               \
+                       kernel_function                                           \
+					   kernel_function/linear                                    \
+                       kernel_function/rbf                                       \
+                       optimization_solver                                       \
+                       optimization_solver/objective_function                    \
+                       optimization_solver/sum_of_functions                      \
+                       optimization_solver/mse                                   \
+                       optimization_solver/iterative_solver                      \
+                       optimization_solver/sgd                                   \
+                       optimization_solver/lbfgs                                 \
+                       optimization_solver/adagrad                               \
+					   svm                                                       \
+                       svm/prediction                                            \
+                       svm/quality_metric_set                                    \
+                       svm/training                                              \
+                       pivoted_qr                                                \
+                       qr                                                         
+
+JJ.DATA_MANAGEMENT  := data                                                      \
+                       data_source                                               \
+                       compression                                               \
+                       compression/bzip2                                         \
+                       compression/lzo                                           \
+                       compression/rle                                           \
+                       compression/zlib
+
+JJ.SERVICES         := libraryversioninfo

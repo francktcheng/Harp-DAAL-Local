@@ -86,6 +86,7 @@ DAAL  = assoc_rules_apriori_batch             \
         pca_svd_dense_batch                   \
         pca_svd_dense_distr                   \
         pca_svd_dense_online                  \
+        mf_sgd_batch                          \
         qr_dense_batch                        \
         qr_dense_distr                        \
         qr_dense_online                       \

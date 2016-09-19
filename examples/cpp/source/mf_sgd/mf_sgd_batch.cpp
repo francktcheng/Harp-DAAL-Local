@@ -65,6 +65,8 @@ int main(int argc, char *argv[])
 
     const double learningRate = 0.05;
     const double lambda = 0.002;
+    const int iteration = 10;
+    const int threads = 40;
 
     VPoint points_Train[num_Train] =
     {
@@ -112,12 +114,12 @@ int main(int argc, char *argv[])
     dataTable_Test->setFeature<double> (2, DAAL_STRUCT_MEMBER_OFFSET(VPoint, val));
 
     // dimension of model W and model H
-    const size_t r_dim = 1000;
-    const size_t row_num_w = 20000;
-    const size_t col_num_w = r_dim;
+    const long r_dim = 1000;
+    const long row_num_w = 20000;
+    const long col_num_w = r_dim;
 
-    const size_t row_num_h = r_dim;
-    const size_t col_num_h = 20000;
+    const long row_num_h = r_dim;
+    const long col_num_h = 20000;
 
     /* Create an algorithm to compute mf_sgd decomposition */
     // use default template value: double and defaultSGD
@@ -127,7 +129,7 @@ int main(int argc, char *argv[])
     algorithm.input.set(mf_sgd::dataTrain, dataTable_Train);
     algorithm.input.set(mf_sgd::dataTest, dataTable_Test);
 
-    algorithm.parameter.setParameter(learningRate, lambda, r_dim, row_num_w, col_num_h);
+    algorithm.parameter.setParameter(learningRate, lambda, r_dim, row_num_w, col_num_h, iteration, threads);
 
     /* Compute mf_sgd decomposition */
     algorithm.compute();

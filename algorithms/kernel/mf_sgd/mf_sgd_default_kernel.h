@@ -28,7 +28,16 @@
 #include "kernel.h"
 #include "numeric_table.h"
 
+// head files for TBB
+#include "task_scheduler_init.h"
+#include "blocked_range.h"
+#include "parallel_for.h"
+#include "queuing_mutex.h"
+
+using namespace tbb;
 using namespace daal::data_management;
+
+typedef queuing_mutex currentMutex_t;
 
 namespace daal
 {
@@ -52,7 +61,45 @@ public:
 
 };
 
+/* MF_SGD kernel implemented by TBB */
+template<typename interm, CpuType cpu>
+struct MFSGDTBB
+{
+    // BlockMicroTable<interm, readWrite, cpu>* _mtWDataTable;
+    // BlockMicroTable<interm, readWrite, cpu>* _mtHDataTable;
+    interm** _mtWDataTable;
+    interm** _mtHDataTable;
 
+    int* _workWPos;
+    int* _workHPos;
+
+    interm* _workV;
+    int _Dim;
+    interm _learningRate;
+    interm _lambda;
+
+    currentMutex_t* _mutex_w;
+    currentMutex_t* _mutex_h;
+
+    MFSGDTBB(
+            // BlockMicroTable<interm, readWrite, cpu>* mtWDataTable,
+            // BlockMicroTable<interm, readWrite, cpu>* mtHDataTable,
+            interm** mtWDataTable,
+            interm** mtHDataTable,
+            int* workWPos,
+            int* workHPos,
+            interm *workV,
+            const long Dim,
+            const interm learningRate,
+            const interm lambda,
+            currentMutex_t* mutex_w,
+            currentMutex_t* mutex_h
+    );
+
+    void operator()( const blocked_range<int>& range ) const; 
+
+
+};
 } // namespace daal::internal
 }
 }

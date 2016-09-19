@@ -227,6 +227,8 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _Dim_r = 10;
         _Dim_w = 10;
         _Dim_h = 10;
+        _iteration = 0;
+        _thread_num = 10;
     }
 
     virtual ~Parameter() {}
@@ -236,7 +238,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
      */
     // virtual void check() const;
     //
-    void setParameter(double learningRate, double lambda, size_t Dim_r, size_t Dim_w, size_t Dim_h)
+    void setParameter(double learningRate, double lambda, long Dim_r, long Dim_w, long Dim_h, int iteration, int thread_num)
     {
 
         _learningRate = learningRate;
@@ -244,14 +246,18 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _Dim_r = Dim_r;
         _Dim_w = Dim_w;
         _Dim_h = Dim_h;
+        _iteration = iteration;
+        _thread_num = thread_num;
 
     }
 
-    double _learningRate;                    // the rate of learning by SGD 
-    double _lambda;                          // the lambda parameter in standard SGD
-    size_t    _Dim_r;                           //the feature dimension of model W and H
-    size_t    _Dim_w;                           //the row num of model W
-    size_t    _Dim_h;                           //the column num of model H
+    double _learningRate;                     // the rate of learning by SGD 
+    double _lambda;                           // the lambda parameter in standard SGD
+    long    _Dim_r;                           //the feature dimension of model W and H
+    long    _Dim_w;                           //the row num of model W
+    long    _Dim_h;                           //the column num of model H
+    int    _iteration;                       //the iterations of SGD
+    int     _thread_num;                      //specify the threads used by TBB
 
 };
 /** @} */

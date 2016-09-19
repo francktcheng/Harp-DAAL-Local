@@ -88,7 +88,7 @@ DAAL_EXPORT void Result::allocateImpl(size_t r, size_t w, size_t h)
     else
     {
         Argument::set(resHMat, data_management::SerializationIfacePtr(
-                          new data_management::HomogenNumericTable<algorithmFPType>(h, r, data_management::NumericTable::doAllocate)));
+                          new data_management::HomogenNumericTable<algorithmFPType>(r, h, data_management::NumericTable::doAllocate)));
     }
 
 }

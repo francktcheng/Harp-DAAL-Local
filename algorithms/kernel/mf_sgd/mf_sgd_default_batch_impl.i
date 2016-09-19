@@ -34,9 +34,16 @@
 #include "mf_sgd_default_impl.i"
 
 #include "threading.h"
+#include "task_scheduler_init.h"
+#include "blocked_range.h"
+#include "parallel_for.h"
+#include "queuing_mutex.h"
 
+using namespace tbb;
 using namespace daal::internal;
 using namespace daal::services::internal;
+
+typedef queuing_mutex currentMutex_t;
 
 namespace daal
 {
@@ -53,13 +60,7 @@ template <typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
 void MF_SGDBatchKernel<interm, method, cpu>::compute(NumericTable** TrainSet,NumericTable** TestSet,
                  NumericTable *r[], const daal::algorithms::Parameter *par)
 {
-    /* NumericTable *ntAi = const_cast<NumericTable *>(a[0]); */
-
-    /* size_t  n = ntAi->getNumberOfColumns(); */
-    /* size_t  m = ntAi->getNumberOfRows(); */
-
     MF_SGDBatchKernel<interm, method, cpu>::compute_thr(TrainSet, TestSet, r, par);
-    
 }
 
 
@@ -77,12 +78,161 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute(NumericTable** TrainSet,Num
     
 */
 template <typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
-void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet,NumericTable** TestSet,
+void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet, NumericTable** TestSet,
                  NumericTable *r[], const daal::algorithms::Parameter *par)
 {
     /* to be implemented */
+    /* retrieve members of parameter */
+    const Parameter *parameter = static_cast<const Parameter *>(par);
+    const long dim_r = parameter->_Dim_r;
+    const long dim_w = parameter->_Dim_w;
+    const long dim_h = parameter->_Dim_h;
+    const double learningRate = parameter->_learningRate;
+    const double lambda = parameter->_lambda;
+    const int iteration = parameter->_iteration;
+    const int thread_num = parameter->_thread_num;
+
+    const int dim_train = TrainSet[0]->getNumberOfRows();
+    const int dim_test = TestSet[0]->getNumberOfRows();
+
+    /* ------------- Retrieve Training Data Set -------------*/
+    FeatureMicroTable<interm, readOnly, cpu> workflow_ptr(TrainSet[0]);
+    FeatureMicroTable<int, readOnly, cpu> workflowW_ptr(TrainSet[0]);
+    FeatureMicroTable<int, readOnly, cpu> workflowH_ptr(TrainSet[0]);
+
+    interm *workV;
+    workflow_ptr.getBlockOfColumnValues(0,0,dim_train,&workV);
+
+    int *workWPos = 0;
+    workflowW_ptr.getBlockOfColumnValues(1, 0, dim_train, &workWPos);
+
+    int *workHPos = 0;
+    workflowH_ptr.getBlockOfColumnValues(2, 0, dim_train, &workHPos);
+
+
+    /* ---------------- Retrieve Model W ---------------- */
+    BlockMicroTable<interm, readWrite, cpu> mtWDataTable(r[0]);
+    interm** mtWDataPtr = new interm*[dim_w];
+ 
+    for(int j = 0; j<dim_w;j++)
+    {
+         mtWDataTable.getBlockOfRows(j, 1, &(mtWDataPtr[j]));
+    }  
+
+    /* ---------------- Retrieve Model H ---------------- */
+    BlockMicroTable<interm, readWrite, cpu> mtHDataTable(r[1]);
+    interm** mtHDataPtr = new interm*[dim_h];
+
+    for(int j = 0; j<dim_h;j++)
+    {
+         mtHDataTable.getBlockOfRows(j, 1, &(mtHDataPtr[j]));
+    }
+
+
+    /* create the mutex for WData and HData */
+    currentMutex_t* mutex_w = new currentMutex_t[dim_w];
+    currentMutex_t* mutex_h = new currentMutex_t[dim_h];
+
+
+    /* ------------------- Starting TBB based Training  -------------------*/
+    /* task_scheduler_init init; */
+    task_scheduler_init init(task_scheduler_init::deferred); 
+    init.initialize(thread_num);
+
+    MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, dim_r, learningRate, lambda, mutex_w, mutex_h);
+
+    parallel_for(blocked_range<int>(0, dim_train, 1), mfsgd);
+
+    init.terminate();
+
+    /* ------------------- Finishing TBB based Training  -------------------*/
+
+
+    /* ------------------- Starting TBB based Testing  -------------------*/
+
+    /* ------------------- Finishing TBB based Testing  -------------------*/
+
+    delete[] mutex_w;
+    delete[] mutex_h;
+
+    delete[] mtWDataPtr;
+    delete[] mtHDataPtr;
 
     return;
+}
+
+template<typename interm, CpuType cpu>
+MFSGDTBB<interm, cpu>::MFSGDTBB(
+        interm** mtWDataTable,
+        interm** mtHDataTable,
+        int* workWPos,
+        int* workHPos,
+        interm *workV,
+        const long Dim,
+        const interm learningRate,
+        const interm lambda,
+        currentMutex_t* mutex_w,
+        currentMutex_t* mutex_h
+
+)
+{
+    _mtWDataTable = mtWDataTable;
+    _mtHDataTable = mtHDataTable;
+    
+    _workWPos = workWPos;
+    _workHPos = workHPos;
+
+    _workV = workV;
+    _Dim = Dim;
+    _learningRate = learningRate;
+    _lambda = lambda;
+
+    _mutex_w = mutex_w;
+    _mutex_h = mutex_h;
+}
+
+template<typename interm, CpuType cpu>
+void MFSGDTBB<interm, cpu>::operator()( const blocked_range<int>& range ) const 
+{
+
+    for( int i=range.begin(); i!=range.end(); ++i )
+    {
+
+        interm *WMat = 0;
+        interm *HMat = 0;
+
+        interm Mult = 0;
+        interm Err = 0;
+        interm WMatVal = 0;
+        interm HMatVal = 0;
+
+        WMat = _mtWDataTable[_workWPos[i]];
+        HMat = _mtHDataTable[_workHPos[i]];
+
+        currentMutex_t::scoped_lock lock_w(_mutex_w[_workWPos[i]]);
+        currentMutex_t::scoped_lock lock_h(_mutex_h[_workHPos[i]]);
+
+
+        for(int p = 0; p<_Dim; p++)
+            Mult += (WMat[p]*HMat[p]);
+
+        Err = _workV[i] - Mult;
+
+        for(int p = 0;p<_Dim;p++)
+        {
+            WMatVal = WMat[p];
+            HMatVal = HMat[p];
+
+            WMat[p] = WMat[p] + _learningRate*(Err*HMatVal + _lambda*WMatVal);
+            HMat[p] = HMat[p] + _learningRate*(Err*WMatVal + _lambda*HMatVal);
+
+        }
+
+        lock_w.release();
+        lock_h.release();
+
+    }
+
 }
 
 

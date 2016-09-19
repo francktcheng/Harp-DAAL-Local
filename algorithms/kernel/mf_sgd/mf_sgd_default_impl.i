@@ -38,6 +38,7 @@
 using namespace daal::internal;
 using namespace daal::services::internal;
 
+
 namespace daal
 {
 namespace algorithms

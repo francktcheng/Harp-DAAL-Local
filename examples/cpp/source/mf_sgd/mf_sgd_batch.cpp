@@ -35,9 +35,8 @@ using namespace std;
 using namespace daal;
 using namespace daal::algorithms;
 
-/* Input data set parameters */
-const string datasetFileName = "../data/batch/mf_sgd.csv";
 
+// struct for a data point
 struct VPoint 
 {
     int wPos;
@@ -45,44 +44,117 @@ struct VPoint
     double val;
 };
 
+// A function to generate the input data
+void mf_sgd_dataGenerator(VPoint* points_Train, const size_t num_Train, VPoint* points_Test, const size_t num_Test, const long row_num_w, const long col_num_h);
+
+/**
+ * $V = W H$
+ * 1) Calculate the error for each training point V_{i,j}
+ * $E_{ij} = V_{ij} - \sum_{k=0}^r W_{ik} H_{kj}$
+ *
+ * 2) Update model W by training point V_{i,j}  
+ * $W_{i*} = W_{i*} - learningRate\cdot (E_{ij} \cdot H_{*j} + \lambda \cdot W_{i*})$
+ *
+ * 3) Update model H by training point V_{i,j}
+ * $H_{*j} = H_{*j} - learningRate\cdot (E_{ij} \cdot W_{i*} + \lambda \cdot H_{*j})$
+ */
 int main(int argc, char *argv[])
 {
-    checkArguments(argc, argv, 1, &datasetFileName);
+    // checkArguments(argc, argv, 1, &datasetFileName);
 
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
-    // FileDataSource<CSVFeatureManager> dataSource(datasetFileName, DataSource::doAllocateNumericTable,
-                                                 // DataSource::doDictionaryFromContext);
+	// parameters of SGD training
+    const double learningRate = 0.05;
+    const double lambda = 0.002;
+    const int iteration = 10;		//num of iterations in SGD training
+    const int threads = 40;			// threads used by TBB
 
-    /* Retrieve the data from the input file */
-	// internal numericType == HomogenNumericTable
-	// To Do: use AOSNumericTable to install VPoints
-    // load from dataSource or create a table with random values
-    // dataSource.loadDataBlock();
-
-    // AOS format input data 
 	// dimension of model W and model H
     const long r_dim = 10;
-    const long row_num_w = 6000;
+    const long row_num_w = 1000;
+    const long col_num_h = 1000;
+
     const long col_num_w = r_dim;
-
     const long row_num_h = r_dim;
-    const long col_num_h = 6000;
 
+	// size of training dataset and test dataset
     size_t num_Train = row_num_w + 0.6*(row_num_w*col_num_h - row_num_w);
     size_t num_Test = 0.002*(row_num_w*col_num_h- row_num_w);
     const size_t field_v = 3;
-
-	
-	// parameters of SGD training
-    // const double learningRate = 0.05;
-    const double learningRate = 0.05;
-    const double lambda = 0.002;
-    const int iteration = 10;
-    const int threads = 40;
-	
+		
 	// generate the Train and Test datasets
 	VPoint* points_Train = new VPoint[num_Train];
 	VPoint* points_Test = new VPoint[num_Test];
+
+	mf_sgd_dataGenerator(points_Train, num_Train, points_Test, num_Test, row_num_w, col_num_h);
+
+	printf("num_Train: %d\n", num_Train);
+	printf("num_Test: %d\n", num_Test);
+
+    /* Create a new dictionary and fill it with the information about data */
+    NumericTableDictionary newDict_Train(field_v);
+    NumericTableDictionary newDict_Test(field_v);
+
+    /* Add a feature type to the dictionary */
+    newDict_Train[0].featureType = data_feature_utils::DAAL_CONTINUOUS;
+    newDict_Train[1].featureType = data_feature_utils::DAAL_CONTINUOUS;
+    newDict_Train[2].featureType = data_feature_utils::DAAL_CONTINUOUS;
+
+    newDict_Test[0].featureType = data_feature_utils::DAAL_CONTINUOUS;
+    newDict_Test[1].featureType = data_feature_utils::DAAL_CONTINUOUS;
+    newDict_Test[2].featureType = data_feature_utils::DAAL_CONTINUOUS;
+
+    services::SharedPtr<AOSNumericTable> dataTable_Train(new AOSNumericTable(points_Train, field_v, num_Train));
+    services::SharedPtr<AOSNumericTable> dataTable_Test(new AOSNumericTable(points_Test, field_v, num_Test));
+
+    /* Assign the new dictionary to an existing numeric table */
+    dataTable_Train->setDictionary(&newDict_Train);
+    dataTable_Test->setDictionary(&newDict_Test);
+
+    /* Add data to the numeric table */
+    dataTable_Train->setFeature<int> (0, DAAL_STRUCT_MEMBER_OFFSET(VPoint, wPos));
+    dataTable_Train->setFeature<int> (1, DAAL_STRUCT_MEMBER_OFFSET(VPoint, hPos));
+    dataTable_Train->setFeature<double> (2, DAAL_STRUCT_MEMBER_OFFSET(VPoint, val));
+
+    /* Add data to the numeric table */
+    dataTable_Test->setFeature<int> (0, DAAL_STRUCT_MEMBER_OFFSET(VPoint, wPos));
+    dataTable_Test->setFeature<int> (1, DAAL_STRUCT_MEMBER_OFFSET(VPoint, hPos));
+    dataTable_Test->setFeature<double> (2, DAAL_STRUCT_MEMBER_OFFSET(VPoint, val));
+
+    /* Create an algorithm to compute mf_sgd decomposition */
+    // use default template value: double and defaultSGD
+    mf_sgd::Batch<> algorithm;
+
+    // algorithm.input.set(mf_sgd::dataTrain, dataSource.getNumericTable());
+    algorithm.input.set(mf_sgd::dataTrain, dataTable_Train);
+    algorithm.input.set(mf_sgd::dataTest, dataTable_Test);
+
+    algorithm.parameter.setParameter(learningRate, lambda, r_dim, row_num_w, col_num_h, iteration, threads);
+
+    /* Compute mf_sgd decomposition */
+	clock_t start_compute = clock();
+
+    algorithm.compute();
+
+	clock_t stop_compute = clock();
+
+	double compute_time = (double)(stop_compute - start_compute)*1000.0/CLOCKS_PER_SEC;
+	
+    services::SharedPtr<mf_sgd::Result> res = algorithm.getResult();
+
+	printf("Computation Time elapsed in ms: %f\n", compute_time);
+
+    /* Print the results */
+    // printNumericTable(res->get(mf_sgd::resWMat), "Model W Matrix:", 10, 10, 10);
+    // printNumericTable(res->get(mf_sgd::resHMat), "Model H Matrix:", 10, 10, 10);
+
+	delete[] points_Train;
+	delete[] points_Test;
+
+    return 0;
+}
+
+void mf_sgd_dataGenerator(VPoint* points_Train, const size_t num_Train, VPoint* points_Test, const size_t num_Test, const long row_num_w, const long col_num_h)
+{/*{{{*/
 
 	srand((unsigned)time(0)); 
 	
@@ -147,79 +219,4 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (counts_train < num_Train)
-		num_Train = counts_train;
-	if (counts_test < num_Test)
-		num_Test = counts_test;
-
-	// debug
-	printf("num_Train: %d\n", num_Train);
-	printf("num_Test: %d\n", num_Test);
-
-	// for(int j=0;j<10;j++)
-	// {
-		// printf("V %d: w: %d, h: %d, v: %f\n", j, points_Train[j].wPos, points_Train[j].hPos, points_Train[j].val);
-
-	// }
-
-    /* Create a new dictionary and fill it with the information about data */
-    NumericTableDictionary newDict_Train(field_v);
-    NumericTableDictionary newDict_Test(field_v);
-
-    /* Add a feature type to the dictionary */
-    newDict_Train[0].featureType = data_feature_utils::DAAL_CONTINUOUS;
-    newDict_Train[1].featureType = data_feature_utils::DAAL_CONTINUOUS;
-    newDict_Train[2].featureType = data_feature_utils::DAAL_CONTINUOUS;
-
-    newDict_Test[0].featureType = data_feature_utils::DAAL_CONTINUOUS;
-    newDict_Test[1].featureType = data_feature_utils::DAAL_CONTINUOUS;
-    newDict_Test[2].featureType = data_feature_utils::DAAL_CONTINUOUS;
-
-    services::SharedPtr<AOSNumericTable> dataTable_Train(new AOSNumericTable(points_Train, field_v, num_Train));
-    services::SharedPtr<AOSNumericTable> dataTable_Test(new AOSNumericTable(points_Test, field_v, num_Test));
-
-    /* Assign the new dictionary to an existing numeric table */
-    dataTable_Train->setDictionary(&newDict_Train);
-    dataTable_Test->setDictionary(&newDict_Test);
-
-    /* Add data to the numeric table */
-    dataTable_Train->setFeature<int> (0, DAAL_STRUCT_MEMBER_OFFSET(VPoint, wPos));
-    dataTable_Train->setFeature<int> (1, DAAL_STRUCT_MEMBER_OFFSET(VPoint, hPos));
-    dataTable_Train->setFeature<double> (2, DAAL_STRUCT_MEMBER_OFFSET(VPoint, val));
-
-    /* Add data to the numeric table */
-    dataTable_Test->setFeature<int> (0, DAAL_STRUCT_MEMBER_OFFSET(VPoint, wPos));
-    dataTable_Test->setFeature<int> (1, DAAL_STRUCT_MEMBER_OFFSET(VPoint, hPos));
-    dataTable_Test->setFeature<double> (2, DAAL_STRUCT_MEMBER_OFFSET(VPoint, val));
-
-    /* Create an algorithm to compute mf_sgd decomposition */
-    // use default template value: double and defaultSGD
-    mf_sgd::Batch<> algorithm;
-
-    // algorithm.input.set(mf_sgd::dataTrain, dataSource.getNumericTable());
-    algorithm.input.set(mf_sgd::dataTrain, dataTable_Train);
-    algorithm.input.set(mf_sgd::dataTest, dataTable_Test);
-
-    algorithm.parameter.setParameter(learningRate, lambda, r_dim, row_num_w, col_num_h, iteration, threads);
-
-    /* Compute mf_sgd decomposition */
-	clock_t start_compute = clock();
-    algorithm.compute();
-
-	clock_t stop_compute = clock();
-
-	double compute_time = (double)(stop_compute - start_compute)*1000.0/CLOCKS_PER_SEC;
-	
-    services::SharedPtr<mf_sgd::Result> res = algorithm.getResult();
-
-    /* Print the results */
-    printNumericTable(res->get(mf_sgd::resWMat), "Model W Matrix:", 10, 10, 10);
-    printNumericTable(res->get(mf_sgd::resHMat), "Model H Matrix:", 10, 10, 10);
-
-	printf("Computation Time elapsed in ms: %f\n", compute_time);
-
-	delete[] points_Train;
-	delete[] points_Test;
-
-    return 0;
-}
+}/*}}}*/

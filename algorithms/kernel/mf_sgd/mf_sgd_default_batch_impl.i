@@ -120,10 +120,10 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
     workflow_ptr.getBlockOfColumnValues(2,0,dim_train,&workV);
 
     /* debug */
-    for( int j = 0; j< 20;j++)
+    /*for( int j = 0; j< 20;j++)
     {
         std::cout<<"V: "<<j<<" wPos: "<<workWPos[j]<<" hPos: "<<workHPos[j]<<" val: "<<workV[j]<<std::endl;
-    }
+    }*/
 
     /* ---------------- Retrieve Model W ---------------- */
     BlockMicroTable<interm, readWrite, cpu> mtWDataTable(r[0]);

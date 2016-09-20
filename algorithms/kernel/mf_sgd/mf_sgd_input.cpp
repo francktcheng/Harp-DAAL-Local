@@ -94,13 +94,13 @@ size_t Input::getNumberOfRows(InputId id) const
 void Input::check(const daal::algorithms::Parameter *parameter, int method) const
 {
     // First check the Training data
-    NumericTablePtr dataTable_Train = get(dataTrain);
+    // NumericTablePtr dataTable_Train = get(dataTrain);
     // if(!checkNumericTable(dataTable.get(), this->_errors.get(), dataStr())) { return; }
 
     // DAAL_CHECK_EX(dataTable->getNumberOfColumns() <= dataTable->getNumberOfRows(), ErrorIncorrectNumberOfRows, ArgumentName, dataStr());
 
     // First check the Test data
-    NumericTablePtr dataTable_Test = get(dataTest);
+    // NumericTablePtr dataTable_Test = get(dataTest);
     // if(!checkNumericTable(dataTable.get(), this->_errors.get(), dataStr())) { return; }
 
     // DAAL_CHECK_EX(dataTable->getNumberOfColumns() <= dataTable->getNumberOfRows(), ErrorIncorrectNumberOfRows, ArgumentName, dataStr());

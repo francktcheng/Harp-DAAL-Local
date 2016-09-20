@@ -65,15 +65,14 @@ public:
 template<typename interm, CpuType cpu>
 struct MFSGDTBB
 {
-    // BlockMicroTable<interm, readWrite, cpu>* _mtWDataTable;
-    // BlockMicroTable<interm, readWrite, cpu>* _mtHDataTable;
     interm** _mtWDataTable;
     interm** _mtHDataTable;
 
     int* _workWPos;
     int* _workHPos;
-
     interm* _workV;
+    int* _seq;
+
     int _Dim;
     interm _learningRate;
     interm _lambda;
@@ -82,13 +81,12 @@ struct MFSGDTBB
     currentMutex_t* _mutex_h;
 
     MFSGDTBB(
-            // BlockMicroTable<interm, readWrite, cpu>* mtWDataTable,
-            // BlockMicroTable<interm, readWrite, cpu>* mtHDataTable,
             interm** mtWDataTable,
             interm** mtHDataTable,
             int* workWPos,
             int* workHPos,
             interm *workV,
+            int* seq,
             const long Dim,
             const interm learningRate,
             const interm lambda,

@@ -38,6 +38,10 @@
 #include "blocked_range.h"
 #include "parallel_for.h"
 #include "queuing_mutex.h"
+#include <algorithm>
+
+#include <cstdlib> 
+#include <iostream>
 
 using namespace tbb;
 using namespace daal::internal;
@@ -96,19 +100,30 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
     const int dim_test = TestSet[0]->getNumberOfRows();
 
     /* ------------- Retrieve Training Data Set -------------*/
+
+    /* size_t readFeatureIdx = 2; */
+
+    /* BlockDescriptor<int> intBlock; */
+    /* dataTable.getBlockOfColumnValues(readFeatureIdx, firstReadRow, nObservations, readOnly, intBlock); */
+
     FeatureMicroTable<interm, readOnly, cpu> workflow_ptr(TrainSet[0]);
     FeatureMicroTable<int, readOnly, cpu> workflowW_ptr(TrainSet[0]);
     FeatureMicroTable<int, readOnly, cpu> workflowH_ptr(TrainSet[0]);
 
-    interm *workV;
-    workflow_ptr.getBlockOfColumnValues(0,0,dim_train,&workV);
-
     int *workWPos = 0;
-    workflowW_ptr.getBlockOfColumnValues(1, 0, dim_train, &workWPos);
+    workflowW_ptr.getBlockOfColumnValues(0, 0, dim_train, &workWPos);
 
     int *workHPos = 0;
-    workflowH_ptr.getBlockOfColumnValues(2, 0, dim_train, &workHPos);
+    workflowH_ptr.getBlockOfColumnValues(1, 0, dim_train, &workHPos);
 
+    interm *workV;
+    workflow_ptr.getBlockOfColumnValues(2,0,dim_train,&workV);
+
+    /* debug */
+    for( int j = 0; j< 20;j++)
+    {
+        std::cout<<"V: "<<j<<" wPos: "<<workWPos[j]<<" hPos: "<<workHPos[j]<<" val: "<<workV[j]<<std::endl;
+    }
 
     /* ---------------- Retrieve Model W ---------------- */
     BlockMicroTable<interm, readWrite, cpu> mtWDataTable(r[0]);
@@ -138,10 +153,22 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
     /* task_scheduler_init init; */
     task_scheduler_init init(task_scheduler_init::deferred); 
     init.initialize(thread_num);
+    
+    /* set up the sequence of workflow */
+    int* seq = new int[dim_train];
+    for(int j=0;j<dim_train;j++)
+        seq[j] = j;
 
-    MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, dim_r, learningRate, lambda, mutex_w, mutex_h);
+    MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, seq, dim_r, learningRate, lambda, mutex_w, mutex_h);
 
-    parallel_for(blocked_range<int>(0, dim_train, 1), mfsgd);
+    for(int j=0;j<iteration;j++)
+    {
+
+        /* shuffle the sequence */
+        std::random_shuffle(&seq[0], &seq[dim_train-1]); 
+        parallel_for(blocked_range<int>(0, dim_train, 100), mfsgd);
+
+    }
 
     init.terminate();
 
@@ -158,6 +185,8 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
     delete[] mtWDataPtr;
     delete[] mtHDataPtr;
 
+    delete[] seq;
+
     return;
 }
 
@@ -168,6 +197,7 @@ MFSGDTBB<interm, cpu>::MFSGDTBB(
         int* workWPos,
         int* workHPos,
         interm *workV,
+        int* seq,
         const long Dim,
         const interm learningRate,
         const interm lambda,
@@ -183,6 +213,7 @@ MFSGDTBB<interm, cpu>::MFSGDTBB(
     _workHPos = workHPos;
 
     _workV = workV;
+    _seq = seq;
     _Dim = Dim;
     _learningRate = learningRate;
     _lambda = lambda;
@@ -206,17 +237,17 @@ void MFSGDTBB<interm, cpu>::operator()( const blocked_range<int>& range ) const
         interm WMatVal = 0;
         interm HMatVal = 0;
 
-        WMat = _mtWDataTable[_workWPos[i]];
-        HMat = _mtHDataTable[_workHPos[i]];
+        WMat = _mtWDataTable[_workWPos[_seq[i]]];
+        HMat = _mtHDataTable[_workHPos[_seq[i]]];
 
-        currentMutex_t::scoped_lock lock_w(_mutex_w[_workWPos[i]]);
-        currentMutex_t::scoped_lock lock_h(_mutex_h[_workHPos[i]]);
+        currentMutex_t::scoped_lock lock_w(_mutex_w[_workWPos[_seq[i]]]);
+        currentMutex_t::scoped_lock lock_h(_mutex_h[_workHPos[_seq[i]]]);
 
 
         for(int p = 0; p<_Dim; p++)
             Mult += (WMat[p]*HMat[p]);
 
-        Err = _workV[i] - Mult;
+        Err = _workV[_seq[i]] - Mult;
 
         for(int p = 0;p<_Dim;p++)
         {

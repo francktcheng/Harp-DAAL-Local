@@ -27,7 +27,8 @@
 
 #include "daal.h"
 #include "service.h"
-
+#include <cstdlib> 
+#include <ctime> 
 
 using namespace std;
 using namespace daal;
@@ -58,30 +59,128 @@ int main(int argc, char *argv[])
     // dataSource.loadDataBlock();
 
     // AOS format input data 
+	// dimension of model W and model H
+    const long r_dim = 10;
+    const long row_num_w = 300;
+    const long col_num_w = r_dim;
 
-    const size_t num_Train = 5;
-    const size_t num_Test = 2;
+    const long row_num_h = r_dim;
+    const long col_num_h = 300;
+
+    // size_t num_Train = row_num_w + 0.6*(row_num_w*col_num_h - row_num_w);
+    size_t num_Train = 0.02*(row_num_w*col_num_h - row_num_w);
+	// const size_t num_Train = 5;
+    size_t num_Test = 0.02*(row_num_w*col_num_h- row_num_w);
+    // size_t num_Test = 1700;
     const size_t field_v = 3;
 
+	// debug
+	printf("num_Train: %d\n", num_Train);
+	printf("num_Test: %d\n", num_Test);
+
+	// parameters of SGD training
     const double learningRate = 0.05;
     const double lambda = 0.002;
-    const int iteration = 10;
+    const int iteration = 5;
     const int threads = 40;
 
-    VPoint points_Train[num_Train] =
-    {
-        {1, 2, 100.1},
-        {2, 4, 200.2},
-        {3, 5, 350.3},
-        {4, 1, 470.4},
-        {5, 2, 270.5}
-    };
+    // VPoint points_Train[num_Train] =
+    // {
+    //     {1, 2, 100.1},
+    //     {2, 4, 200.2},
+    //     {3, 5, 350.3},
+    //     {4, 1, 470.4},
+    //     {5, 2, 270.5}
+    // };
 
-    VPoint points_Test[num_Test] =
-    {
-        {4, 3, 150.1},
-        {2, 3, 343.2}
-    };
+
+    // VPoint points_Test[num_Test] =
+    // {
+    //     {4, 3, 150.1},
+    //     {2, 3, 343.2}
+    // };
+	
+	// generate the Train and Test datasets
+	VPoint* points_Train = new VPoint[num_Train];
+	VPoint* points_Test = new VPoint[num_Test];
+
+	srand((unsigned)time(0)); 
+	
+	int counts_train = 0;
+	int counts_test = 0;
+
+	int i, j;
+	for(i=0;i<row_num_w;i++)
+	{
+		for (j=0;j<col_num_h;j++) 
+		{
+			if (i == j)
+			{
+				// put diagonal item into train dataset
+				if (counts_train < num_Train)
+				{
+					points_Train[counts_train].wPos = i;
+					points_Train[counts_train].hPos = j;
+					points_Train[counts_train].val = (10.0*((double)rand()/(RAND_MAX) + 0.5));
+					counts_train++;
+				}
+			}
+			else
+			{
+				if ( ((double)rand())/RAND_MAX > 0.2)
+				{
+					// put item into train dataset
+					if (counts_train < num_Train)
+					{
+						points_Train[counts_train].wPos = i;
+						points_Train[counts_train].hPos = j;
+						points_Train[counts_train].val = (10.0*((double)rand()/(RAND_MAX) +0.5));
+						counts_train++;
+					}
+					else if (counts_test < num_Test)
+					{
+						points_Test[counts_test].wPos = i;
+						points_Test[counts_test].hPos = j;
+						points_Test[counts_test].val = (10.0*((double)rand()/(RAND_MAX) +0.5));
+						counts_test++;
+					}
+				}
+				else
+				{
+					// put item into test dataset
+					if (counts_test < num_Test)
+					{
+						points_Test[counts_test].wPos = i;
+						points_Test[counts_test].hPos = j;
+						points_Test[counts_test].val = (10.0*((double)rand()/(RAND_MAX) +0.5));
+						counts_test++;
+					}
+					else if (counts_train < num_Train)
+					{
+						points_Train[counts_train].wPos = i;
+						points_Train[counts_train].hPos = j;
+						points_Train[counts_train].val = (10.0*((double)rand()/(RAND_MAX) +0.5));
+						counts_train++;
+					}
+				}
+			}
+		}
+	}
+
+	if (counts_train < num_Train)
+		num_Train = counts_train;
+	if (counts_test < num_Test)
+		num_Test = counts_test;
+
+	// debug
+	printf("num_Train: %d\n", num_Train);
+	printf("num_Test: %d\n", num_Test);
+
+	for(int j=0;j<10;j++)
+	{
+		printf("V %d: w: %d, h: %d, v: %f\n", j, points_Train[j].wPos, points_Train[j].hPos, points_Train[j].val);
+
+	}
 
     /* Create a new dictionary and fill it with the information about data */
     NumericTableDictionary newDict_Train(field_v);
@@ -113,14 +212,7 @@ int main(int argc, char *argv[])
     dataTable_Test->setFeature<int> (1, DAAL_STRUCT_MEMBER_OFFSET(VPoint, hPos));
     dataTable_Test->setFeature<double> (2, DAAL_STRUCT_MEMBER_OFFSET(VPoint, val));
 
-    // dimension of model W and model H
-    const long r_dim = 1000;
-    const long row_num_w = 20000;
-    const long col_num_w = r_dim;
-
-    const long row_num_h = r_dim;
-    const long col_num_h = 20000;
-
+    
     /* Create an algorithm to compute mf_sgd decomposition */
     // use default template value: double and defaultSGD
     mf_sgd::Batch<> algorithm;
@@ -129,16 +221,19 @@ int main(int argc, char *argv[])
     algorithm.input.set(mf_sgd::dataTrain, dataTable_Train);
     algorithm.input.set(mf_sgd::dataTest, dataTable_Test);
 
-    algorithm.parameter.setParameter(learningRate, lambda, r_dim, row_num_w, col_num_h, iteration, threads);
+    // algorithm.parameter.setParameter(learningRate, lambda, r_dim, row_num_w, col_num_h, iteration, threads);
 
     /* Compute mf_sgd decomposition */
-    algorithm.compute();
+    // algorithm.compute();
 
-    services::SharedPtr<mf_sgd::Result> res = algorithm.getResult();
+    // services::SharedPtr<mf_sgd::Result> res = algorithm.getResult();
 
     /* Print the results */
-    printNumericTable(res->get(mf_sgd::resWMat), "Model W Matrix:", 10);
-    printNumericTable(res->get(mf_sgd::resHMat), "Model H Matrix:");
+    // printNumericTable(res->get(mf_sgd::resWMat), "Model W Matrix:", 10, 10, 10);
+    // printNumericTable(res->get(mf_sgd::resHMat), "Model H Matrix:", 10, 10, 10);
+
+	delete[] points_Train;
+	delete[] points_Test;
 
     return 0;
 }

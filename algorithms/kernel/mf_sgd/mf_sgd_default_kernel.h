@@ -98,6 +98,43 @@ struct MFSGDTBB
 
 
 };
+
+/* MF_SGD_Test kernel implemented by TBB */
+// calculating the RMSE value
+template<typename interm, CpuType cpu>
+struct MFSGDTBB_TEST
+{
+    interm** _mtWDataTable;
+    interm** _mtHDataTable;
+
+    int* _testWPos;
+    int* _testHPos;
+    interm* _testV;
+
+    int _Dim;
+
+    interm* _testRMSE;
+
+    currentMutex_t* _mutex_w;
+    currentMutex_t* _mutex_h;
+
+    MFSGDTBB_TEST(
+
+            interm** mtWDataTable,
+            interm** mtHDataTable,
+            int* testWPos,
+            int* testHPos,
+            interm *testV,
+            const long Dim,
+            interm* testRMSE,
+            currentMutex_t* mutex_w,
+            currentMutex_t* mutex_h
+    );
+
+    void operator()( const blocked_range<int>& range ) const; 
+
+
+};
 } // namespace daal::internal
 }
 }

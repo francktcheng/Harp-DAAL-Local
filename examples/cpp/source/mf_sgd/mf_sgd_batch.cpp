@@ -62,18 +62,19 @@ int main(int argc, char *argv[])
     // AOS format input data 
 	// dimension of model W and model H
     const long r_dim = 10;
-    const long row_num_w = 3000;
+    const long row_num_w = 6000;
     const long col_num_w = r_dim;
 
     const long row_num_h = r_dim;
-    const long col_num_h = 3000;
+    const long col_num_h = 6000;
 
     size_t num_Train = row_num_w + 0.6*(row_num_w*col_num_h - row_num_w);
-    size_t num_Test = 0.02*(row_num_w*col_num_h- row_num_w);
+    size_t num_Test = 0.002*(row_num_w*col_num_h- row_num_w);
     const size_t field_v = 3;
 
 	
 	// parameters of SGD training
+    // const double learningRate = 0.05;
     const double learningRate = 0.05;
     const double lambda = 0.002;
     const int iteration = 10;

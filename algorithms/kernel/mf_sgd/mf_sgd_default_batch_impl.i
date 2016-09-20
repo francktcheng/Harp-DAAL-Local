@@ -39,7 +39,7 @@
 #include "parallel_for.h"
 #include "queuing_mutex.h"
 #include <algorithm>
-
+#include <math.h>       
 #include <cstdlib> 
 #include <iostream>
 
@@ -101,14 +101,9 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
 
     /* ------------- Retrieve Training Data Set -------------*/
 
-    /* size_t readFeatureIdx = 2; */
-
-    /* BlockDescriptor<int> intBlock; */
-    /* dataTable.getBlockOfColumnValues(readFeatureIdx, firstReadRow, nObservations, readOnly, intBlock); */
-
-    FeatureMicroTable<interm, readOnly, cpu> workflow_ptr(TrainSet[0]);
     FeatureMicroTable<int, readOnly, cpu> workflowW_ptr(TrainSet[0]);
     FeatureMicroTable<int, readOnly, cpu> workflowH_ptr(TrainSet[0]);
+    FeatureMicroTable<interm, readOnly, cpu> workflow_ptr(TrainSet[0]);
 
     int *workWPos = 0;
     workflowW_ptr.getBlockOfColumnValues(0, 0, dim_train, &workWPos);
@@ -124,6 +119,23 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
     {
         std::cout<<"V: "<<j<<" wPos: "<<workWPos[j]<<" hPos: "<<workHPos[j]<<" val: "<<workV[j]<<std::endl;
     }*/
+
+    /* ------------- Retrieve Test Data Set -------------*/
+
+    FeatureMicroTable<int, readOnly, cpu> testW_ptr(TestSet[0]);
+    FeatureMicroTable<int, readOnly, cpu> testH_ptr(TestSet[0]);
+    FeatureMicroTable<interm, readOnly, cpu> test_ptr(TestSet[0]);
+
+    int *testWPos = 0;
+    testW_ptr.getBlockOfColumnValues(0, 0, dim_test, &testWPos);
+
+    int *testHPos = 0;
+    testH_ptr.getBlockOfColumnValues(1, 0, dim_test, &testHPos);
+
+    interm *testV;
+    test_ptr.getBlockOfColumnValues(2, 0, dim_test, &testV);
+
+
 
     /* ---------------- Retrieve Model W ---------------- */
     BlockMicroTable<interm, readWrite, cpu> mtWDataTable(r[0]);
@@ -148,6 +160,10 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
     currentMutex_t* mutex_w = new currentMutex_t[dim_w];
     currentMutex_t* mutex_h = new currentMutex_t[dim_h];
 
+    /* RMSE value for test dataset after each iteration */
+    interm* testRMSE = new interm[dim_test];
+
+    interm totalRMSE = 0;
 
     /* ------------------- Starting TBB based Training  -------------------*/
     /* task_scheduler_init init; */
@@ -160,24 +176,44 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
         seq[j] = j;
 
     MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, seq, dim_r, learningRate, lambda, mutex_w, mutex_h);
+    MFSGDTBB_TEST<interm, cpu> mfsgd_test(mtWDataPtr, mtHDataPtr, testWPos, testHPos, testV, dim_r, testRMSE, mutex_w, mutex_h);
+
+    /* Test MF-SGD before iteration */
+    parallel_for(blocked_range<int>(0, dim_test, 10), mfsgd_test);
+
+    totalRMSE = 0;
+    for(int k=0;k<dim_test;k++)
+        totalRMSE += testRMSE[k];
+
+    totalRMSE = totalRMSE/dim_test;
+
+    printf("RMSE before interation: %f\n", sqrt(totalRMSE));
 
     for(int j=0;j<iteration;j++)
     {
 
         /* shuffle the sequence */
         std::random_shuffle(&seq[0], &seq[dim_train-1]); 
+
+        /* training MF-SGD */
         parallel_for(blocked_range<int>(0, dim_train, 100), mfsgd);
+
+        /* Test MF-SGD */
+        parallel_for(blocked_range<int>(0, dim_test, 10), mfsgd_test);
+
+        totalRMSE = 0;
+        for(int k=0;k<dim_test;k++)
+            totalRMSE += testRMSE[k];
+
+        totalRMSE = totalRMSE/dim_test;
+
+        printf("RMSE after interation %d: %f\n", j, sqrt(totalRMSE));
 
     }
 
     init.terminate();
 
     /* ------------------- Finishing TBB based Training  -------------------*/
-
-
-    /* ------------------- Starting TBB based Testing  -------------------*/
-
-    /* ------------------- Finishing TBB based Testing  -------------------*/
 
     delete[] mutex_w;
     delete[] mutex_h;
@@ -186,6 +222,7 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
     delete[] mtHDataPtr;
 
     delete[] seq;
+    delete[] testRMSE;
 
     return;
 }
@@ -265,6 +302,73 @@ void MFSGDTBB<interm, cpu>::operator()( const blocked_range<int>& range ) const
     }
 
 }
+
+template<typename interm, CpuType cpu>
+MFSGDTBB_TEST<interm, cpu>::MFSGDTBB_TEST(
+        interm** mtWDataTable,
+        interm** mtHDataTable,
+        int* testWPos,
+        int* testHPos,
+        interm *testV,
+        const long Dim,
+        interm* testRMSE,
+        currentMutex_t* mutex_w,
+        currentMutex_t* mutex_h
+
+)
+{
+    _mtWDataTable = mtWDataTable;
+    _mtHDataTable = mtHDataTable;
+    
+    _testWPos = testWPos;
+    _testHPos = testHPos;
+
+    _testV = testV;
+    _Dim = Dim;
+
+    _testRMSE = testRMSE;
+
+    _mutex_w = mutex_w;
+    _mutex_h = mutex_h;
+}
+
+template<typename interm, CpuType cpu>
+void MFSGDTBB_TEST<interm, cpu>::operator()( const blocked_range<int>& range ) const 
+{
+
+    for( int i=range.begin(); i!=range.end(); ++i )
+    {
+
+        interm *WMat = 0;
+        interm *HMat = 0;
+
+        interm Mult = 0;
+        interm Err = 0;
+        interm WMatVal = 0;
+        interm HMatVal = 0;
+
+        WMat = _mtWDataTable[_testWPos[i]];
+        HMat = _mtHDataTable[_testHPos[i]];
+
+        currentMutex_t::scoped_lock lock_w(_mutex_w[_testWPos[i]]);
+        currentMutex_t::scoped_lock lock_h(_mutex_h[_testHPos[i]]);
+
+        for(int p = 0; p<_Dim; p++)
+            Mult += (WMat[p]*HMat[p]);
+
+        Err = _testV[i] - Mult;
+
+        Err = Err*Err;
+
+        _testRMSE[i] = Err;
+
+        lock_w.release();
+        lock_h.release();
+
+    }
+
+}
+
 
 
 } // namespace daal::internal

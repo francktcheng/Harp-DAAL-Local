@@ -229,6 +229,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _Dim_h = 10;
         _iteration = 0;
         _thread_num = 10;
+        _tbb_grainsize = 1000;
     }
 
     virtual ~Parameter() {}
@@ -238,7 +239,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
      */
     // virtual void check() const;
     //
-    void setParameter(double learningRate, double lambda, long Dim_r, long Dim_w, long Dim_h, int iteration, int thread_num)
+    void setParameter(double learningRate, double lambda, long Dim_r, long Dim_w, long Dim_h, int iteration, int thread_num, int tbb_grainsize)
     {
 
         _learningRate = learningRate;
@@ -248,7 +249,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _Dim_h = Dim_h;
         _iteration = iteration;
         _thread_num = thread_num;
-
+        _tbb_grainsize = tbb_grainsize;
     }
 
     double _learningRate;                     // the rate of learning by SGD 
@@ -258,6 +259,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     long    _Dim_h;                           //the column num of model H
     int    _iteration;                       //the iterations of SGD
     int     _thread_num;                      //specify the threads used by TBB
+    int     _tbb_grainsize;                   //specify the grainsize for TBB parallel_for
 
 };
 /** @} */

@@ -30,6 +30,7 @@
 #include <cstdlib> 
 #include <ctime> 
 #include <time.h>
+#include <stdlib.h> 
 
 using namespace std;
 using namespace daal;
@@ -43,6 +44,18 @@ struct VPoint
     int hPos;
     double val;
 };
+
+// parameters of SGD training
+double learningRate = 0.05;
+double lambda = 0.002;
+int iteration = 10;		//num of iterations in SGD training
+int threads = 40;			// threads used by TBB
+int tbb_grainsize = 1000;  //grainsize for TBB parallel_for 
+
+// dimension of model W and model H
+long r_dim = 10;
+long row_num_w = 1000;
+long col_num_h = 1000;
 
 // A function to generate the input data
 void mf_sgd_dataGenerator(VPoint* points_Train, const size_t num_Train, VPoint* points_Test, const size_t num_Test, const long row_num_w, const long col_num_h);
@@ -61,20 +74,32 @@ void mf_sgd_dataGenerator(VPoint* points_Train, const size_t num_Train, VPoint* 
 int main(int argc, char *argv[])
 {
     // checkArguments(argc, argv, 1, &datasetFileName);
+	if (argc > 1)
+		learningRate = atof(argv[1]);
 
-	// parameters of SGD training
-    const double learningRate = 0.05;
-    const double lambda = 0.002;
-    const int iteration = 10;		//num of iterations in SGD training
-    const int threads = 40;			// threads used by TBB
+	if (argc > 2)
+		lambda = atof(argv[2]);
 
-	// dimension of model W and model H
-    const long r_dim = 10;
-    const long row_num_w = 1000;
-    const long col_num_h = 1000;
+	if (argc > 3)
+		iteration = atoi(argv[3]);
 
-    const long col_num_w = r_dim;
-    const long row_num_h = r_dim;
+	if (argc > 4)
+		threads = atoi(argv[4]);
+
+	if (argc > 5)
+		tbb_grainsize = atoi(argv[5]);
+
+	if (argc > 6)
+		r_dim = atol(argv[6]);
+
+	if (argc > 7)
+		row_num_w = atol(argv[7]);
+
+	if (argc > 8)
+		col_num_h = atol(argv[8]);
+
+    long col_num_w = r_dim;
+    long row_num_h = r_dim;
 
 	// size of training dataset and test dataset
     size_t num_Train = row_num_w + 0.6*(row_num_w*col_num_h - row_num_w);
@@ -128,16 +153,23 @@ int main(int argc, char *argv[])
     algorithm.input.set(mf_sgd::dataTrain, dataTable_Train);
     algorithm.input.set(mf_sgd::dataTest, dataTable_Test);
 
-    algorithm.parameter.setParameter(learningRate, lambda, r_dim, row_num_w, col_num_h, iteration, threads);
+    algorithm.parameter.setParameter(learningRate, lambda, r_dim, row_num_w, col_num_h, iteration, threads, tbb_grainsize);
 
     /* Compute mf_sgd decomposition */
-	clock_t start_compute = clock();
+	// clock_t start_compute = clock();
+	struct timespec ts1;
+	struct timespec ts2;
+
+	clock_gettime(CLOCK_MONOTONIC, &ts1);
 
     algorithm.compute();
 
-	clock_t stop_compute = clock();
+	clock_gettime(CLOCK_MONOTONIC, &ts2);
+	// clock_t stop_compute = clock();
 
-	double compute_time = (double)(stop_compute - start_compute)*1000.0/CLOCKS_PER_SEC;
+	long diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
+	// double compute_time = (double)(stop_compute - start_compute)*1000.0/CLOCKS_PER_SEC;
+	double compute_time = (double)(diff)/1000000L;
 	
     services::SharedPtr<mf_sgd::Result> res = algorithm.getResult();
 

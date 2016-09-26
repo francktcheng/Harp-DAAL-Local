@@ -95,6 +95,7 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
     const double lambda = parameter->_lambda;
     const int iteration = parameter->_iteration;
     const int thread_num = parameter->_thread_num;
+    const int tbb_grainsize = parameter->_tbb_grainsize;
 
     const int dim_train = TrainSet[0]->getNumberOfRows();
     const int dim_test = TestSet[0]->getNumberOfRows();
@@ -179,7 +180,7 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
     MFSGDTBB_TEST<interm, cpu> mfsgd_test(mtWDataPtr, mtHDataPtr, testWPos, testHPos, testV, dim_r, testRMSE, mutex_w, mutex_h);
 
     /* Test MF-SGD before iteration */
-    parallel_for(blocked_range<int>(0, dim_test, 10), mfsgd_test);
+    parallel_for(blocked_range<int>(0, dim_test, tbb_grainsize), mfsgd_test);
 
     totalRMSE = 0;
     for(int k=0;k<dim_test;k++)

@@ -75,7 +75,7 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute(NumericTable** TrainSet,Num
     #define DEF_MAX_BLOCKS 128
 #endif
 
-
+rng
 /*
     Algorithm for parallel mf_sgd computation:
     -------------------------------------
@@ -348,23 +348,29 @@ void MFSGDTBB_TEST<interm, cpu>::operator()( const blocked_range<int>& range ) c
         interm WMatVal = 0;
         interm HMatVal = 0;
 
-        WMat = _mtWDataTable[_testWPos[i]];
-        HMat = _mtHDataTable[_testHPos[i]];
+        if (_testWPos[i] != -1 && _testHPos[i] != -1)
+        {
+            WMat = _mtWDataTable[_testWPos[i]];
+            HMat = _mtHDataTable[_testHPos[i]];
 
-        currentMutex_t::scoped_lock lock_w(_mutex_w[_testWPos[i]]);
-        currentMutex_t::scoped_lock lock_h(_mutex_h[_testHPos[i]]);
+            currentMutex_t::scoped_lock lock_w(_mutex_w[_testWPos[i]]);
+            currentMutex_t::scoped_lock lock_h(_mutex_h[_testHPos[i]]);
 
-        for(int p = 0; p<_Dim; p++)
-            Mult += (WMat[p]*HMat[p]);
+            for(int p = 0; p<_Dim; p++)
+                Mult += (WMat[p]*HMat[p]);
 
-        Err = _testV[i] - Mult;
+            Err = _testV[i] - Mult;
 
-        Err = Err*Err;
+            Err = Err*Err;
 
-        _testRMSE[i] = Err;
+            _testRMSE[i] = Err;
 
-        lock_w.release();
-        lock_h.release();
+            lock_w.release();
+            lock_h.release();
+
+        }
+        else
+            _testRMSE[i] = 0;
 
     }
 

@@ -30,7 +30,6 @@
 #include "data_management/data/homogen_numeric_table.h"
 #include "services/daal_defines.h"
 
-
 namespace daal
 {
 
@@ -82,6 +81,16 @@ enum ResultId
     resHMat = 1    /*!< Output Model H */
 };
 
+/**
+ * @brief A struct for storing sparse matrix data from CSV file 
+ */
+template<typename interm>
+struct VPoint 
+{
+    long wPos;
+    long hPos;
+    interm val;
+};
 
 /**
  * \brief Contains version 1.0 of Intel(R) Data Analytics Acceleration Library (Intel(R) DAAL) interface.
@@ -119,12 +128,46 @@ public:
 
     size_t getNumberOfRows(InputId id) const;
 
+
+    /**
+     * @brief generate an input dataset for mf_sgd 
+     *
+     * @tparam algorithmFPType
+     * @param points_Train
+     * @param num_Train
+     * @param points_Test
+     * @param num_Test
+     * @param row_num_w
+     * @param col_num_h
+     */
+    template <typename algorithmFPType>
+    void generate_points(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Train, long num_Train, 
+            daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Test, long num_Test,  long row_num_w, long col_num_h);
+
+
+    /**
+     * @brief Convert NumericTablePtr to array of VPoints 
+     *
+     * @tparam algorithmFPType
+     * @param points_Train
+     * @param num_Train
+     * @param points_Test
+     * @param num_Test
+     * @param trainTable
+     * @param testTable
+     */
+    template <typename algorithmFPType>
+    void convert_format(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Test, 
+            long num_Test, data_management::NumericTablePtr trainTable, data_management::NumericTablePtr testTable, long &row_num_w, long &col_num_h);
+
     /**
      * Checks parameters of the algorithm
      * \param[in] parameter Pointer to the parameters
     * \param[in] method Computation method
     */
     void check(const daal::algorithms::Parameter *parameter, int method) const DAAL_C11_OVERRIDE;
+
+
 };
 
 
@@ -272,4 +315,5 @@ using interface1::Parameter;
 } // namespace daal::algorithms::mf_sgd
 } // namespace daal::algorithms
 } // namespace daal
+
 #endif

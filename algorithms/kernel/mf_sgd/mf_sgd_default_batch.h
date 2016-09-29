@@ -24,6 +24,7 @@
 #define __MF_SGD_DEFAULT_BATCH__
 
 #include "mf_sgd_types.h"
+#include <time.h>
 
 namespace daal
 {
@@ -92,6 +93,9 @@ DAAL_EXPORT void Result::allocateImpl(size_t r, size_t w, size_t h)
     }
 
 }
+
+// template <typename algorithmFPType>
+
 
 }// namespace interface1
 }// namespace mf_sgd

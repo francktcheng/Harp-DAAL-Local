@@ -75,7 +75,6 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute(NumericTable** TrainSet,Num
     #define DEF_MAX_BLOCKS 128
 #endif
 
-rng
 /*
     Algorithm for parallel mf_sgd computation:
     -------------------------------------

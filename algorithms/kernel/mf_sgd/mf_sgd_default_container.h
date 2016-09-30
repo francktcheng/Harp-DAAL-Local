@@ -27,8 +27,10 @@
 #include "mf_sgd_default_kernel.h"
 #include <cstdlib> 
 #include <ctime> 
+#include <iostream>
 
 #include "numeric_table.h"
+#include "service_rng.h"
 
 namespace daal
 {
@@ -82,10 +84,6 @@ void BatchContainer<interm, method, cpu>::compute()
     size_t h_row = r[1]->getNumberOfRows();
     size_t h_col = r[1]->getNumberOfColumns();
 
-    // uint32_t seed_val = 0;
-    // CppRNG RandomGenerator;
-    // RandomGenerator.seed(seed_val);
-	srand((unsigned)time(0)); 
 
     BlockDescriptor<interm> W_Block;
     BlockDescriptor<interm> H_Block;
@@ -96,15 +94,9 @@ void BatchContainer<interm, method, cpu>::compute()
     interm *W_Ptr = W_Block.getBlockPtr();
     interm *H_Ptr = H_Block.getBlockPtr();
 
-    for (int i = 0; i<w_row*w_col; i++) {
-        W_Ptr[i] = ((double)rand()/(RAND_MAX))+0.5;
-        // W_Ptr[i] = 0.5;
-    }
-
-    for (int i = 0; i<h_row*h_col; i++) {
-        H_Ptr[i] = ((double)rand()/(RAND_MAX))+0.5;
-        // H_Ptr[i] = 0.5;
-    }
+	daal::internal::UniformRng<interm, daal::sse2> rng(time(0));
+    rng.uniform(w_row*w_col, 0.0, 1.0, W_Ptr);
+    rng.uniform(h_row*h_col, 0.0, 1.0, H_Ptr);
 
     daal::algorithms::Parameter *par = _par;
     daal::services::Environment::env &env = *_env;

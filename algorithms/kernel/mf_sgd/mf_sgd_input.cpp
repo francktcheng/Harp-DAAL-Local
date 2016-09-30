@@ -23,6 +23,7 @@
 
 #include "algorithms/mf_sgd/mf_sgd_types.h"
 #include "service_micro_table.h"
+#include "service_rng.h"
 #include <stdlib.h>     
 #include <map>
 
@@ -114,8 +115,12 @@ template <typename algorithmFPType>
 void Input::generate_points(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Test, long num_Test,  long row_num_w, long col_num_h)
 {/*{{{*/
 
-    srand((unsigned)time(0)); 
+    // srand((unsigned)time(0)); 
 	
+	daal::internal::UniformRng<algorithmFPType, daal::sse2> rng(time(0));
+    
+    algorithmFPType value;
+
 	long counts_train = 0;
 	long counts_test = 0;
 
@@ -131,7 +136,10 @@ void Input::generate_points(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* p
 				{
 					points_Train[counts_train].wPos = i;
 					points_Train[counts_train].hPos = j;
-					points_Train[counts_train].val = (10.0*((algorithmFPType)rand()/(RAND_MAX) + 0.5));
+
+                    rng.uniform(1, 0.0, 1.0, &value);
+					// points_Train[counts_train].val = (10.0*((algorithmFPType)rand()/(RAND_MAX) + 0.5));
+					points_Train[counts_train].val = 10.0*value;
 					counts_train++;
 				}
 			}
@@ -144,14 +152,20 @@ void Input::generate_points(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* p
 					{
 						points_Train[counts_train].wPos = i;
 						points_Train[counts_train].hPos = j;
-						points_Train[counts_train].val = (10.0*((algorithmFPType)rand()/(RAND_MAX) +0.5));
+                        
+                        rng.uniform(1, 0.0, 1.0, &value);
+						// points_Train[counts_train].val = (10.0*((algorithmFPType)rand()/(RAND_MAX) +0.5));
+					    points_Train[counts_train].val = 10.0*value;
 						counts_train++;
 					}
 					else if (counts_test < num_Test)
 					{
 						points_Test[counts_test].wPos = i;
 						points_Test[counts_test].hPos = j;
-						points_Test[counts_test].val = (10.0*((algorithmFPType)rand()/(RAND_MAX) +0.5));
+
+                        rng.uniform(1, 0.0, 1.0, &value);
+						// points_Test[counts_test].val = (10.0*((algorithmFPType)rand()/(RAND_MAX) +0.5));
+						points_Test[counts_test].val = 10.0*value;
 						counts_test++;
 					}
 				}
@@ -162,14 +176,20 @@ void Input::generate_points(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* p
 					{
 						points_Test[counts_test].wPos = i;
 						points_Test[counts_test].hPos = j;
-						points_Test[counts_test].val = (10.0*((algorithmFPType)rand()/(RAND_MAX) +0.5));
+
+                        rng.uniform(1, 0.0, 1.0, &value);
+						// points_Test[counts_test].val = (10.0*((algorithmFPType)rand()/(RAND_MAX) +0.5));
+						points_Test[counts_test].val = 10.0*value;
 						counts_test++;
 					}
 					else if (counts_train < num_Train)
 					{
 						points_Train[counts_train].wPos = i;
 						points_Train[counts_train].hPos = j;
-						points_Train[counts_train].val = (10.0*((algorithmFPType)rand()/(RAND_MAX) +0.5));
+
+                        rng.uniform(1, 0.0, 1.0, &value);
+						// points_Train[counts_train].val = (10.0*((algorithmFPType)rand()/(RAND_MAX) +0.5));
+						points_Train[counts_train].val = 10.0*value;
 						counts_train++;
 					}
 				}

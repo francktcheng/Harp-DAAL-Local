@@ -37,11 +37,11 @@ using namespace daal;
 using namespace daal::algorithms;
 
 //parameters of SGD training
-double learningRate = 0.05;
+double learningRate = 0.005;
 double lambda = 0.002;
 int iteration = 10;		    //num of iterations in SGD training
 int threads = 20;			// threads used by TBB
-int tbb_grainsize = 1000;   //grainsize for TBB parallel_for 
+int tbb_grainsize = 10000;   //grainsize for TBB parallel_for 
 
 // dimension of model W and model H
 long r_dim = 1000;

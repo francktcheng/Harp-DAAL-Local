@@ -139,22 +139,39 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
 
     /* ---------------- Retrieve Model W ---------------- */
     BlockMicroTable<interm, readWrite, cpu> mtWDataTable(r[0]);
-    interm** mtWDataPtr = new interm*[dim_w];
+
+    /* debug */
+    std::cout<<"model W row: "<<r[0]->getNumberOfRows()<<std::endl;
+    std::cout<<"model W col: "<<r[0]->getNumberOfColumns()<<std::endl;
+
+    /* interm** mtWDataPtr = new interm*[dim_w]; */
  
-    for(int j = 0; j<dim_w;j++)
-    {
-         mtWDataTable.getBlockOfRows(j, 1, &(mtWDataPtr[j]));
-    }  
+    /* for(int j = 0; j<dim_w;j++) */
+    /* { */
+    /*      mtWDataTable.getBlockOfRows(j, 1, &(mtWDataPtr[j])); */
+    /* }   */
+
+    interm* mtWDataPtr = 0;
+    mtWDataTable.getBlockOfRows(0, dim_w, &mtWDataPtr);
 
     /* ---------------- Retrieve Model H ---------------- */
     BlockMicroTable<interm, readWrite, cpu> mtHDataTable(r[1]);
-    interm** mtHDataPtr = new interm*[dim_h];
 
-    for(int j = 0; j<dim_h;j++)
-    {
-         mtHDataTable.getBlockOfRows(j, 1, &(mtHDataPtr[j]));
-    }
+    /* debug */
+    std::cout<<"model H row: "<<r[1]->getNumberOfRows()<<std::endl;
+    std::cout<<"model H col: "<<r[1]->getNumberOfColumns()<<std::endl;
 
+
+
+    /* interm** mtHDataPtr = new interm*[dim_h]; */
+    /*  */
+    /* for(int j = 0; j<dim_h;j++) */
+    /* { */
+    /*      mtHDataTable.getBlockOfRows(j, 1, &(mtHDataPtr[j])); */
+    /* } */
+
+    interm* mtHDataPtr = 0;
+    mtHDataTable.getBlockOfRows(0, dim_h, &mtHDataPtr);
 
     /* create the mutex for WData and HData */
     currentMutex_t* mutex_w = new currentMutex_t[dim_w];
@@ -175,6 +192,7 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
     for(int j=0;j<dim_train;j++)
         seq[j] = j;
 
+
     MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, seq, dim_r, learningRate, lambda, mutex_w, mutex_h);
     MFSGDTBB_TEST<interm, cpu> mfsgd_test(mtWDataPtr, mtHDataPtr, testWPos, testHPos, testV, dim_r, testRMSE, mutex_w, mutex_h);
 
@@ -189,6 +207,8 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
 
     printf("RMSE before interation: %f\n", sqrt(totalRMSE));
 
+    int k, p;
+
     for(int j=0;j<iteration;j++)
     {
 
@@ -196,13 +216,13 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
         std::random_shuffle(&seq[0], &seq[dim_train-1]); 
 
         /* training MF-SGD */
-        parallel_for(blocked_range<int>(0, dim_train, 100), mfsgd);
+        parallel_for(blocked_range<int>(0, dim_train, tbb_grainsize), mfsgd);
 
         /* Test MF-SGD */
-        parallel_for(blocked_range<int>(0, dim_test, 10), mfsgd_test);
+        parallel_for(blocked_range<int>(0, dim_test, tbb_grainsize), mfsgd_test);
 
         totalRMSE = 0;
-        for(int k=0;k<dim_test;k++)
+        for(k=0;k<dim_test;k++)
             totalRMSE += testRMSE[k];
 
         totalRMSE = totalRMSE/dim_test;
@@ -218,9 +238,6 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
     delete[] mutex_w;
     delete[] mutex_h;
 
-    delete[] mtWDataPtr;
-    delete[] mtHDataPtr;
-
     delete[] seq;
     delete[] testRMSE;
 
@@ -229,8 +246,8 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
 
 template<typename interm, CpuType cpu>
 MFSGDTBB<interm, cpu>::MFSGDTBB(
-        interm** mtWDataTable,
-        interm** mtHDataTable,
+        interm* mtWDataTable,
+        interm* mtHDataTable,
         int* workWPos,
         int* workHPos,
         interm *workV,
@@ -263,24 +280,25 @@ template<typename interm, CpuType cpu>
 void MFSGDTBB<interm, cpu>::operator()( const blocked_range<int>& range ) const 
 {
 
+    interm *WMat = 0;
+    interm *HMat = 0;
+
+    interm Mult = 0;
+    interm Err = 0;
+    interm WMatVal = 0;
+    interm HMatVal = 0;
+
     for( int i=range.begin(); i!=range.end(); ++i )
     {
 
-        interm *WMat = 0;
-        interm *HMat = 0;
+        WMat = _mtWDataTable + _workWPos[_seq[i]]*_Dim;
+        HMat = _mtHDataTable + _workHPos[_seq[i]]*_Dim;
 
-        interm Mult = 0;
-        interm Err = 0;
-        interm WMatVal = 0;
-        interm HMatVal = 0;
-
-        WMat = _mtWDataTable[_workWPos[_seq[i]]];
-        HMat = _mtHDataTable[_workHPos[_seq[i]]];
-
-        currentMutex_t::scoped_lock lock_w(_mutex_w[_workWPos[_seq[i]]]);
-        currentMutex_t::scoped_lock lock_h(_mutex_h[_workHPos[_seq[i]]]);
+        /* currentMutex_t::scoped_lock lock_w(_mutex_w[_workWPos[_seq[i]]]); */
+        /* currentMutex_t::scoped_lock lock_h(_mutex_h[_workHPos[_seq[i]]]); */
 
 
+        Mult = 0;
         for(int p = 0; p<_Dim; p++)
             Mult += (WMat[p]*HMat[p]);
 
@@ -296,8 +314,8 @@ void MFSGDTBB<interm, cpu>::operator()( const blocked_range<int>& range ) const
 
         }
 
-        lock_w.release();
-        lock_h.release();
+        /* lock_w.release(); */
+        /* lock_h.release(); */
 
     }
 
@@ -305,8 +323,8 @@ void MFSGDTBB<interm, cpu>::operator()( const blocked_range<int>& range ) const
 
 template<typename interm, CpuType cpu>
 MFSGDTBB_TEST<interm, cpu>::MFSGDTBB_TEST(
-        interm** mtWDataTable,
-        interm** mtHDataTable,
+        interm* mtWDataTable,
+        interm* mtHDataTable,
         int* testWPos,
         int* testHPos,
         interm *testV,
@@ -349,8 +367,9 @@ void MFSGDTBB_TEST<interm, cpu>::operator()( const blocked_range<int>& range ) c
 
         if (_testWPos[i] != -1 && _testHPos[i] != -1)
         {
-            WMat = _mtWDataTable[_testWPos[i]];
-            HMat = _mtHDataTable[_testHPos[i]];
+
+            WMat = _mtWDataTable + _testWPos[i]*_Dim;
+            HMat = _mtHDataTable + _testHPos[i]*_Dim;
 
             currentMutex_t::scoped_lock lock_w(_mutex_w[_testWPos[i]]);
             currentMutex_t::scoped_lock lock_h(_mutex_h[_testHPos[i]]);

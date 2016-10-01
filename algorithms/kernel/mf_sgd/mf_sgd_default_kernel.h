@@ -65,8 +65,8 @@ public:
 template<typename interm, CpuType cpu>
 struct MFSGDTBB
 {
-    interm** _mtWDataTable;
-    interm** _mtHDataTable;
+    interm* _mtWDataTable;
+    interm* _mtHDataTable;
 
     int* _workWPos;
     int* _workHPos;
@@ -81,8 +81,8 @@ struct MFSGDTBB
     currentMutex_t* _mutex_h;
 
     MFSGDTBB(
-            interm** mtWDataTable,
-            interm** mtHDataTable,
+            interm* mtWDataTable,
+            interm* mtHDataTable,
             int* workWPos,
             int* workHPos,
             interm *workV,
@@ -104,8 +104,8 @@ struct MFSGDTBB
 template<typename interm, CpuType cpu>
 struct MFSGDTBB_TEST
 {
-    interm** _mtWDataTable;
-    interm** _mtHDataTable;
+    interm* _mtWDataTable;
+    interm* _mtHDataTable;
 
     int* _testWPos;
     int* _testHPos;
@@ -120,8 +120,8 @@ struct MFSGDTBB_TEST
 
     MFSGDTBB_TEST(
 
-            interm** mtWDataTable,
-            interm** mtHDataTable,
+            interm* mtWDataTable,
+            interm* mtHDataTable,
             int* testWPos,
             int* testHPos,
             interm *testV,

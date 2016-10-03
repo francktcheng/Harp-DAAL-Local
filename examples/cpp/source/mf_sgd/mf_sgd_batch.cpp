@@ -42,6 +42,7 @@ double lambda = 0.002;
 int iteration = 10;		    //num of iterations in SGD training
 int threads = 20;			// threads used by TBB
 int tbb_grainsize = 10000;   //grainsize for TBB parallel_for 
+int isAvx512 = 1;
 
 // dimension of model W and model H
 long r_dim = 1000;
@@ -93,11 +94,14 @@ int main(int argc, char *argv[])
 	if (argc > 6)
 		r_dim = atol(argv[6]);
 
-	if (argc > 7)
-		row_num_w = atol(argv[7]);
+    if (argc > 7)
+        isAvx512 = atoi(argv[7]);
 
 	if (argc > 8)
-		col_num_h = atol(argv[8]);
+		row_num_w = atol(argv[8]);
+
+	if (argc > 9)
+		col_num_h = atol(argv[9]);
 
     col_num_w = r_dim;
     row_num_h = r_dim;
@@ -107,9 +111,10 @@ int main(int argc, char *argv[])
 
     // Create an algorithm to compute mf_sgd decomposition 
     // use default template value: double and defaultSGD
-    mf_sgd::Batch<> algorithm;
+    // mf_sgd::Batch<double, mf_sgd::defaultSGD> algorithm;
+    mf_sgd::Batch<float, mf_sgd::defaultSGD> algorithm;
 
-	if (argc > 7)
+	if (argc > 8)
 	{
 		// generate the dataset
 		// size of training dataset and test dataset
@@ -198,23 +203,23 @@ int main(int argc, char *argv[])
     algorithm.input.set(mf_sgd::dataTrain, dataTable_Train);
     algorithm.input.set(mf_sgd::dataTest, dataTable_Test);
 
-    algorithm.parameter.setParameter(learningRate, lambda, r_dim, row_num_w, col_num_h, iteration, threads, tbb_grainsize);
+    algorithm.parameter.setParameter(learningRate, lambda, r_dim, row_num_w, col_num_h, iteration, threads, tbb_grainsize, isAvx512);
 
     /* Compute mf_sgd decomposition */
-	struct timespec ts1;
-	struct timespec ts2;
+	// struct timespec ts1;
+	// struct timespec ts2;
 
-	clock_gettime(CLOCK_MONOTONIC, &ts1);
+	// clock_gettime(CLOCK_MONOTONIC, &ts1);
 
     algorithm.compute();
 
-	clock_gettime(CLOCK_MONOTONIC, &ts2);
+	// clock_gettime(CLOCK_MONOTONIC, &ts2);
 
-	long diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
-	double compute_time = (double)(diff)/1000000L;
+	// long diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
+	// double compute_time = (double)(diff)/1000000L;
 	
     // services::SharedPtr<mf_sgd::Result> res = algorithm.getResult();
-	printf("Computation Time elapsed in ms: %f\n", compute_time);
+	// printf("Computation Time elapsed in ms: %f\n", compute_time);
 
     /* Print the results */
     // printNumericTable(res->get(mf_sgd::resWMat), "Model W Matrix:", 10, 10, 10);

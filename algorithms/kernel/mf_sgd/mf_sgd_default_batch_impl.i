@@ -42,10 +42,16 @@
 #include <math.h>       
 #include <cstdlib> 
 #include <iostream>
+#include <time.h>
 
 using namespace tbb;
 using namespace daal::internal;
 using namespace daal::services::internal;
+
+// CPU intrinsics for Intel Compiler only
+#if defined (__INTEL_COMPILER) && defined(__linux__) && defined(__x86_64__)
+    #include <immintrin.h>
+#endif
 
 typedef queuing_mutex currentMutex_t;
 
@@ -57,6 +63,19 @@ namespace mf_sgd
 {
 namespace internal
 {
+
+template<typename interm, CpuType cpu>
+void updateMF(interm *WMat,interm *HMat, interm* workV, int* seq, int idx, const long dim_r, const interm rate, const interm lambda);
+
+template<typename interm, CpuType cpu>
+void updateMF_non512(interm *WMat,interm *HMat, interm* workV, int* seq, int idx, const long dim_r, const interm rate, const interm lambda);
+
+template<typename interm, CpuType cpu>
+void computeRMSE(interm *WMat,interm *HMat, interm* testV, interm* testRMSE, int idx, const long dim_r);
+
+template<typename interm, CpuType cpu>
+void computeRMSE_non512(interm *WMat,interm *HMat, interm* testV, interm* testRMSE, int idx, const long dim_r);
+
 /**
  *  \brief Kernel for mf_sgd mf_sgd calculation
  */
@@ -95,6 +114,7 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
     const int iteration = parameter->_iteration;
     const int thread_num = parameter->_thread_num;
     const int tbb_grainsize = parameter->_tbb_grainsize;
+    const int isAvx512 = parameter->_isAvx512;
 
     const int dim_train = TrainSet[0]->getNumberOfRows();
     const int dim_test = TestSet[0]->getNumberOfRows();
@@ -193,8 +213,8 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
         seq[j] = j;
 
 
-    MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, seq, dim_r, learningRate, lambda, mutex_w, mutex_h);
-    MFSGDTBB_TEST<interm, cpu> mfsgd_test(mtWDataPtr, mtHDataPtr, testWPos, testHPos, testV, dim_r, testRMSE, mutex_w, mutex_h);
+    MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, seq, dim_r, learningRate, lambda, mutex_w, mutex_h, isAvx512);
+    MFSGDTBB_TEST<interm, cpu> mfsgd_test(mtWDataPtr, mtHDataPtr, testWPos, testHPos, testV, dim_r, testRMSE, mutex_w, mutex_h, isAvx512);
 
     /* Test MF-SGD before iteration */
     parallel_for(blocked_range<int>(0, dim_test, tbb_grainsize), mfsgd_test);
@@ -209,14 +229,27 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
 
     int k, p;
 
+    struct timespec ts1;
+	struct timespec ts2;
+    long diff;
+    double train_time = 0;
+
     for(int j=0;j<iteration;j++)
     {
 
+        clock_gettime(CLOCK_MONOTONIC, &ts1);
+
         /* shuffle the sequence */
-        std::random_shuffle(&seq[0], &seq[dim_train-1]); 
+        /* std::random_shuffle(&seq[0], &seq[dim_train-1]);  */
 
         /* training MF-SGD */
         parallel_for(blocked_range<int>(0, dim_train, tbb_grainsize), mfsgd);
+
+        clock_gettime(CLOCK_MONOTONIC, &ts2);
+
+        /* get the training time for each iteration */
+        diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
+	    train_time += (double)(diff)/1000000L;
 
         /* Test MF-SGD */
         parallel_for(blocked_range<int>(0, dim_test, tbb_grainsize), mfsgd_test);
@@ -227,11 +260,13 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
 
         totalRMSE = totalRMSE/dim_test;
 
-        printf("RMSE after interation %d: %f\n", j, sqrt(totalRMSE));
+        printf("RMSE after interation %d: %f, train time: %f\n", j, sqrt(totalRMSE), (double)(diff)/1000000L);
 
     }
 
     init.terminate();
+
+    printf("Average training time per iteration: %f, total time: %f\n", train_time/iteration, train_time);
 
     /* ------------------- Finishing TBB based Training  -------------------*/
 
@@ -256,7 +291,8 @@ MFSGDTBB<interm, cpu>::MFSGDTBB(
         const interm learningRate,
         const interm lambda,
         currentMutex_t* mutex_w,
-        currentMutex_t* mutex_h
+        currentMutex_t* mutex_h,
+        const int isAvx512
 
 )
 {
@@ -274,6 +310,7 @@ MFSGDTBB<interm, cpu>::MFSGDTBB(
 
     _mutex_w = mutex_w;
     _mutex_h = mutex_h;
+    _isAvx512 = isAvx512;
 }
 
 template<typename interm, CpuType cpu>
@@ -294,28 +331,16 @@ void MFSGDTBB<interm, cpu>::operator()( const blocked_range<int>& range ) const
         WMat = _mtWDataTable + _workWPos[_seq[i]]*_Dim;
         HMat = _mtHDataTable + _workHPos[_seq[i]]*_Dim;
 
-        /* currentMutex_t::scoped_lock lock_w(_mutex_w[_workWPos[_seq[i]]]); */
-        /* currentMutex_t::scoped_lock lock_h(_mutex_h[_workHPos[_seq[i]]]); */
+        currentMutex_t::scoped_lock lock_w(_mutex_w[_workWPos[_seq[i]]]);
+        currentMutex_t::scoped_lock lock_h(_mutex_h[_workHPos[_seq[i]]]);
+        
+        if (_isAvx512 == 1)
+            updateMF<interm, cpu>(WMat, HMat, _workV, _seq, i, _Dim, _learningRate, _lambda);
+        else
+            updateMF_non512<interm, cpu>(WMat, HMat, _workV, _seq, i, _Dim, _learningRate, _lambda);
 
-
-        Mult = 0;
-        for(int p = 0; p<_Dim; p++)
-            Mult += (WMat[p]*HMat[p]);
-
-        Err = _workV[_seq[i]] - Mult;
-
-        for(int p = 0;p<_Dim;p++)
-        {
-            WMatVal = WMat[p];
-            HMatVal = HMat[p];
-
-            WMat[p] = WMat[p] + _learningRate*(Err*HMatVal + _lambda*WMatVal);
-            HMat[p] = HMat[p] + _learningRate*(Err*WMatVal + _lambda*HMatVal);
-
-        }
-
-        /* lock_w.release(); */
-        /* lock_h.release(); */
+        lock_w.release();
+        lock_h.release();
 
     }
 
@@ -331,7 +356,8 @@ MFSGDTBB_TEST<interm, cpu>::MFSGDTBB_TEST(
         const long Dim,
         interm* testRMSE,
         currentMutex_t* mutex_w,
-        currentMutex_t* mutex_h
+        currentMutex_t* mutex_h,
+        const int isAvx512
 
 )
 {
@@ -348,6 +374,9 @@ MFSGDTBB_TEST<interm, cpu>::MFSGDTBB_TEST(
 
     _mutex_w = mutex_w;
     _mutex_h = mutex_h;
+
+    _isAvx512 = isAvx512;
+
 }
 
 template<typename interm, CpuType cpu>
@@ -374,14 +403,19 @@ void MFSGDTBB_TEST<interm, cpu>::operator()( const blocked_range<int>& range ) c
             currentMutex_t::scoped_lock lock_w(_mutex_w[_testWPos[i]]);
             currentMutex_t::scoped_lock lock_h(_mutex_h[_testHPos[i]]);
 
-            for(int p = 0; p<_Dim; p++)
-                Mult += (WMat[p]*HMat[p]);
+            if (_isAvx512 == 1)
+                computeRMSE<interm, cpu>(WMat, HMat, _testV, _testRMSE, i, _Dim);
+            else
+                computeRMSE_non512<interm, cpu>(WMat, HMat, _testV, _testRMSE, i, _Dim);
 
-            Err = _testV[i] - Mult;
-
-            Err = Err*Err;
-
-            _testRMSE[i] = Err;
+            /* for(int p = 0; p<_Dim; p++) */
+            /*     Mult += (WMat[p]*HMat[p]); */
+            /*  */
+            /* Err = _testV[i] - Mult; */
+            /*  */
+            /* Err = Err*Err; */
+            /*  */
+            /* _testRMSE[i] = Err; */
 
             lock_w.release();
             lock_h.release();
@@ -394,7 +428,94 @@ void MFSGDTBB_TEST<interm, cpu>::operator()( const blocked_range<int>& range ) c
 
 }
 
+template<typename interm, CpuType cpu>
+void updateMF_non512(interm *WMat,interm *HMat, interm* workV, int* seq, int idx, const long dim_r, const interm rate, const interm lambda)
+{/*{{{*/
 
+    interm Mult = 0;
+    interm Err = 0;
+    interm WMatVal = 0;
+    interm HMatVal = 0;
+
+    for(int p = 0; p<dim_r; p++)
+        Mult += (WMat[p]*HMat[p]);
+
+    Err = workV[seq[idx]] - Mult;
+
+    for(int p = 0;p<dim_r;p++)
+    {
+        WMatVal = WMat[p];
+        HMatVal = HMat[p];
+
+        WMat[p] = WMat[p] + rate*(Err*HMatVal - lambda*WMatVal);
+        HMat[p] = HMat[p] + rate*(Err*WMatVal - lambda*HMatVal);
+
+    }
+
+}/*}}}*/
+
+template<typename interm, CpuType cpu>
+void updateMF(interm *WMat,interm *HMat, interm* workV, int* seq, int idx, const long dim_r, const interm rate, const interm lambda)
+{/*{{{*/
+
+    interm Mult = 0;
+    interm Err = 0;
+    interm WMatVal = 0;
+    interm HMatVal = 0;
+
+    for(int p = 0; p<dim_r; p++)
+        Mult += (WMat[p]*HMat[p]);
+
+    Err = workV[seq[idx]] - Mult;
+
+    for(int p = 0;p<dim_r;p++)
+    {
+        WMatVal = WMat[p];
+        HMatVal = HMat[p];
+
+        WMat[p] = WMat[p] + rate*(Err*HMatVal - lambda*WMatVal);
+        HMat[p] = HMat[p] + rate*(Err*WMatVal - lambda*HMatVal);
+
+    }
+
+}/*}}}*/
+
+template<typename interm, CpuType cpu>
+void computeRMSE(interm *WMat,interm *HMat, interm* testV, interm* testRMSE, int idx, const long dim_r)
+{
+    int p;
+    interm Mult = 0;
+    interm Err;
+
+    for(p = 0; p<dim_r; p++)
+        Mult += (WMat[p]*HMat[p]);
+
+    Err = testV[idx] - Mult;
+
+    testRMSE[idx] = Err*Err;
+
+}
+
+template<typename interm, CpuType cpu>
+void computeRMSE_non512(interm *WMat,interm *HMat, interm* testV, interm* testRMSE, int idx, const long dim_r)
+{
+    int p;
+    interm Mult = 0;
+    interm Err;
+
+    for(p = 0; p<dim_r; p++)
+        Mult += (WMat[p]*HMat[p]);
+
+    Err = testV[idx] - Mult;
+
+    testRMSE[idx] = Err*Err;
+
+}
+
+// AVX512-MIC optimization via template specialization (Intel compiler only)
+#if defined (__INTEL_COMPILER) && defined(__linux__) && defined(__x86_64__) && ( __CPUID__(DAAL_CPU) == __avx512_mic__ )
+    #include "mf_sgd_default_batch_impl_avx512_mic.i"
+#endif
 
 } // namespace daal::internal
 }

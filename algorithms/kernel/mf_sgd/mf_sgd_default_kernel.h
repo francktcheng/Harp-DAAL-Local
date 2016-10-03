@@ -73,13 +73,16 @@ struct MFSGDTBB
     interm* _workV;
     int* _seq;
 
-    int _Dim;
+    long _Dim;
     interm _learningRate;
     interm _lambda;
+
+    int _isAvx512;
 
     currentMutex_t* _mutex_w;
     currentMutex_t* _mutex_h;
 
+    
     MFSGDTBB(
             interm* mtWDataTable,
             interm* mtHDataTable,
@@ -91,7 +94,8 @@ struct MFSGDTBB
             const interm learningRate,
             const interm lambda,
             currentMutex_t* mutex_w,
-            currentMutex_t* mutex_h
+            currentMutex_t* mutex_h,
+            const int isAvx512
     );
 
     void operator()( const blocked_range<int>& range ) const; 
@@ -112,8 +116,8 @@ struct MFSGDTBB_TEST
     interm* _testV;
 
     int _Dim;
-
     interm* _testRMSE;
+    int _isAvx512;
 
     currentMutex_t* _mutex_w;
     currentMutex_t* _mutex_h;
@@ -128,7 +132,8 @@ struct MFSGDTBB_TEST
             const long Dim,
             interm* testRMSE,
             currentMutex_t* mutex_w,
-            currentMutex_t* mutex_h
+            currentMutex_t* mutex_h,
+            const int isAvx512
     );
 
     void operator()( const blocked_range<int>& range ) const; 

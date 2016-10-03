@@ -28,6 +28,7 @@
 #include <cstdlib> 
 #include <ctime> 
 #include <iostream>
+#include <math.h>       
 
 #include "numeric_table.h"
 #include "service_rng.h"
@@ -94,9 +95,11 @@ void BatchContainer<interm, method, cpu>::compute()
     interm *W_Ptr = W_Block.getBlockPtr();
     interm *H_Ptr = H_Block.getBlockPtr();
 
+    interm scale = 1.0/sqrt((interm)w_col);
+
 	daal::internal::UniformRng<interm, daal::sse2> rng(time(0));
-    rng.uniform(w_row*w_col, 0.0, 1.0, W_Ptr);
-    rng.uniform(h_row*h_col, 0.0, 1.0, H_Ptr);
+    rng.uniform(w_row*w_col, 0.0, scale, W_Ptr);
+    rng.uniform(h_row*h_col, 0.0, scale, H_Ptr);
 
     daal::algorithms::Parameter *par = _par;
     daal::services::Environment::env &env = *_env;

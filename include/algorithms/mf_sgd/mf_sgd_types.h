@@ -273,6 +273,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _iteration = 0;
         _thread_num = 10;
         _tbb_grainsize = 1000;
+        _isAvx512 = 0;
     }
 
     virtual ~Parameter() {}
@@ -282,7 +283,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
      */
     // virtual void check() const;
     //
-    void setParameter(double learningRate, double lambda, long Dim_r, long Dim_w, long Dim_h, int iteration, int thread_num, int tbb_grainsize)
+    void setParameter(double learningRate, double lambda, long Dim_r, long Dim_w, long Dim_h, int iteration, int thread_num, int tbb_grainsize, int isAvx512)
     {
 
         _learningRate = learningRate;
@@ -293,6 +294,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _iteration = iteration;
         _thread_num = thread_num;
         _tbb_grainsize = tbb_grainsize;
+        _isAvx512 = isAvx512;
     }
 
     double _learningRate;                     // the rate of learning by SGD 
@@ -303,6 +305,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     int    _iteration;                       //the iterations of SGD
     int     _thread_num;                      //specify the threads used by TBB
     int     _tbb_grainsize;                   //specify the grainsize for TBB parallel_for
+    int     _isAvx512;                       //specify whether enable Avx512 of mic
 
 };
 /** @} */

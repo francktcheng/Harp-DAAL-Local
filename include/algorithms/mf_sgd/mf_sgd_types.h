@@ -92,6 +92,13 @@ struct VPoint
     interm val;
 };
 
+struct VPoint_bin 
+{
+    int wPos;
+    int hPos;
+    float val;
+};
+
 /**
  * \brief Contains version 1.0 of Intel(R) Data Analytics Acceleration Library (Intel(R) DAAL) interface.
  */
@@ -159,6 +166,10 @@ public:
     template <typename algorithmFPType>
     void convert_format(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Test, 
             long num_Test, data_management::NumericTablePtr trainTable, data_management::NumericTablePtr testTable, long &row_num_w, long &col_num_h);
+
+    template <typename algorithmFPType>
+    void convert_format_binary(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Test, 
+            long num_Test, daal::algorithms::mf_sgd::VPoint_bin* bin_Train, daal::algorithms::mf_sgd::VPoint_bin* bin_Test, long &row_num_w, long &col_num_h);
 
     /**
      * Checks parameters of the algorithm

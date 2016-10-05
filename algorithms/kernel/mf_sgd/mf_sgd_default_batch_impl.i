@@ -155,6 +155,9 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
     interm *testV;
     test_ptr.getBlockOfColumnValues(2, 0, dim_test, &testV);
 
+    /* debug */
+    std::cout<<"Total test points: "<<dim_test<<std::endl;
+
 
 
     /* ---------------- Retrieve Model W ---------------- */
@@ -216,7 +219,8 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
     MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, seq, dim_r, learningRate, lambda, mutex_w, mutex_h, isAvx512);
     MFSGDTBB_TEST<interm, cpu> mfsgd_test(mtWDataPtr, mtHDataPtr, testWPos, testHPos, testV, dim_r, testRMSE, mutex_w, mutex_h, isAvx512);
 
-    /* Test MF-SGD before iteration */
+    /*---------------- Test MF-SGD before iteration ----------------*/
+
     parallel_for(blocked_range<int>(0, dim_test, tbb_grainsize), mfsgd_test);
 
     totalRMSE = 0;
@@ -227,6 +231,40 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
 
     printf("RMSE before interation: %f\n", sqrt(totalRMSE));
 
+    /*interm *WMat = 0;
+    interm *HMat = 0;
+
+    interm Mult = 0;
+    interm Err = 0;
+    interm ErrTotal = 0;
+    int validPoints = 0;
+
+    for( int j=0; j < dim_test; j++)
+    {
+
+        if (testWPos[j] != -1 && testHPos[j] != -1)
+        {
+
+            WMat = mtWDataPtr + testWPos[j]*dim_r;
+            HMat = mtHDataPtr + testHPos[j]*dim_r;
+
+            Mult = 0;
+            for(int s = 0; s<dim_r; s++)
+                Mult += (WMat[s]*HMat[s]);
+
+            Err = testV[j] - Mult;
+
+            ErrTotal += Err*Err;
+            validPoints++;
+
+        }
+
+    }
+
+    ErrTotal = ErrTotal/validPoints;
+    printf("RMSE before interation: %f\n", sqrt(ErrTotal));*/
+
+    /*---------------- End of Test MF-SGD before iteration ----------------*/
     int k, p;
 
     struct timespec ts1;
@@ -331,16 +369,16 @@ void MFSGDTBB<interm, cpu>::operator()( const blocked_range<int>& range ) const
         WMat = _mtWDataTable + _workWPos[_seq[i]]*_Dim;
         HMat = _mtHDataTable + _workHPos[_seq[i]]*_Dim;
 
-        currentMutex_t::scoped_lock lock_w(_mutex_w[_workWPos[_seq[i]]]);
-        currentMutex_t::scoped_lock lock_h(_mutex_h[_workHPos[_seq[i]]]);
+        /* currentMutex_t::scoped_lock lock_w(_mutex_w[_workWPos[_seq[i]]]); */
+        /* currentMutex_t::scoped_lock lock_h(_mutex_h[_workHPos[_seq[i]]]); */
         
         if (_isAvx512 == 1)
             updateMF<interm, cpu>(WMat, HMat, _workV, _seq, i, _Dim, _learningRate, _lambda);
         else
             updateMF_non512<interm, cpu>(WMat, HMat, _workV, _seq, i, _Dim, _learningRate, _lambda);
 
-        lock_w.release();
-        lock_h.release();
+        /* lock_w.release(); */
+        /* lock_h.release(); */
 
     }
 

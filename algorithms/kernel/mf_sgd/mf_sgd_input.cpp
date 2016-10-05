@@ -26,6 +26,7 @@
 #include "service_rng.h"
 #include <stdlib.h>     
 #include <map>
+#include <unordered_map>
 
 using namespace daal::data_management;
 using namespace daal::services;
@@ -203,7 +204,7 @@ void Input::generate_points(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* p
 template <typename algorithmFPType>
 void Input::convert_format(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Test, 
             long num_Test, data_management::NumericTablePtr trainTable, data_management::NumericTablePtr testTable, long &row_num_w, long &col_num_h)
-{
+{/*{{{*/
 
     std::map<long, long> vMap_row_w; // a hashmap where key is the row id of input matrix, value is the row position in model W 
     std::map<long, long> vMap_col_h; // a hashmap where key is the col id of input matrix, value is the row position in model H 
@@ -292,7 +293,98 @@ void Input::convert_format(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* po
 
     }
 
-}
+}/*}}}*/
+
+template <typename algorithmFPType>
+void Input::convert_format_binary(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Test, 
+            long num_Test, daal::algorithms::mf_sgd::VPoint_bin* bin_Train, daal::algorithms::mf_sgd::VPoint_bin* bin_Test, long &row_num_w, long &col_num_h)
+{/*{{{*/
+
+    // std::map<long, long> vMap_row_w; // a hashmap where key is the row id of input matrix, value is the row position in model W 
+    // std::map<long, long> vMap_col_h; // a hashmap where key is the col id of input matrix, value is the row position in model H 
+    std::unordered_map<long, long> vMap_row_w;
+    std::unordered_map<long, long> vMap_col_h;
+
+    long row_pos = 0;
+    long col_pos = 0;
+
+    long row_vpoint = 0;
+    long col_vpoint = 0;
+    long i;
+    long row_id;
+    long col_id;
+    algorithmFPType val;
+
+    //convert Train Dataset
+    for (i = 0; i < num_Train; i++) {
+        
+        row_id = (long)bin_Train[i].wPos;
+        col_id = (long)bin_Train[i].hPos;
+        val = bin_Train[i].val;
+
+        if (vMap_row_w.find(row_id) == vMap_row_w.end())
+        {
+            //not found row id
+            vMap_row_w[row_id] = row_pos;
+            row_vpoint = row_pos;
+            row_pos++;
+        }
+        else
+            row_vpoint = vMap_row_w[row_id];
+
+        if (vMap_col_h.find(col_id) == vMap_col_h.end())
+        {
+            //not found col id
+            vMap_col_h[col_id] = col_pos;
+            col_vpoint = col_pos;
+            col_pos++;
+        }
+        else
+            col_vpoint = vMap_col_h[col_id];
+
+        points_Train[i].wPos = row_vpoint;
+        points_Train[i].hPos = col_vpoint;
+        points_Train[i].val = val;
+
+    }
+
+    row_num_w = row_pos;
+    col_num_h = col_pos;
+
+    //convert Test dataset
+    for (i = 0; i < num_Test; i++) {
+
+        row_id = (long)bin_Test[i].wPos;
+        col_id = (long)bin_Test[i].hPos;
+        val = bin_Test[i].val;
+
+        if (vMap_row_w.find(row_id) == vMap_row_w.end())
+        {
+            //not found row id
+            row_vpoint = -1;
+        }
+        else
+            row_vpoint = vMap_row_w[row_id];
+
+
+        if (vMap_col_h.find(col_id) == vMap_col_h.end())
+        {
+            //not found row id
+            col_vpoint = -1;
+        }
+        else
+            col_vpoint = vMap_col_h[col_id];
+
+        points_Test[i].wPos = row_vpoint;
+        points_Test[i].hPos = col_vpoint;
+        points_Test[i].val = val;
+
+    }
+
+}/*}}}*/
+
+
+
 
 template void Input::generate_points(daal::algorithms::mf_sgd::VPoint<double>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<double>* points_Test, long num_Test,  long row_num_w, long col_num_h);
 
@@ -303,6 +395,12 @@ template void Input::convert_format(daal::algorithms::mf_sgd::VPoint<double>* po
 
 template void Input::convert_format(daal::algorithms::mf_sgd::VPoint<float>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<float>* points_Test, 
             long num_Test, data_management::NumericTablePtr trainTable, data_management::NumericTablePtr testTable, long &row_num_w, long &col_num_h);
+
+template void Input::convert_format_binary(daal::algorithms::mf_sgd::VPoint<double>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<double>* points_Test, 
+            long num_Test, daal::algorithms::mf_sgd::VPoint_bin* bin_Train, daal::algorithms::mf_sgd::VPoint_bin* bin_Test, long &row_num_w, long &col_num_h);
+
+template void Input::convert_format_binary(daal::algorithms::mf_sgd::VPoint<float>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<float>* points_Test, 
+            long num_Test, daal::algorithms::mf_sgd::VPoint_bin* bin_Train, daal::algorithms::mf_sgd::VPoint_bin* bin_Test, long &row_num_w, long &col_num_h);
 
 } // namespace interface1
 } // namespace mf_sgd

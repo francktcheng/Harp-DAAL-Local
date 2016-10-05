@@ -32,6 +32,11 @@
 #include <time.h>
 #include <stdlib.h> 
 
+#include <cstring>
+#include <fstream>
+#include <iostream>
+#include <string>
+
 using namespace std;
 using namespace daal;
 using namespace daal::algorithms;
@@ -58,9 +63,28 @@ long num_Train;
 long num_Test;
 const size_t field_v = 3;
 
+typedef float sgd_float;
+// typedef double sgd_float;
+
 // input dataset files in csv format
-string trainDataFile = "../../../data/batch/movielens-train.csv";
-string testDataFile = "../../../data/batch/movielens-test.csv";
+// string trainDataFile = "../../../data/batch/movielens-train.csv";
+// string testDataFile = "../../../data/batch/movielens-test.csv";
+
+string trainDataFile = "../../../data/batch/yahoomusic-train.csv";
+string testDataFile = "../../../data/batch/yahoomusic-test.csv";
+
+// read in binary file
+typedef int mf_int;
+typedef float mf_float;
+typedef long long mf_long;
+
+struct mf_problem
+{
+    mf_int m;
+    mf_int n;
+    mf_long nnz;
+    mf_sgd::VPoint_bin *R;
+};
 
 /**
  * $V = W H$
@@ -106,13 +130,18 @@ int main(int argc, char *argv[])
     col_num_w = r_dim;
     row_num_h = r_dim;
 
-	mf_sgd::VPoint<double>* points_Train;
-	mf_sgd::VPoint<double>* points_Test;
+	mf_sgd::VPoint<sgd_float>* points_Train;
+	mf_sgd::VPoint<sgd_float>* points_Test;
 
     // Create an algorithm to compute mf_sgd decomposition 
     // use default template value: double and defaultSGD
     // mf_sgd::Batch<double, mf_sgd::defaultSGD> algorithm;
-    mf_sgd::Batch<float, mf_sgd::defaultSGD> algorithm;
+    mf_sgd::Batch<sgd_float, mf_sgd::defaultSGD> algorithm;
+
+    struct timespec ts1;
+	struct timespec ts2;
+    long diff;
+    double diff_ms;
 
 	if (argc > 8)
 	{
@@ -122,10 +151,10 @@ int main(int argc, char *argv[])
 		num_Test = 0.002*(row_num_w*col_num_h- row_num_w);
 
 		// generate the Train and Test datasets
-		points_Train = new mf_sgd::VPoint<double>[num_Train];
-		points_Test = new mf_sgd::VPoint<double>[num_Test];
+		points_Train = new mf_sgd::VPoint<sgd_float>[num_Train];
+		points_Test = new mf_sgd::VPoint<sgd_float>[num_Test];
 
-		algorithm.input.generate_points<double>(points_Train, num_Train, points_Test, num_Test, row_num_w, col_num_h);
+		algorithm.input.generate_points<sgd_float>(points_Train, num_Train, points_Test, num_Test, row_num_w, col_num_h);
 
 		printf("Train set num of Points: %d\n", num_Train);
 		printf("Test set num of Points: %d\n", num_Test);
@@ -139,30 +168,105 @@ int main(int argc, char *argv[])
 		// load the dataset file
 
 		// Initialize FileDataSource to retrieve the input data from a .csv file 
-		FileDataSource<CSVFeatureManager> dataSourceTrain(trainDataFile, DataSource::doAllocateNumericTable, DataSource::doDictionaryFromContext);
+		/*FileDataSource<CSVFeatureManager> dataSourceTrain(trainDataFile, DataSource::doAllocateNumericTable, DataSource::doDictionaryFromContext);
 		FileDataSource<CSVFeatureManager> dataSourceTest(testDataFile, DataSource::doAllocateNumericTable, DataSource::doDictionaryFromContext);
 
 		// Retrieve the data from the input file 
+        printf("Start loading Data into DAAL's NumericTable\n");
+
+	    clock_gettime(CLOCK_MONOTONIC, &ts1);
+
 		dataSourceTrain.loadDataBlock();
 		dataSourceTest.loadDataBlock();
+
+	    clock_gettime(CLOCK_MONOTONIC, &ts2);
+
+        diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
+	    diff_ms = (double)(diff)/1000000L;
+
+        printf("Finish loading Data into DAAL's NumericTable using %f ms\n", diff_ms);
 
 		NumericTablePtr trainTable = dataSourceTrain.getNumericTable();
 		NumericTablePtr testTable = dataSourceTest.getNumericTable();
 
 		num_Train = trainTable->getNumberOfRows();
-		num_Test = testTable->getNumberOfRows();
+		num_Test = testTable->getNumberOfRows();*/
 
-		points_Train = new mf_sgd::VPoint<double>[num_Train];
-		points_Test = new mf_sgd::VPoint<double>[num_Test];
+        //----------------- Starting reading datasets from binary file --------------------------
+        
+        printf("Start loading Data into DAAL's NumericTable\n");
+	    clock_gettime(CLOCK_MONOTONIC, &ts1);
+
+        std::string shadow = trainDataFile + ".shadow";
+        std::ifstream fs_train(shadow, std::fstream::binary);
+        mf_problem prob_train;
+        mf_sgd::VPoint_bin *train_binary;
+
+        if(fs_train.is_open()){
+
+            fs_train.read((char*)&prob_train, sizeof(mf_problem));
+
+            train_binary = new mf_sgd::VPoint_bin[prob_train.nnz];
+
+            fs_train.read((char*)train_binary, sizeof(mf_sgd::VPoint_bin)*prob_train.nnz);
+            fs_train.close();
+
+        }
+
+        num_Train = prob_train.nnz;
+
+        shadow = testDataFile + ".shadow";
+        std::ifstream fs_test(shadow, std::fstream::binary);
+        mf_problem prob_test;
+        mf_sgd::VPoint_bin *test_binary;
+
+        if(fs_test.is_open()){
+
+            fs_test.read((char*)&prob_test, sizeof(mf_problem));
+
+            test_binary = new mf_sgd::VPoint_bin[prob_test.nnz];
+
+            fs_test.read((char*)test_binary, sizeof(mf_sgd::VPoint_bin)*prob_test.nnz);
+            fs_test.close();
+
+        }
+
+        num_Test = prob_test.nnz;
+
+        clock_gettime(CLOCK_MONOTONIC, &ts2);
+
+        diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
+	    diff_ms = (double)(diff)/1000000L;
+
+        printf("Finish loading Data into DAAL's NumericTable using %f ms\n", diff_ms);
+
+        //----------------- End reading datasets from binary file --------------------------
+
+        points_Train = new mf_sgd::VPoint<sgd_float>[num_Train];
+		points_Test = new mf_sgd::VPoint<sgd_float>[num_Test];
 
 		// a function to convert the row id and column id
-		algorithm.input.convert_format(points_Train, num_Train, points_Test, num_Test, trainTable, testTable, row_num_w, col_num_h);
+        printf("Start Converting Sparse Data\n");
 
+	    clock_gettime(CLOCK_MONOTONIC, &ts1);
+
+		// algorithm.input.convert_format(points_Train, num_Train, points_Test, num_Test, trainTable, testTable, row_num_w, col_num_h);
+		algorithm.input.convert_format_binary(points_Train, num_Train, points_Test, num_Test, train_binary, test_binary, row_num_w, col_num_h);
+
+        clock_gettime(CLOCK_MONOTONIC, &ts2);
+        diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
+	    diff_ms = (double)(diff)/1000000L;
+
+        printf("Finish Converting Sparse Data using %f ms\n", diff_ms);
         printf("Train set num of Points: %d\n", num_Train);
 		printf("Test set num of Points: %d\n", num_Test);
 		printf("Model W Rows: %d\n", row_num_w);
 		printf("Model H Columns: %d\n", col_num_h);
 		printf("Model Dimension: %d\n", r_dim);
+
+        delete[] train_binary;
+        delete[] test_binary;
+        
 	
 	}
 
@@ -187,14 +291,14 @@ int main(int argc, char *argv[])
     dataTable_Test->setDictionary(&newDict_Test);
 
     /* Add data to the numeric table */
-    dataTable_Train->setFeature<long> (0, DAAL_STRUCT_MEMBER_OFFSET(mf_sgd::VPoint<double>, wPos));
-    dataTable_Train->setFeature<long> (1, DAAL_STRUCT_MEMBER_OFFSET(mf_sgd::VPoint<double>, hPos));
-    dataTable_Train->setFeature<double> (2, DAAL_STRUCT_MEMBER_OFFSET(mf_sgd::VPoint<double>, val));
+    dataTable_Train->setFeature<long> (0, DAAL_STRUCT_MEMBER_OFFSET(mf_sgd::VPoint<sgd_float>, wPos));
+    dataTable_Train->setFeature<long> (1, DAAL_STRUCT_MEMBER_OFFSET(mf_sgd::VPoint<sgd_float>, hPos));
+    dataTable_Train->setFeature<sgd_float> (2, DAAL_STRUCT_MEMBER_OFFSET(mf_sgd::VPoint<sgd_float>, val));
 
     /* Add data to the numeric table */
-    dataTable_Test->setFeature<long> (0, DAAL_STRUCT_MEMBER_OFFSET(mf_sgd::VPoint<double>, wPos));
-    dataTable_Test->setFeature<long> (1, DAAL_STRUCT_MEMBER_OFFSET(mf_sgd::VPoint<double>, hPos));
-    dataTable_Test->setFeature<double> (2, DAAL_STRUCT_MEMBER_OFFSET(mf_sgd::VPoint<double>, val));
+    dataTable_Test->setFeature<long> (0, DAAL_STRUCT_MEMBER_OFFSET(mf_sgd::VPoint<sgd_float>, wPos));
+    dataTable_Test->setFeature<long> (1, DAAL_STRUCT_MEMBER_OFFSET(mf_sgd::VPoint<sgd_float>, hPos));
+    dataTable_Test->setFeature<sgd_float> (2, DAAL_STRUCT_MEMBER_OFFSET(mf_sgd::VPoint<sgd_float>, val));
 
 	// debug
 	// printNumericTable(dataTable_Train, "Train dataset:", 5, 3, 10);

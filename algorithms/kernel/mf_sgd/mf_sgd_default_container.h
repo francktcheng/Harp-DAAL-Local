@@ -29,6 +29,7 @@
 #include <ctime> 
 #include <iostream>
 #include <math.h>       
+#include <random>
 
 #include "numeric_table.h"
 #include "service_rng.h"
@@ -95,11 +96,37 @@ void BatchContainer<interm, method, cpu>::compute()
     interm *W_Ptr = W_Block.getBlockPtr();
     interm *H_Ptr = H_Block.getBlockPtr();
 
+    int q;
     interm scale = 1.0/sqrt((interm)w_col);
 
-	daal::internal::UniformRng<interm, daal::sse2> rng(time(0));
-    rng.uniform(w_row*w_col, 0.0, scale, W_Ptr);
-    rng.uniform(h_row*h_col, 0.0, scale, H_Ptr);
+    /*std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<interm> dis(0, scale);
+
+    for (q = 0; q < w_row*w_col; q++) {
+        W_Ptr[q] = dis(gen); 
+    }
+
+    for (q = 0; q < h_row*h_col; q++) {
+        H_Ptr[q] = dis(gen);
+    }*/
+
+	daal::internal::UniformRng<interm, daal::sse2> rng1(time(0));
+
+    rng1.uniform(w_row*w_col, 0.0, scale, W_Ptr);
+
+
+	daal::internal::UniformRng<interm, daal::sse2> rng2(time(0));
+    rng2.uniform(h_row*h_col, 0.0, scale, H_Ptr);
+
+    // debug check the norm of W_Ptr and H_Ptr
+    /*interm addres = 0;
+    for (q = 0; q < w_row*w_col; q++) {
+        addres += (W_Ptr[q]*W_Ptr[q]);
+    }
+
+    std::cout<<"W row: "<<w_row<<" W_Ptr norm: "<<addres<<std::endl;*/
+
 
     daal::algorithms::Parameter *par = _par;
     daal::services::Environment::env &env = *_env;

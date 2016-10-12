@@ -55,10 +55,6 @@ template<> void updateMF_explicit512<DAAL_FPTYPE, avx512_mic>(DAAL_FPTYPE* WMat,
         Mult += mul_res;
     }
 
-
-    /* for(int p = 0; p<dim_r; p++) */
-    /*     Mult += (WMat[p]*HMat[p]); */
-
     Err = workV[seq[idx]] - Mult;
 
     __m512  err_v  = _mm512_set1_ps (Err);
@@ -83,35 +79,11 @@ template<> void updateMF_explicit512<DAAL_FPTYPE, avx512_mic>(DAAL_FPTYPE* WMat,
         tmp2        = _mm512_fmadd_ps (lambda_v, hVal, tmp2);
         hVal        = _mm512_fmadd_ps (rate_v, tmp2, hVal);
 
-        /* tmp1        = _mm512_mul_ps (lambda_v, wVal); */
-        /* tmp2        = _mm512_mul_ps (err_v, hVal); */
-        /* tmp1        = _mm512_add_ps (tmp1, tmp2); */
-        /* tmp2        = _mm512_mul_ps (tmp1, rate_v); */
-        /* wVal        = _mm512_add_ps (wVal, tmp2); */
-
-        /* update h model */
-        /* tmp1        = _mm512_mul_ps (err_v, wVal_tmp); */
-        /* tmp2        = _mm512_mul_ps (lambda_v, hVal); */
-        /* tmp1        = _mm512_add_ps (tmp1, tmp2); */
-        /* tmp2        = _mm512_mul_ps (tmp1, rate_v); */
-        /* hVal        = _mm512_add_ps (hVal, tmp2); */
-
-
         _mm512_store_ps (&(WMat[j]), wVal);
         _mm512_store_ps (&(HMat[j]), hVal);
 
     }
 
-
-    /* for(int p = 0;p<dim_r;p++) */
-    /* { */
-    /*     WMatVal = WMat[p]; */
-    /*     HMatVal = HMat[p]; */
-    /*  */
-    /*     WMat[p] = WMat[p] + rate*(Err*HMatVal + lambda*WMatVal); */
-    /*     HMat[p] = HMat[p] + rate*(Err*WMatVal + lambda*HMatVal); */
-    /*  */
-    /* } */
 
 #elif( __FPTYPE__(DAAL_FPTYPE) == __double__ )
 
@@ -139,9 +111,6 @@ template<> void updateMF_explicit512<DAAL_FPTYPE, avx512_mic>(DAAL_FPTYPE* WMat,
         Mult += mul_res;
     }
 
-    /* for(int p = 0; p<dim_r; p++) */
-    /*     Mult += (WMat[p]*HMat[p]); */
-
     Err = workV[seq[idx]] - Mult;
 
     __m512d  err_v  = _mm512_set1_pd (Err);
@@ -166,37 +135,11 @@ template<> void updateMF_explicit512<DAAL_FPTYPE, avx512_mic>(DAAL_FPTYPE* WMat,
         tmp2        = _mm512_fmadd_pd (lambda_v, hVal, tmp2);
         hVal        = _mm512_fmadd_pd (rate_v, tmp2, hVal);
 
-        /* tmp1        = _mm512_mul_ps (lambda_v, wVal); */
-        /* tmp2        = _mm512_mul_ps (err_v, hVal); */
-        /* tmp1        = _mm512_add_ps (tmp1, tmp2); */
-        /* tmp2        = _mm512_mul_ps (tmp1, rate_v); */
-        /* wVal        = _mm512_add_ps (wVal, tmp2); */
-
-        /* update h model */
-        /* tmp1        = _mm512_mul_ps (err_v, wVal_tmp); */
-        /* tmp2        = _mm512_mul_ps (lambda_v, hVal); */
-        /* tmp1        = _mm512_add_ps (tmp1, tmp2); */
-        /* tmp2        = _mm512_mul_ps (tmp1, rate_v); */
-        /* hVal        = _mm512_add_ps (hVal, tmp2); */
-
 
         _mm512_store_pd (&(WMat[j]), wVal);
         _mm512_store_pd (&(HMat[j]), hVal);
 
     }
-
-
-
-    /* for(int p = 0;p<dim_r;p++) */
-    /* { */
-    /*     WMatVal = WMat[p]; */
-    /*     HMatVal = HMat[p]; */
-    /*  */
-    /*     WMat[p] = WMat[p] + rate*(Err*HMatVal + lambda*WMatVal); */
-    /*     HMat[p] = HMat[p] + rate*(Err*WMatVal + lambda*HMatVal); */
-    /*  */
-    /* } */
-
 
 #else
     #error "DAAL_FPTYPE must be defined to float or double"

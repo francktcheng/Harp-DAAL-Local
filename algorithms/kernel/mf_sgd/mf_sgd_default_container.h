@@ -40,8 +40,6 @@ namespace algorithms
 {
 namespace mf_sgd
 {
-    
-// typedef std::mt19937 CppRNG;
 
 /**
  *  \brief Initialize list of cholesky kernels with implementations for supported architectures
@@ -112,21 +110,10 @@ void BatchContainer<interm, method, cpu>::compute()
     }*/
 
 	daal::internal::UniformRng<interm, daal::sse2> rng1(time(0));
-
     rng1.uniform(w_row*w_col, 0.0, scale, W_Ptr);
-
 
 	daal::internal::UniformRng<interm, daal::sse2> rng2(time(0));
     rng2.uniform(h_row*h_col, 0.0, scale, H_Ptr);
-
-    // debug check the norm of W_Ptr and H_Ptr
-    /*interm addres = 0;
-    for (q = 0; q < w_row*w_col; q++) {
-        addres += (W_Ptr[q]*W_Ptr[q]);
-    }
-
-    std::cout<<"W row: "<<w_row<<" W_Ptr norm: "<<addres<<std::endl;*/
-
 
     daal::algorithms::Parameter *par = _par;
     daal::services::Environment::env &env = *_env;

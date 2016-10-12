@@ -103,7 +103,6 @@ template <typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
 void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet, NumericTable** TestSet,
                  NumericTable *r[], const daal::algorithms::Parameter *par)
 {
-    /* to be implemented */
     /* retrieve members of parameter */
     const Parameter *parameter = static_cast<const Parameter *>(par);
     const long dim_r = parameter->_Dim_r;
@@ -114,7 +113,7 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
     const int iteration = parameter->_iteration;
     const int thread_num = parameter->_thread_num;
     const int tbb_grainsize = parameter->_tbb_grainsize;
-    const int isAvx512 = parameter->_isAvx512;
+    const int Avx512_explicit = parameter->_Avx512_explicit;
 
     const int dim_train = TrainSet[0]->getNumberOfRows();
     const int dim_test = TestSet[0]->getNumberOfRows();
@@ -180,18 +179,9 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
     /* ---------------- Retrieve Model H ---------------- */
     BlockMicroTable<interm, readWrite, cpu> mtHDataTable(r[1]);
 
-    /* debug */
-    std::cout<<"model H row: "<<r[1]->getNumberOfRows()<<std::endl;
-    std::cout<<"model H col: "<<r[1]->getNumberOfColumns()<<std::endl;
-
-
-
-    /* interm** mtHDataPtr = new interm*[dim_h]; */
-    /*  */
-    /* for(int j = 0; j<dim_h;j++) */
-    /* { */
-    /*      mtHDataTable.getBlockOfRows(j, 1, &(mtHDataPtr[j])); */
-    /* } */
+    // debug 
+    // std::cout<<"model H row: "<<r[1]->getNumberOfRows()<<std::endl;
+    // std::cout<<"model H col: "<<r[1]->getNumberOfColumns()<<std::endl;
 
     interm* mtHDataPtr = 0;
     mtHDataTable.getBlockOfRows(0, dim_h, &mtHDataPtr);
@@ -206,12 +196,21 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
     interm totalRMSE = 0;
 
     /* ------------------- Starting TBB based Training  -------------------*/
-     // use explicitly specified num of threads 
-    // task_scheduler_init init(task_scheduler_init::deferred); 
-    // init.initialize(thread_num);
+    task_scheduler_init init(task_scheduler_init::deferred);
 
-     // use automatically generated threads by TBB 
-    task_scheduler_init init(task_scheduler_init::automatic); 
+    if (thread_num != 0)
+    {
+        // use explicitly specified num of threads 
+        // init = new task_scheduler_init(task_scheduler_init::deferred); 
+        init.initialize(thread_num);
+    }
+    else
+    {
+        // use automatically generated threads by TBB 
+        // init = new task_scheduler_init(task_scheduler_init::automatic); 
+
+        init.initialize();
+    }
 
     /* set up the sequence of workflow */
     int* seq = new int[dim_train];
@@ -219,17 +218,22 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
         seq[j] = j;
 
 
-    MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, seq, dim_r, learningRate, lambda, mutex_w, mutex_h, isAvx512);
-    MFSGDTBB_TEST<interm, cpu> mfsgd_test(mtWDataPtr, mtHDataPtr, testWPos, testHPos, testV, dim_r, testRMSE, mutex_w, mutex_h, isAvx512);
+    MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, seq, dim_r, learningRate, lambda, mutex_w, mutex_h, Avx512_explicit);
+    MFSGDTBB_TEST<interm, cpu> mfsgd_test(mtWDataPtr, mtHDataPtr, testWPos, testHPos, testV, dim_r, testRMSE, mutex_w, mutex_h, Avx512_explicit);
 
     /*---------------- Test MF-SGD before iteration ----------------*/
 
 
-    // use explicitly specified grainsize
-    parallel_for(blocked_range<int>(0, dim_test, tbb_grainsize), mfsgd_test);
-
-    // use auto-partitioner by TBB
-    // parallel_for(blocked_range<int>(0, dim_test), mfsgd_test, auto_partitioner());
+    if (tbb_grainsize != 0)
+    {
+        // use explicitly specified grainsize
+        parallel_for(blocked_range<int>(0, dim_test, tbb_grainsize), mfsgd_test);
+    }
+    else
+    {
+        // use auto-partitioner by TBB
+        parallel_for(blocked_range<int>(0, dim_test), mfsgd_test, auto_partitioner());
+    }
 
     totalRMSE = 0;
     for(int k=0;k<dim_test;k++)
@@ -238,39 +242,6 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
     totalRMSE = totalRMSE/dim_test;
 
     printf("RMSE before interation: %f\n", sqrt(totalRMSE));
-
-    /*interm *WMat = 0;
-    interm *HMat = 0;
-
-    interm Mult = 0;
-    interm Err = 0;
-    interm ErrTotal = 0;
-    int validPoints = 0;
-
-    for( int j=0; j < dim_test; j++)
-    {
-
-        if (testWPos[j] != -1 && testHPos[j] != -1)
-        {
-
-            WMat = mtWDataPtr + testWPos[j]*dim_r;
-            HMat = mtHDataPtr + testHPos[j]*dim_r;
-
-            Mult = 0;
-            for(int s = 0; s<dim_r; s++)
-                Mult += (WMat[s]*HMat[s]);
-
-            Err = testV[j] - Mult;
-
-            ErrTotal += Err*Err;
-            validPoints++;
-
-        }
-
-    }
-
-    ErrTotal = ErrTotal/validPoints;
-    printf("RMSE before interation: %f\n", sqrt(ErrTotal));*/
 
     /*---------------- End of Test MF-SGD before iteration ----------------*/
     int k, p;
@@ -285,12 +256,11 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
 
         clock_gettime(CLOCK_MONOTONIC, &ts1);
 
-        /* shuffle the sequence */
-        /* std::random_shuffle(&seq[0], &seq[dim_train-1]);  */
-
         /* training MF-SGD */
-        parallel_for(blocked_range<int>(0, dim_train, tbb_grainsize), mfsgd);
-        // parallel_for(blocked_range<int>(0, dim_train), mfsgd, auto_partitioner());
+        if (tbb_grainsize != 0)
+            parallel_for(blocked_range<int>(0, dim_train, tbb_grainsize), mfsgd);
+        else
+            parallel_for(blocked_range<int>(0, dim_train), mfsgd, auto_partitioner());
 
         clock_gettime(CLOCK_MONOTONIC, &ts2);
 
@@ -299,8 +269,10 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
 	    train_time += (double)(diff)/1000000L;
 
         /* Test MF-SGD */
-        parallel_for(blocked_range<int>(0, dim_test, tbb_grainsize), mfsgd_test);
-        // parallel_for(blocked_range<int>(0, dim_test), mfsgd_test, auto_partitioner());
+        if (tbb_grainsize != 0)
+            parallel_for(blocked_range<int>(0, dim_test, tbb_grainsize), mfsgd_test);
+        else
+            parallel_for(blocked_range<int>(0, dim_test), mfsgd_test, auto_partitioner());
 
         totalRMSE = 0;
         for(k=0;k<dim_test;k++)
@@ -340,7 +312,7 @@ MFSGDTBB<interm, cpu>::MFSGDTBB(
         const interm lambda,
         currentMutex_t* mutex_w,
         currentMutex_t* mutex_h,
-        const int isAvx512
+        const int Avx512_explicit
 
 )
 {
@@ -358,7 +330,7 @@ MFSGDTBB<interm, cpu>::MFSGDTBB(
 
     _mutex_w = mutex_w;
     _mutex_h = mutex_h;
-    _isAvx512 = isAvx512;
+    _Avx512_explicit = Avx512_explicit;
 }
 
 template<typename interm, CpuType cpu>
@@ -389,9 +361,6 @@ void MFSGDTBB<interm, cpu>::operator()( const blocked_range<int>& range ) const
     for( int i=range.begin(); i!=range.end(); ++i )
     {
 
-        // WMat = _mtWDataTable + _workWPos[_seq[i]]*_Dim;
-        // HMat = _mtHDataTable + _workHPos[_seq[i]]*_Dim;
-
         // using local variables
         WMat = mtWDataTable + workWPos[seq[i]]*Dim;
         HMat = mtHDataTable + workHPos[seq[i]]*Dim;
@@ -399,11 +368,9 @@ void MFSGDTBB<interm, cpu>::operator()( const blocked_range<int>& range ) const
         /* currentMutex_t::scoped_lock lock_w(_mutex_w[_workWPos[_seq[i]]]); */
         /* currentMutex_t::scoped_lock lock_h(_mutex_h[_workHPos[_seq[i]]]); */
         
-        if (_isAvx512 == 1)
-            // updateMF_explicit512<interm, cpu>(WMat, HMat, _workV, _seq, i, _Dim, _learningRate, _lambda);
+        if (_Avx512_explicit == 1)
             updateMF_explicit512<interm, cpu>(WMat, HMat, workV, seq, i, Dim, learningRate, lambda);
         else
-            // updateMF<interm, cpu>(WMat, HMat, _workV, _seq, i, _Dim, _learningRate, _lambda);
             updateMF<interm, cpu>(WMat, HMat, workV, seq, i, Dim, learningRate, lambda);
 
         /* lock_w.release(); */
@@ -424,7 +391,7 @@ MFSGDTBB_TEST<interm, cpu>::MFSGDTBB_TEST(
         interm* testRMSE,
         currentMutex_t* mutex_w,
         currentMutex_t* mutex_h,
-        const int isAvx512
+        const int Avx512_explicit
 
 )
 {
@@ -442,7 +409,7 @@ MFSGDTBB_TEST<interm, cpu>::MFSGDTBB_TEST(
     _mutex_w = mutex_w;
     _mutex_h = mutex_h;
 
-    _isAvx512 = isAvx512;
+    _Avx512_explicit = Avx512_explicit;
 
 }
 
@@ -468,16 +435,8 @@ void MFSGDTBB_TEST<interm, cpu>::operator()( const blocked_range<int>& range ) c
     for( int i=range.begin(); i!=range.end(); ++i )
     {
 
-        // interm Mult = 0;
-        // interm Err = 0;
-
-        
-        // if (_testWPos[i] != -1 && _testHPos[i] != -1)
         if (testWPos[i] != -1 && testHPos[i] != -1)
         {
-
-            // WMat = _mtWDataTable + _testWPos[i]*_Dim;
-            // HMat = _mtHDataTable + _testHPos[i]*_Dim;
 
             WMat = mtWDataTable + testWPos[i]*Dim;
             HMat = mtHDataTable + testHPos[i]*Dim;
@@ -485,34 +444,36 @@ void MFSGDTBB_TEST<interm, cpu>::operator()( const blocked_range<int>& range ) c
             /* currentMutex_t::scoped_lock lock_w(_mutex_w[_testWPos[i]]); */
             /* currentMutex_t::scoped_lock lock_h(_mutex_h[_testHPos[i]]); */
 
-            if (_isAvx512 == 1)
-                // computeRMSE_explicit512<interm, cpu>(WMat, HMat, _testV, _testRMSE, i, _Dim);
+            if (_Avx512_explicit == 1)
                 computeRMSE_explicit512<interm, cpu>(WMat, HMat, testV, testRMSE, i, Dim);
             else
-                // computeRMSE<interm, cpu>(WMat, HMat, _testV, _testRMSE, i, _Dim);
                 computeRMSE<interm, cpu>(WMat, HMat, testV, testRMSE, i, Dim);
-
-            /* for(int p = 0; p<_Dim; p++) */
-            /*     Mult += (WMat[p]*HMat[p]); */
-            /*  */
-            /* Err = _testV[i] - Mult; */
-            /*  */
-            /* Err = Err*Err; */
-            /*  */
-            /* _testRMSE[i] = Err; */
 
             /* lock_w.release(); */
             /* lock_h.release(); */
 
         }
         else
-            // _testRMSE[i] = 0;
             testRMSE[i] = 0;
 
     }
 
 }
 
+/**
+ * @brief compiler based vectorization according to different CpuType
+ *
+ * @tparam interm
+ * @tparam cpu
+ * @param WMat
+ * @param HMat
+ * @param workV
+ * @param seq
+ * @param idx
+ * @param dim_r
+ * @param rate
+ * @param lambda
+ */
 template<typename interm, CpuType cpu>
 void updateMF(interm *WMat,interm *HMat, interm* workV, int* seq, int idx, const long dim_r, const interm rate, const interm lambda)
 {/*{{{*/
@@ -539,6 +500,22 @@ void updateMF(interm *WMat,interm *HMat, interm* workV, int* seq, int idx, const
 
 }/*}}}*/
 
+
+/**
+ * @brief if CpuType is avx512_mic, use explicit AVX512 instructions, 
+ * otherwise use compiler based vectorization
+ *
+ * @tparam interm
+ * @tparam cpu
+ * @param WMat
+ * @param HMat
+ * @param workV
+ * @param seq
+ * @param idx
+ * @param dim_r
+ * @param rate
+ * @param lambda
+ */
 template<typename interm, CpuType cpu>
 void updateMF_explicit512(interm *WMat,interm *HMat, interm* workV, int* seq, int idx, const long dim_r, const interm rate, const interm lambda)
 {/*{{{*/
@@ -565,9 +542,21 @@ void updateMF_explicit512(interm *WMat,interm *HMat, interm* workV, int* seq, in
 
 }/*}}}*/
 
+/**
+ * @brief compiler based vectorization according to different CpuType
+ *
+ * @tparam interm
+ * @tparam cpu
+ * @param WMat
+ * @param HMat
+ * @param testV
+ * @param testRMSE
+ * @param idx
+ * @param dim_r
+ */
 template<typename interm, CpuType cpu>
 void computeRMSE(interm *WMat,interm *HMat, interm* testV, interm* testRMSE, int idx, const long dim_r)
-{
+{/*{{{*/
     int p;
     interm Mult = 0;
     interm Err;
@@ -579,11 +568,24 @@ void computeRMSE(interm *WMat,interm *HMat, interm* testV, interm* testRMSE, int
 
     testRMSE[idx] = Err*Err;
 
-}
+}/*}}}*/
 
+/**
+ * @brief if CpuType is avx512_mic, use explicit AVX512 instructions, 
+ * otherwise use compiler based vectorization
+ *
+ * @tparam interm
+ * @tparam cpu
+ * @param WMat
+ * @param HMat
+ * @param testV
+ * @param testRMSE
+ * @param idx
+ * @param dim_r
+ */
 template<typename interm, CpuType cpu>
 void computeRMSE_explicit512(interm *WMat,interm *HMat, interm* testV, interm* testRMSE, int idx, const long dim_r)
-{
+{/*{{{*/
     int p;
     interm Mult = 0;
     interm Err;
@@ -595,7 +597,7 @@ void computeRMSE_explicit512(interm *WMat,interm *HMat, interm* testV, interm* t
 
     testRMSE[idx] = Err*Err;
 
-}
+}/*}}}*/
 
 // AVX512-MIC optimization via template specialization (Intel compiler only)
 #if defined (__INTEL_COMPILER) && defined(__linux__) && defined(__x86_64__) && ( __CPUID__(DAAL_CPU) == __avx512_mic__ )

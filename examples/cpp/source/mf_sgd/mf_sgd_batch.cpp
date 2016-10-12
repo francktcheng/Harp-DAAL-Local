@@ -41,13 +41,13 @@ using namespace std;
 using namespace daal;
 using namespace daal::algorithms;
 
-//parameters of SGD training
+//default parameters of SGD training
 double learningRate = 0.005;
 double lambda = 0.002;
 int iteration = 10;		    //num of iterations in SGD training
-int threads = 20;			// threads used by TBB
-int tbb_grainsize = 10000;   //grainsize for TBB parallel_for 
-int isAvx512 = 1;
+int threads = 0;			// automatic threads num by TBB
+int tbb_grainsize = 0;   //auto partitioner by TBB  
+int Avx512_explicit = 0; //use compiler generated AVX512 vectorization
 
 // dimension of model W and model H
 long r_dim = 1000;
@@ -75,11 +75,11 @@ typedef float sgd_float;
 // string testDataFile = "../../../data/batch/yahoomusic-test.mm";
 
 //absolute path used in VTune
-// string trainDataFile = "/home/langshichen/Lib/__release_lnx/daal/examples/data/batch/movielens-train.mm";
-// string testDataFile = "/home/langshichen/Lib/__release_lnx/daal/examples/data/batch/movielens-test.mm";
+string trainDataFile = "/home/langshichen/Lib/__release_lnx/daal/examples/data/batch/movielens-train.mm";
+string testDataFile = "/home/langshichen/Lib/__release_lnx/daal/examples/data/batch/movielens-test.mm";
 
-string trainDataFile = "/home/langshichen/Lib/__release_lnx/daal/examples/data/batch/yahoomusic-train.mm";
-string testDataFile = "/home/langshichen/Lib/__release_lnx/daal/examples/data/batch/yahoomusic-test.mm";
+// string trainDataFile = "/home/langshichen/Lib/__release_lnx/daal/examples/data/batch/yahoomusic-train.mm";
+// string testDataFile = "/home/langshichen/Lib/__release_lnx/daal/examples/data/batch/yahoomusic-test.mm";
 
 /**
  * $V = W H$
@@ -114,7 +114,7 @@ int main(int argc, char *argv[])
 		r_dim = atol(argv[6]);
 
     if (argc > 7)
-        isAvx512 = atoi(argv[7]);
+        Avx512_explicit = atoi(argv[7]);
 
 	if (argc > 8)
 		row_num_w = atol(argv[8]);
@@ -253,7 +253,7 @@ int main(int argc, char *argv[])
     algorithm.input.set(mf_sgd::dataTrain, dataTable_Train);
     algorithm.input.set(mf_sgd::dataTest, dataTable_Test);
 
-    algorithm.parameter.setParameter(learningRate, lambda, r_dim, row_num_w, col_num_h, iteration, threads, tbb_grainsize, isAvx512);
+    algorithm.parameter.setParameter(learningRate, lambda, r_dim, row_num_w, col_num_h, iteration, threads, tbb_grainsize, Avx512_explicit);
 
     /* Compute mf_sgd decomposition */
 

@@ -90,12 +90,6 @@ struct VPoint
     interm val;
 };
 
-struct VPoint_bin 
-{
-    int wPos;
-    int hPos;
-    float val;
-};
 
 /**
  * \brief Contains version 1.0 of Intel(R) Data Analytics Acceleration Library (Intel(R) DAAL) interface.
@@ -149,31 +143,6 @@ public:
     void generate_points(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Train, long num_Train, 
             daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Test, long num_Test,  long row_num_w, long col_num_h);
 
-    /**
-     * @brief Convert NumericTablePtr to array of VPoints 
-     *
-     * @tparam algorithmFPType
-     * @param points_Train
-     * @param num_Train
-     * @param points_Test
-     * @param num_Test
-     * @param trainTable
-     * @param testTable
-     */
-    template <typename algorithmFPType>
-    void convert_format(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Test, 
-            long num_Test, data_management::NumericTablePtr trainTable, data_management::NumericTablePtr testTable, long &row_num_w, long &col_num_h);
-
-    template <typename algorithmFPType>
-    void convert_format_binary(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Test, 
-            long num_Test, daal::algorithms::mf_sgd::VPoint_bin* bin_Train, daal::algorithms::mf_sgd::VPoint_bin* bin_Test, long &row_num_w, long &col_num_h);
-
-	template <typename algorithmFPType>
-    void convert_format(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Test, 
-            long num_Test, std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map_train, 
-			std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map_test, long &row_num_w, long &col_num_h);
-
-
 	/**
 	 * @brief load dataset of CSV file 
 	 *
@@ -185,6 +154,24 @@ public:
     template <typename algorithmFPType>
 	void loadData(std::string filename, std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map, long &num_points, std::vector<long>* lineContainer);
 
+
+	/**
+	 * @brief convert read in csv files into VPoints 
+	 *
+	 * @tparam algorithmFPType
+	 * @param points_Train
+	 * @param num_Train
+	 * @param points_Test
+	 * @param num_Test
+	 * @param map_train
+	 * @param map_test
+	 * @param row_num_w
+	 * @param col_num_h
+	 */
+	template <typename algorithmFPType>
+    void convert_format(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Test, 
+            long num_Test, std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map_train, 
+			std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map_test, long &row_num_w, long &col_num_h);
 
 	/**
 	 * @brief free up the memory allocated in the map 
@@ -306,10 +293,10 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _Dim_r = 10;
         _Dim_w = 10;
         _Dim_h = 10;
-        _iteration = 0;
-        _thread_num = 10;
-        _tbb_grainsize = 1000;
-        _isAvx512 = 0;
+        _iteration = 10;
+        _thread_num = 0;
+        _tbb_grainsize = 0;
+        _Avx512_explicit = 0;
     }
 
     virtual ~Parameter() {}
@@ -319,7 +306,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
      */
     // virtual void check() const;
     //
-    void setParameter(double learningRate, double lambda, long Dim_r, long Dim_w, long Dim_h, int iteration, int thread_num, int tbb_grainsize, int isAvx512)
+    void setParameter(double learningRate, double lambda, long Dim_r, long Dim_w, long Dim_h, int iteration, int thread_num, int tbb_grainsize, int Avx512_explicit)
     {
 
         _learningRate = learningRate;
@@ -330,7 +317,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _iteration = iteration;
         _thread_num = thread_num;
         _tbb_grainsize = tbb_grainsize;
-        _isAvx512 = isAvx512;
+        _Avx512_explicit = Avx512_explicit;
     }
 
     double _learningRate;                     // the rate of learning by SGD 
@@ -341,7 +328,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     int    _iteration;                       //the iterations of SGD
     int     _thread_num;                      //specify the threads used by TBB
     int     _tbb_grainsize;                   //specify the grainsize for TBB parallel_for
-    int     _isAvx512;                       //specify whether enable Avx512 of mic
+    int     _Avx512_explicit;                 //specify whether use explicit Avx512 instructions 
 
 };
 /** @} */

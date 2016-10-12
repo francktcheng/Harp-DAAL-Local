@@ -77,7 +77,7 @@ struct MFSGDTBB
     interm _learningRate;
     interm _lambda;
 
-    int _isAvx512;
+    int _Avx512_explicit;
 
     currentMutex_t* _mutex_w;
     currentMutex_t* _mutex_h;
@@ -95,7 +95,7 @@ struct MFSGDTBB
             const interm lambda,
             currentMutex_t* mutex_w,
             currentMutex_t* mutex_h,
-            const int isAvx512
+            const int Avx512_explicit
     );
 
     void operator()( const blocked_range<int>& range ) const; 
@@ -117,7 +117,7 @@ struct MFSGDTBB_TEST
 
     int _Dim;
     interm* _testRMSE;
-    int _isAvx512;
+    int _Avx512_explicit;
 
     currentMutex_t* _mutex_w;
     currentMutex_t* _mutex_h;
@@ -133,7 +133,7 @@ struct MFSGDTBB_TEST
             interm* testRMSE,
             currentMutex_t* mutex_w,
             currentMutex_t* mutex_h,
-            const int isAvx512
+            const int Avx512_explicit
     );
 
     void operator()( const blocked_range<int>& range ) const; 

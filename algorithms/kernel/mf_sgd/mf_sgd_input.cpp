@@ -389,26 +389,147 @@ void Input::convert_format_binary(daal::algorithms::mf_sgd::VPoint<algorithmFPTy
 }/*}}}*/
 
 template <typename algorithmFPType>
-void Input::loadDistri(std::string filename, std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map, std::vector<long> &lineContainer)
+void Input::convert_format(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Test, 
+            long num_Test, std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map_train, 
+            std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map_test, long &row_num_w, long &col_num_h)
+{/*{{{*/
+
+    std::unordered_map<long, long> vMap_row_w;
+    std::unordered_map<long, long> vMap_col_h;
+
+    long row_pos_itr = 0;
+    long col_pos_itr = 0;
+
+    long row_pos = 0;
+    long col_pos = 0;
+    long entry_itr = 0;
+
+    long row_id;
+    long col_id;
+    algorithmFPType val;
+
+    typename std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*>::iterator it_map;
+    typename std::vector<mf_sgd::VPoint<algorithmFPType>*>::iterator it_vec;
+
+    //iteration over train data map
+    for (it_map = map_train.begin(); it_map != map_train.end(); ++it_map) 
+    {
+
+        if (it_map->second->empty() == false)
+        {
+            for(it_vec = it_map->second->begin(); it_vec < it_map->second->end();it_vec++)
+            {
+                row_id = (*it_vec)->wPos;
+                col_id = (*it_vec)->hPos;
+                val = (*it_vec)->val;
+
+                if (vMap_row_w.find(row_id) == vMap_row_w.end())
+                {
+                    //not found row id
+                    vMap_row_w[row_id] = row_pos_itr;
+                    row_pos = row_pos_itr;
+                    row_pos_itr++;
+                }
+                else
+                    row_pos = vMap_row_w[row_id];
+
+                if (vMap_col_h.find(col_id) == vMap_col_h.end())
+                {
+                    //not found col id
+                    vMap_col_h[col_id] = col_pos_itr;
+                    col_pos = col_pos_itr;
+                    col_pos_itr++;
+                }
+                else
+                    col_pos = vMap_col_h[col_id];
+
+                points_Train[entry_itr].wPos = row_pos;
+                points_Train[entry_itr].hPos = col_pos;
+                points_Train[entry_itr].val = val;
+
+                entry_itr++;
+
+            }
+
+        }
+
+    }
+
+    row_num_w = row_pos_itr;
+    col_num_h = col_pos_itr;
+
+
+    // iteration over test data map
+    entry_itr = 0;
+
+    for (it_map = map_test.begin(); it_map != map_test.end(); ++it_map) 
+    {
+
+        if (it_map->second->empty() == false)
+        {
+            for(it_vec = it_map->second->begin(); it_vec < it_map->second->end();it_vec++)
+            {
+                row_id = (*it_vec)->wPos;
+                col_id = (*it_vec)->hPos;
+                val = (*it_vec)->val;
+
+                if (vMap_row_w.find(row_id) == vMap_row_w.end())
+                {
+                    //not found row id
+                    row_pos = -1;
+                }
+                else
+                    row_pos = vMap_row_w[row_id];
+
+                if (vMap_col_h.find(col_id) == vMap_col_h.end())
+                {
+                    //not found col id
+                    col_pos = -1;
+                }
+                else
+                    col_pos = vMap_col_h[col_id];
+
+                points_Test[entry_itr].wPos = row_pos;
+                points_Test[entry_itr].hPos = col_pos;
+                points_Test[entry_itr].val = val;
+
+                entry_itr++;
+
+            }
+
+        }
+
+    }
+
+
+}/*}}}*/
+
+/**
+ * @brief load dataset from CSV files into a map
+ * CSV files are space delimited
+ *
+ * @tparam algorithmFPType
+ * @param filename
+ * @param map
+ * @param lineContainer
+ */
+template <typename algorithmFPType>
+void Input::loadData(std::string filename, std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map, long &num_points, std::vector<long>* lineContainer)
 {/*{{{*/
     
     long row_id;
     long col_id;
     algorithmFPType val;
 
+    num_points = 0;
+
     std::string line;
 
     std::ifstream infile(filename);
 
-    //debug
-    // std::cout<<"Entering input read file"<<std::endl;
-
-    // while (infile >> row_id >> col_id >> val) 
     while (std::getline(infile, line)) 
     {
         infile >> row_id >> col_id >> val;
-
-        // std::cout<<"val: "<<val<<std::endl;
 
         //processing a line
         mf_sgd::VPoint<algorithmFPType>* item = new mf_sgd::VPoint<algorithmFPType>();
@@ -416,13 +537,17 @@ void Input::loadDistri(std::string filename, std::unordered_map<long, std::vecto
         item->hPos = col_id;
         item->val = val;
 
+        num_points++;
+
         if (map.find(row_id) == map.end())
         {
             //not found row id
             std::vector<mf_sgd::VPoint<algorithmFPType>*>* vec = new std::vector<mf_sgd::VPoint<algorithmFPType>*>();
             vec->push_back(item);
             map[row_id] = vec;
-            lineContainer.push_back(row_id);
+
+            if (lineContainer != NULL)
+                lineContainer->push_back(row_id);
 
         }
         else
@@ -442,8 +567,8 @@ void Input::loadDistri(std::string filename, std::unordered_map<long, std::vecto
  * @param map
  */
 template <typename algorithmFPType>
-void Input::freeDistri(std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map)
-{
+void Input::freeData(std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map)
+{/*{{{*/
         typename std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*>::iterator it_map;
         typename std::vector<mf_sgd::VPoint<algorithmFPType>*>::iterator it_vec;
    
@@ -467,7 +592,7 @@ void Input::freeDistri(std::unordered_map<long, std::vector<mf_sgd::VPoint<algor
 
         map.clear();
 
-}
+}/*}}}*/
 
 template void Input::generate_points(daal::algorithms::mf_sgd::VPoint<double>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<double>* points_Test, long num_Test,  long row_num_w, long col_num_h);
 
@@ -485,13 +610,21 @@ template void Input::convert_format_binary(daal::algorithms::mf_sgd::VPoint<doub
 template void Input::convert_format_binary(daal::algorithms::mf_sgd::VPoint<float>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<float>* points_Test, 
             long num_Test, daal::algorithms::mf_sgd::VPoint_bin* bin_Train, daal::algorithms::mf_sgd::VPoint_bin* bin_Test, long &row_num_w, long &col_num_h);
 
-template void Input::loadDistri(std::string filename, std::unordered_map<long, std::vector<mf_sgd::VPoint<double>*>*> &map, std::vector<long> &lineContainer);
+template void Input::convert_format(daal::algorithms::mf_sgd::VPoint<double>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<double>* points_Test, 
+            long num_Test, std::unordered_map<long, std::vector<mf_sgd::VPoint<double>*>*> &map_train, 
+            std::unordered_map<long, std::vector<mf_sgd::VPoint<double>*>*> &map_test, long &row_num_w, long &col_num_h);
 
-template void Input::loadDistri(std::string filename, std::unordered_map<long, std::vector<mf_sgd::VPoint<float>*>*> &map, std::vector<long> &lineContainer);
+template void Input::convert_format(daal::algorithms::mf_sgd::VPoint<float>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<float>* points_Test, 
+            long num_Test, std::unordered_map<long, std::vector<mf_sgd::VPoint<float>*>*> &map_train, 
+            std::unordered_map<long, std::vector<mf_sgd::VPoint<float>*>*> &map_test, long &row_num_w, long &col_num_h);
 
-template void Input::freeDistri(std::unordered_map<long, std::vector<mf_sgd::VPoint<double>*>*> &map);
+template void Input::loadData(std::string filename, std::unordered_map<long, std::vector<mf_sgd::VPoint<double>*>*> &map, long &num_points, std::vector<long>* lineContainer);
 
-template void Input::freeDistri(std::unordered_map<long, std::vector<mf_sgd::VPoint<float>*>*> &map);
+template void Input::loadData(std::string filename, std::unordered_map<long, std::vector<mf_sgd::VPoint<float>*>*> &map, long &num_points, std::vector<long>* lineContainer);
+
+template void Input::freeData(std::unordered_map<long, std::vector<mf_sgd::VPoint<double>*>*> &map);
+
+template void Input::freeData(std::unordered_map<long, std::vector<mf_sgd::VPoint<float>*>*> &map);
 
 } // namespace interface1
 } // namespace mf_sgd

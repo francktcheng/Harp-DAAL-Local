@@ -63,34 +63,23 @@ long num_Train;
 long num_Test;
 const size_t field_v = 3;
 
+//choose the precision
 typedef float sgd_float;
 // typedef double sgd_float;
 
 // input dataset files in csv format
-// string trainDataFile = "../../../data/batch/movielens-train.csv";
-// string testDataFile = "../../../data/batch/movielens-test.csv";
+// string trainDataFile = "../../../data/batch/movielens-train.mm";
+// string testDataFile = "../../../data/batch/movielens-test.mm";
 
-// string trainDataFile = "../../../data/batch/yahoomusic-train.csv";
-// string testDataFile = "../../../data/batch/yahoomusic-test.csv";
-//
-string trainDataFile = "/home/langshichen/Lib/__release_lnx/daal/examples/data/batch/movielens-train.csv";
-string testDataFile = "/home/langshichen/Lib/__release_lnx/daal/examples/data/batch/movielens-test.csv";
+// string trainDataFile = "../../../data/batch/yahoomusic-train.mm";
+// string testDataFile = "../../../data/batch/yahoomusic-test.mm";
 
-// string trainDataFile = "/home/langshichen/Lib/__release_lnx/daal/examples/data/batch/yahoomusic-train.csv";
-// string testDataFile = "/home/langshichen/Lib/__release_lnx/daal/examples/data/batch/yahoomusic-test.csv";
+//absolute path used in VTune
+// string trainDataFile = "/home/langshichen/Lib/__release_lnx/daal/examples/data/batch/movielens-train.mm";
+// string testDataFile = "/home/langshichen/Lib/__release_lnx/daal/examples/data/batch/movielens-test.mm";
 
-// read in binary file
-typedef int mf_int;
-typedef float mf_float;
-typedef long long mf_long;
-
-struct mf_problem
-{
-    mf_int m;
-    mf_int n;
-    mf_long nnz;
-    mf_sgd::VPoint_bin *R;
-};
+string trainDataFile = "/home/langshichen/Lib/__release_lnx/daal/examples/data/batch/yahoomusic-train.mm";
+string testDataFile = "/home/langshichen/Lib/__release_lnx/daal/examples/data/batch/yahoomusic-test.mm";
 
 /**
  * $V = W H$
@@ -140,8 +129,6 @@ int main(int argc, char *argv[])
 	mf_sgd::VPoint<sgd_float>* points_Test;
 
     // Create an algorithm to compute mf_sgd decomposition 
-    // use default template value: double and defaultSGD
-    // mf_sgd::Batch<double, mf_sgd::defaultSGD> algorithm;
     mf_sgd::Batch<sgd_float, mf_sgd::defaultSGD> algorithm;
 
     struct timespec ts1;
@@ -171,82 +158,37 @@ int main(int argc, char *argv[])
 	}
 	else
 	{
-		// load the dataset file
-
-		// Initialize FileDataSource to retrieve the input data from a .csv file 
-		/*FileDataSource<CSVFeatureManager> dataSourceTrain(trainDataFile, DataSource::doAllocateNumericTable, DataSource::doDictionaryFromContext);
-		FileDataSource<CSVFeatureManager> dataSourceTest(testDataFile, DataSource::doAllocateNumericTable, DataSource::doDictionaryFromContext);
-
-		// Retrieve the data from the input file 
-        printf("Start loading Data into DAAL's NumericTable\n");
-
-	    clock_gettime(CLOCK_MONOTONIC, &ts1);
-
-		dataSourceTrain.loadDataBlock();
-		dataSourceTest.loadDataBlock();
-
-	    clock_gettime(CLOCK_MONOTONIC, &ts2);
-
-        diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
-	    diff_ms = (double)(diff)/1000000L;
-
-        printf("Finish loading Data into DAAL's NumericTable using %f ms\n", diff_ms);
-
-		NumericTablePtr trainTable = dataSourceTrain.getNumericTable();
-		NumericTablePtr testTable = dataSourceTest.getNumericTable();
-
-		num_Train = trainTable->getNumberOfRows();
-		num_Test = testTable->getNumberOfRows();*/
-
-        //----------------- Starting reading datasets from binary file --------------------------
         
-        printf("Start loading Data into DAAL's NumericTable\n");
+        //----------------- Start reading datasets from csv file --------------------------
+        std::unordered_map<long, std::vector<mf_sgd::VPoint<sgd_float>*>*> map_train;
+        std::unordered_map<long, std::vector<mf_sgd::VPoint<sgd_float>*>*> map_test;
+
+        //load train set data
 	    clock_gettime(CLOCK_MONOTONIC, &ts1);
 
-        std::string shadow = trainDataFile + ".shadow";
-        std::ifstream fs_train(shadow, std::fstream::binary);
-        mf_problem prob_train;
-        mf_sgd::VPoint_bin *train_binary;
-
-        if(fs_train.is_open()){
-
-            fs_train.read((char*)&prob_train, sizeof(mf_problem));
-
-            train_binary = new mf_sgd::VPoint_bin[prob_train.nnz];
-
-            fs_train.read((char*)train_binary, sizeof(mf_sgd::VPoint_bin)*prob_train.nnz);
-            fs_train.close();
-
-        }
-
-        num_Train = prob_train.nnz;
-
-        shadow = testDataFile + ".shadow";
-        std::ifstream fs_test(shadow, std::fstream::binary);
-        mf_problem prob_test;
-        mf_sgd::VPoint_bin *test_binary;
-
-        if(fs_test.is_open()){
-
-            fs_test.read((char*)&prob_test, sizeof(mf_problem));
-
-            test_binary = new mf_sgd::VPoint_bin[prob_test.nnz];
-
-            fs_test.read((char*)test_binary, sizeof(mf_sgd::VPoint_bin)*prob_test.nnz);
-            fs_test.close();
-
-        }
-
-        num_Test = prob_test.nnz;
+        algorithm.input.loadData(trainDataFile, map_train, num_Train, NULL);
 
         clock_gettime(CLOCK_MONOTONIC, &ts2);
 
         diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
 	    diff_ms = (double)(diff)/1000000L;
 
-        printf("Finish loading Data into DAAL's NumericTable using %f ms\n", diff_ms);
+        printf("Finish loading Train Data using %f ms\n", diff_ms);
 
-        //----------------- End reading datasets from binary file --------------------------
+        //load test set data
+	    clock_gettime(CLOCK_MONOTONIC, &ts1);
+
+        algorithm.input.loadData(testDataFile, map_test, num_Test, NULL);
+
+        clock_gettime(CLOCK_MONOTONIC, &ts2);
+
+        diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
+	    diff_ms = (double)(diff)/1000000L;
+
+        printf("Finish loading Test Data using %f ms\n", diff_ms);
+
+
+        //----------------- End reading datasets from csv file --------------------------
 
         points_Train = new mf_sgd::VPoint<sgd_float>[num_Train];
 		points_Test = new mf_sgd::VPoint<sgd_float>[num_Test];
@@ -256,12 +198,14 @@ int main(int argc, char *argv[])
 
 	    clock_gettime(CLOCK_MONOTONIC, &ts1);
 
-		// algorithm.input.convert_format(points_Train, num_Train, points_Test, num_Test, trainTable, testTable, row_num_w, col_num_h);
-		algorithm.input.convert_format_binary(points_Train, num_Train, points_Test, num_Test, train_binary, test_binary, row_num_w, col_num_h);
+		algorithm.input.convert_format(points_Train, num_Train, points_Test, num_Test, map_train, map_test, row_num_w, col_num_h);
 
         clock_gettime(CLOCK_MONOTONIC, &ts2);
         diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
 	    diff_ms = (double)(diff)/1000000L;
+
+        algorithm.input.freeData(map_train);
+        algorithm.input.freeData(map_test);
 
         printf("Finish Converting Sparse Data using %f ms\n", diff_ms);
         printf("Train set num of Points: %d\n", num_Train);
@@ -269,10 +213,6 @@ int main(int argc, char *argv[])
 		printf("Model W Rows: %d\n", row_num_w);
 		printf("Model H Columns: %d\n", col_num_h);
 		printf("Model Dimension: %d\n", r_dim);
-
-        delete[] train_binary;
-        delete[] test_binary;
-        
 	
 	}
 
@@ -316,20 +256,8 @@ int main(int argc, char *argv[])
     algorithm.parameter.setParameter(learningRate, lambda, r_dim, row_num_w, col_num_h, iteration, threads, tbb_grainsize, isAvx512);
 
     /* Compute mf_sgd decomposition */
-	// struct timespec ts1;
-	// struct timespec ts2;
-
-	// clock_gettime(CLOCK_MONOTONIC, &ts1);
 
     algorithm.compute();
-
-	// clock_gettime(CLOCK_MONOTONIC, &ts2);
-
-	// long diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
-	// double compute_time = (double)(diff)/1000000L;
-	
-    // services::SharedPtr<mf_sgd::Result> res = algorithm.getResult();
-	// printf("Computation Time elapsed in ms: %f\n", compute_time);
 
     /* Print the results */
     // printNumericTable(res->get(mf_sgd::resWMat), "Model W Matrix:", 10, 10, 10);

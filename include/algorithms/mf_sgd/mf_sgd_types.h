@@ -168,9 +168,14 @@ public:
     void convert_format_binary(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Test, 
             long num_Test, daal::algorithms::mf_sgd::VPoint_bin* bin_Train, daal::algorithms::mf_sgd::VPoint_bin* bin_Test, long &row_num_w, long &col_num_h);
 
+	template <typename algorithmFPType>
+    void convert_format(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Test, 
+            long num_Test, std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map_train, 
+			std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map_test, long &row_num_w, long &col_num_h);
+
 
 	/**
-	 * @brief load dataset for distributed mode
+	 * @brief load dataset of CSV file 
 	 *
 	 * @tparam algorithmFPType
 	 * @param filename
@@ -178,17 +183,17 @@ public:
 	 * @param lineContainer
 	 */
     template <typename algorithmFPType>
-	void loadDistri(std::string filename, std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map, std::vector<long> &lineContainer);
+	void loadData(std::string filename, std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map, long &num_points, std::vector<long>* lineContainer);
 
 
 	/**
-	 * @brief free up the memory allocated in the map of distributed mode
+	 * @brief free up the memory allocated in the map 
 	 *
 	 * @tparam algorithmFPType
 	 * @param map
 	 */
 	template <typename algorithmFPType>
-	void freeDistri(std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map);
+	void freeData(std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map);
 
 
     /**

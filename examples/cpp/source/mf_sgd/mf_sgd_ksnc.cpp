@@ -219,6 +219,8 @@ int main(int argc, char *argv[])
 
         std::string distri_train_file = trainDataFile + std::to_string(rank);
         std::string distri_test_file = testDataFile + std::to_string(rank);
+        long num_Train;
+        long num_Test;
 
         //read in files and sorted in row id
         
@@ -226,7 +228,7 @@ int main(int argc, char *argv[])
         MPI_Barrier(MPI_COMM_WORLD);
 	    clock_gettime(CLOCK_MONOTONIC, &ts1);
 
-        algorithm.input.loadDistri(distri_train_file, map_train, vec_line_train);
+        algorithm.input.loadData(distri_train_file, map_train, num_Train,  &vec_line_train);
 
         MPI_Barrier(MPI_COMM_WORLD);
         clock_gettime(CLOCK_MONOTONIC, &ts2);
@@ -234,7 +236,7 @@ int main(int argc, char *argv[])
         diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
 	    diff_ms = (double)(diff)/1000000L;
 
-        printf("Finish loading Train Data %d rows into DAAL's NumericTable on rank: %d, using %f ms\n", map_train.size(), rank, diff_ms);
+        printf("Finish loading Train Data %d rows %d points into DAAL's NumericTable on rank: %d, using %f ms\n", map_train.size(), num_Train, rank, diff_ms);
         printf("Train Vec line num for rank: %d is %d\n", rank, vec_line_train.size());
         // algorithm.input.freeDistri(map_train);
 
@@ -242,7 +244,7 @@ int main(int argc, char *argv[])
         MPI_Barrier(MPI_COMM_WORLD);
 	    clock_gettime(CLOCK_MONOTONIC, &ts1);
 
-        algorithm.input.loadDistri(distri_test_file, map_test, vec_line_test);
+        algorithm.input.loadData(distri_test_file, map_test, num_Test, &vec_line_test);
 
         MPI_Barrier(MPI_COMM_WORLD);
         clock_gettime(CLOCK_MONOTONIC, &ts2);
@@ -250,7 +252,7 @@ int main(int argc, char *argv[])
         diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
 	    diff_ms = (double)(diff)/1000000L;
 
-        printf("Finish loading Test Data %d rows into DAAL's NumericTable on rank: %d, using %f ms\n", map_test.size(), rank, diff_ms);
+        printf("Finish loading Test Data %d rows and %d points into DAAL's NumericTable on rank: %d, using %f ms\n", map_test.size(), num_Test, rank, diff_ms);
         printf("Test Vec line num for rank: %d is %d\n", rank, vec_line_test.size());
         // algorithm.input.freeDistri(map_test);
 

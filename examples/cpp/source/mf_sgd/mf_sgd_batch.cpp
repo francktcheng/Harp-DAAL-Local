@@ -70,8 +70,14 @@ typedef float sgd_float;
 // string trainDataFile = "../../../data/batch/movielens-train.csv";
 // string testDataFile = "../../../data/batch/movielens-test.csv";
 
-string trainDataFile = "../../../data/batch/yahoomusic-train.csv";
-string testDataFile = "../../../data/batch/yahoomusic-test.csv";
+// string trainDataFile = "../../../data/batch/yahoomusic-train.csv";
+// string testDataFile = "../../../data/batch/yahoomusic-test.csv";
+//
+string trainDataFile = "/home/langshichen/Lib/__release_lnx/daal/examples/data/batch/movielens-train.csv";
+string testDataFile = "/home/langshichen/Lib/__release_lnx/daal/examples/data/batch/movielens-test.csv";
+
+// string trainDataFile = "/home/langshichen/Lib/__release_lnx/daal/examples/data/batch/yahoomusic-train.csv";
+// string testDataFile = "/home/langshichen/Lib/__release_lnx/daal/examples/data/batch/yahoomusic-test.csv";
 
 // read in binary file
 typedef int mf_int;

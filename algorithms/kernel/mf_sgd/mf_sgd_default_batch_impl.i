@@ -68,13 +68,13 @@ template<typename interm, CpuType cpu>
 void updateMF(interm *WMat,interm *HMat, interm* workV, int* seq, int idx, const long dim_r, const interm rate, const interm lambda);
 
 template<typename interm, CpuType cpu>
-void updateMF_non512(interm *WMat,interm *HMat, interm* workV, int* seq, int idx, const long dim_r, const interm rate, const interm lambda);
+void updateMF_explicit512(interm *WMat,interm *HMat, interm* workV, int* seq, int idx, const long dim_r, const interm rate, const interm lambda);
 
 template<typename interm, CpuType cpu>
 void computeRMSE(interm *WMat,interm *HMat, interm* testV, interm* testRMSE, int idx, const long dim_r);
 
 template<typename interm, CpuType cpu>
-void computeRMSE_non512(interm *WMat,interm *HMat, interm* testV, interm* testRMSE, int idx, const long dim_r);
+void computeRMSE_explicit512(interm *WMat,interm *HMat, interm* testV, interm* testRMSE, int idx, const long dim_r);
 
 /**
  *  \brief Kernel for mf_sgd mf_sgd calculation
@@ -206,10 +206,13 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
     interm totalRMSE = 0;
 
     /* ------------------- Starting TBB based Training  -------------------*/
-    /* task_scheduler_init init; */
-    task_scheduler_init init(task_scheduler_init::deferred); 
-    init.initialize(thread_num);
-    
+     // use explicitly specified num of threads 
+    // task_scheduler_init init(task_scheduler_init::deferred); 
+    // init.initialize(thread_num);
+
+     // use automatically generated threads by TBB 
+    task_scheduler_init init(task_scheduler_init::automatic); 
+
     /* set up the sequence of workflow */
     int* seq = new int[dim_train];
     for(int j=0;j<dim_train;j++)
@@ -221,7 +224,12 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
 
     /*---------------- Test MF-SGD before iteration ----------------*/
 
+
+    // use explicitly specified grainsize
     parallel_for(blocked_range<int>(0, dim_test, tbb_grainsize), mfsgd_test);
+
+    // use auto-partitioner by TBB
+    // parallel_for(blocked_range<int>(0, dim_test), mfsgd_test, auto_partitioner());
 
     totalRMSE = 0;
     for(int k=0;k<dim_test;k++)
@@ -282,6 +290,7 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
 
         /* training MF-SGD */
         parallel_for(blocked_range<int>(0, dim_train, tbb_grainsize), mfsgd);
+        // parallel_for(blocked_range<int>(0, dim_train), mfsgd, auto_partitioner());
 
         clock_gettime(CLOCK_MONOTONIC, &ts2);
 
@@ -291,6 +300,7 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
 
         /* Test MF-SGD */
         parallel_for(blocked_range<int>(0, dim_test, tbb_grainsize), mfsgd_test);
+        // parallel_for(blocked_range<int>(0, dim_test), mfsgd_test, auto_partitioner());
 
         totalRMSE = 0;
         for(k=0;k<dim_test;k++)
@@ -363,19 +373,38 @@ void MFSGDTBB<interm, cpu>::operator()( const blocked_range<int>& range ) const
     interm WMatVal = 0;
     interm HMatVal = 0;
 
+    // using local variables
+    interm* mtWDataTable = _mtWDataTable;
+    interm* mtHDataTable = _mtHDataTable;
+
+    int* workWPos = _workWPos;
+    int* workHPos = _workHPos;
+    int* seq = _seq;
+    interm* workV = _workV;
+
+    long Dim = _Dim;
+    interm learningRate = _learningRate;
+    interm lambda = _lambda;
+
     for( int i=range.begin(); i!=range.end(); ++i )
     {
 
-        WMat = _mtWDataTable + _workWPos[_seq[i]]*_Dim;
-        HMat = _mtHDataTable + _workHPos[_seq[i]]*_Dim;
+        // WMat = _mtWDataTable + _workWPos[_seq[i]]*_Dim;
+        // HMat = _mtHDataTable + _workHPos[_seq[i]]*_Dim;
+
+        // using local variables
+        WMat = mtWDataTable + workWPos[seq[i]]*Dim;
+        HMat = mtHDataTable + workHPos[seq[i]]*Dim;
 
         /* currentMutex_t::scoped_lock lock_w(_mutex_w[_workWPos[_seq[i]]]); */
         /* currentMutex_t::scoped_lock lock_h(_mutex_h[_workHPos[_seq[i]]]); */
         
         if (_isAvx512 == 1)
-            updateMF<interm, cpu>(WMat, HMat, _workV, _seq, i, _Dim, _learningRate, _lambda);
+            // updateMF_explicit512<interm, cpu>(WMat, HMat, _workV, _seq, i, _Dim, _learningRate, _lambda);
+            updateMF_explicit512<interm, cpu>(WMat, HMat, workV, seq, i, Dim, learningRate, lambda);
         else
-            updateMF_non512<interm, cpu>(WMat, HMat, _workV, _seq, i, _Dim, _learningRate, _lambda);
+            // updateMF<interm, cpu>(WMat, HMat, _workV, _seq, i, _Dim, _learningRate, _lambda);
+            updateMF<interm, cpu>(WMat, HMat, workV, seq, i, Dim, learningRate, lambda);
 
         /* lock_w.release(); */
         /* lock_h.release(); */
@@ -421,30 +450,47 @@ template<typename interm, CpuType cpu>
 void MFSGDTBB_TEST<interm, cpu>::operator()( const blocked_range<int>& range ) const 
 {
 
+    interm *WMat = 0;
+    interm *HMat = 0;
+
+    interm* mtWDataTable = _mtWDataTable;
+    interm* mtHDataTable = _mtHDataTable;
+
+    interm* testV = _testV;
+
+    int* testWPos = _testWPos;
+    int* testHPos = _testHPos;
+
+    long Dim = _Dim;
+    interm* testRMSE = _testRMSE;
+
+
     for( int i=range.begin(); i!=range.end(); ++i )
     {
 
-        interm *WMat = 0;
-        interm *HMat = 0;
+        // interm Mult = 0;
+        // interm Err = 0;
 
-        interm Mult = 0;
-        interm Err = 0;
-        interm WMatVal = 0;
-        interm HMatVal = 0;
-
-        if (_testWPos[i] != -1 && _testHPos[i] != -1)
+        
+        // if (_testWPos[i] != -1 && _testHPos[i] != -1)
+        if (testWPos[i] != -1 && testHPos[i] != -1)
         {
 
-            WMat = _mtWDataTable + _testWPos[i]*_Dim;
-            HMat = _mtHDataTable + _testHPos[i]*_Dim;
+            // WMat = _mtWDataTable + _testWPos[i]*_Dim;
+            // HMat = _mtHDataTable + _testHPos[i]*_Dim;
 
-            currentMutex_t::scoped_lock lock_w(_mutex_w[_testWPos[i]]);
-            currentMutex_t::scoped_lock lock_h(_mutex_h[_testHPos[i]]);
+            WMat = mtWDataTable + testWPos[i]*Dim;
+            HMat = mtHDataTable + testHPos[i]*Dim;
+
+            /* currentMutex_t::scoped_lock lock_w(_mutex_w[_testWPos[i]]); */
+            /* currentMutex_t::scoped_lock lock_h(_mutex_h[_testHPos[i]]); */
 
             if (_isAvx512 == 1)
-                computeRMSE<interm, cpu>(WMat, HMat, _testV, _testRMSE, i, _Dim);
+                // computeRMSE_explicit512<interm, cpu>(WMat, HMat, _testV, _testRMSE, i, _Dim);
+                computeRMSE_explicit512<interm, cpu>(WMat, HMat, testV, testRMSE, i, Dim);
             else
-                computeRMSE_non512<interm, cpu>(WMat, HMat, _testV, _testRMSE, i, _Dim);
+                // computeRMSE<interm, cpu>(WMat, HMat, _testV, _testRMSE, i, _Dim);
+                computeRMSE<interm, cpu>(WMat, HMat, testV, testRMSE, i, Dim);
 
             /* for(int p = 0; p<_Dim; p++) */
             /*     Mult += (WMat[p]*HMat[p]); */
@@ -455,19 +501,20 @@ void MFSGDTBB_TEST<interm, cpu>::operator()( const blocked_range<int>& range ) c
             /*  */
             /* _testRMSE[i] = Err; */
 
-            lock_w.release();
-            lock_h.release();
+            /* lock_w.release(); */
+            /* lock_h.release(); */
 
         }
         else
-            _testRMSE[i] = 0;
+            // _testRMSE[i] = 0;
+            testRMSE[i] = 0;
 
     }
 
 }
 
 template<typename interm, CpuType cpu>
-void updateMF_non512(interm *WMat,interm *HMat, interm* workV, int* seq, int idx, const long dim_r, const interm rate, const interm lambda)
+void updateMF(interm *WMat,interm *HMat, interm* workV, int* seq, int idx, const long dim_r, const interm rate, const interm lambda)
 {/*{{{*/
 
     interm Mult = 0;
@@ -493,7 +540,7 @@ void updateMF_non512(interm *WMat,interm *HMat, interm* workV, int* seq, int idx
 }/*}}}*/
 
 template<typename interm, CpuType cpu>
-void updateMF(interm *WMat,interm *HMat, interm* workV, int* seq, int idx, const long dim_r, const interm rate, const interm lambda)
+void updateMF_explicit512(interm *WMat,interm *HMat, interm* workV, int* seq, int idx, const long dim_r, const interm rate, const interm lambda)
 {/*{{{*/
 
     interm Mult = 0;
@@ -535,7 +582,7 @@ void computeRMSE(interm *WMat,interm *HMat, interm* testV, interm* testRMSE, int
 }
 
 template<typename interm, CpuType cpu>
-void computeRMSE_non512(interm *WMat,interm *HMat, interm* testV, interm* testRMSE, int idx, const long dim_r)
+void computeRMSE_explicit512(interm *WMat,interm *HMat, interm* testV, interm* testRMSE, int idx, const long dim_r)
 {
     int p;
     interm Mult = 0;

@@ -25,6 +25,9 @@
 #ifndef __MF_SGD_TYPES_H__
 #define __MF_SGD_TYPES_H__
 
+#include <string>
+#include <unordered_map>
+#include <vector>
 #include "algorithms/algorithm.h"
 #include "data_management/data/numeric_table.h"
 #include "data_management/data/homogen_numeric_table.h"
@@ -37,24 +40,19 @@ const int SERIALIZATION_MF_SGD_RESULT_ID = 106000;
 
 namespace algorithms
 {
+
 /**
-* @defgroup mf_sgd mf_sgd Decomposition
-* \copydoc daal::algorithms::mf_sgd
-* @ingroup analysis
-* @{
-*/
-/**
-* @defgroup mf_sgd_without_pivoting mf_sgd Decomposition without Pivoting
+* @defgroup Matrix factorization Recommender System by using Standard SGD 
 * \copydoc daal::algorithms::mf_sgd
 * @ingroup mf_sgd
 * @{
 */
-/** \brief Contains classes for computing the results of the mf_sgd decomposition algorithm */
+/** \brief Contains classes for computing the results of the mf_sgd algorithm */
 namespace mf_sgd
 {
 /**
  * <a name="DAAL-ENUM-ALGORITHMS__mf_sgd__METHOD"></a>
- * Available methods for computing the mf_sgd decomposition algorithm
+ * Available methods for computing the mf_sgd algorithm
  */
 enum Method
 {
@@ -73,7 +71,7 @@ enum InputId
 
 /**
  * <a name="DAAL-ENUM-ALGORITHMS__mf_sgd__RESULTID"></a>
- * Available types of results of the mf_sgd decomposition algorithm
+ * Available types of results of the mf_sgd algorithm
  */
 enum ResultId
 {
@@ -87,8 +85,8 @@ enum ResultId
 template<typename interm>
 struct VPoint 
 {
-    long wPos;
-    long hPos;
+    long wPos; //abs row id in Model W
+    long hPos; //abs column id in Model H
     interm val;
 };
 
@@ -106,7 +104,7 @@ namespace interface1
 {
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__mf_sgd__INPUT"></a>
- * \brief Input objects for the mf_sgd decomposition algorithm in the batch and online processing modes and for the first distributed step of the
+ * \brief Input objects for the mf_sgd algorithm in the batch and distributed modes 
  * algorithm.
  */
 class DAAL_EXPORT Input : public daal::algorithms::Input
@@ -118,14 +116,14 @@ public:
     virtual ~Input() {}
 
     /**
-     * Returns input object of the mf_sgd decomposition algorithm
+     * Returns input object of the mf_sgd algorithm
      * \param[in] id    Identifier of the input object
      * \return          Input object that corresponds to the given identifier
      */
     data_management::NumericTablePtr get(InputId id) const;
 
     /**
-     * Sets input object for the mf_sgd decomposition algorithm
+     * Sets input object for the mf_sgd algorithm
      * \param[in] id    Identifier of the input object
      * \param[in] value Pointer to the input object
      */
@@ -151,7 +149,6 @@ public:
     void generate_points(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Train, long num_Train, 
             daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Test, long num_Test,  long row_num_w, long col_num_h);
 
-
     /**
      * @brief Convert NumericTablePtr to array of VPoints 
      *
@@ -170,6 +167,29 @@ public:
     template <typename algorithmFPType>
     void convert_format_binary(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Test, 
             long num_Test, daal::algorithms::mf_sgd::VPoint_bin* bin_Train, daal::algorithms::mf_sgd::VPoint_bin* bin_Test, long &row_num_w, long &col_num_h);
+
+
+	/**
+	 * @brief load dataset for distributed mode
+	 *
+	 * @tparam algorithmFPType
+	 * @param filename
+	 * @param map
+	 * @param lineContainer
+	 */
+    template <typename algorithmFPType>
+	void loadDistri(std::string filename, std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map, std::vector<long> &lineContainer);
+
+
+	/**
+	 * @brief free up the memory allocated in the map of distributed mode
+	 *
+	 * @tparam algorithmFPType
+	 * @param map
+	 */
+	template <typename algorithmFPType>
+	void freeDistri(std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map);
+
 
     /**
      * Checks parameters of the algorithm

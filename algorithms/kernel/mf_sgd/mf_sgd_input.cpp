@@ -25,11 +25,15 @@
 #include "service_micro_table.h"
 #include "service_rng.h"
 #include <stdlib.h>     
-#include <map>
 #include <unordered_map>
+#include <string>
+#include <vector>
+#include <fstream>
+#include <iostream>
 
 using namespace daal::data_management;
 using namespace daal::services;
+
 
 namespace daal
 {
@@ -39,6 +43,7 @@ namespace mf_sgd
 {
 namespace interface1
 {
+
 
 /** Default constructor */
 // Input::Input() : daal::algorithms::Input(1) {}
@@ -206,8 +211,8 @@ void Input::convert_format(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* po
             long num_Test, data_management::NumericTablePtr trainTable, data_management::NumericTablePtr testTable, long &row_num_w, long &col_num_h)
 {/*{{{*/
 
-    std::map<long, long> vMap_row_w; // a hashmap where key is the row id of input matrix, value is the row position in model W 
-    std::map<long, long> vMap_col_h; // a hashmap where key is the col id of input matrix, value is the row position in model H 
+    std::unordered_map<long, long> vMap_row_w; // a hashmap where key is the row id of input matrix, value is the row position in model W 
+    std::unordered_map<long, long> vMap_col_h; // a hashmap where key is the col id of input matrix, value is the row position in model H 
 
 	daal::internal::BlockMicroTable<algorithmFPType, readOnly, daal::sse2> trainMic(trainTable.get());
 	daal::internal::BlockMicroTable<algorithmFPType, readOnly, daal::sse2> testMic(testTable.get());
@@ -383,8 +388,86 @@ void Input::convert_format_binary(daal::algorithms::mf_sgd::VPoint<algorithmFPTy
 
 }/*}}}*/
 
+template <typename algorithmFPType>
+void Input::loadDistri(std::string filename, std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map, std::vector<long> &lineContainer)
+{/*{{{*/
+    
+    long row_id;
+    long col_id;
+    algorithmFPType val;
+
+    std::string line;
+
+    std::ifstream infile(filename);
+
+    //debug
+    // std::cout<<"Entering input read file"<<std::endl;
+
+    // while (infile >> row_id >> col_id >> val) 
+    while (std::getline(infile, line)) 
+    {
+        infile >> row_id >> col_id >> val;
+
+        // std::cout<<"val: "<<val<<std::endl;
+
+        //processing a line
+        mf_sgd::VPoint<algorithmFPType>* item = new mf_sgd::VPoint<algorithmFPType>();
+        item->wPos = row_id;
+        item->hPos = col_id;
+        item->val = val;
+
+        if (map.find(row_id) == map.end())
+        {
+            //not found row id
+            std::vector<mf_sgd::VPoint<algorithmFPType>*>* vec = new std::vector<mf_sgd::VPoint<algorithmFPType>*>();
+            vec->push_back(item);
+            map[row_id] = vec;
+            lineContainer.push_back(row_id);
+
+        }
+        else
+            map[row_id]->push_back(item);
+
+    }
+
+    infile.close();
+
+}/*}}}*/
 
 
+/**
+ * @brief free up the memory allocated within the map structure
+ *
+ * @tparam algorithmFPType
+ * @param map
+ */
+template <typename algorithmFPType>
+void Input::freeDistri(std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map)
+{
+        typename std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*>::iterator it_map;
+        typename std::vector<mf_sgd::VPoint<algorithmFPType>*>::iterator it_vec;
+   
+        for (it_map = map.begin(); it_map != map.end(); ++it_map) 
+        {
+
+            if (it_map->second->empty() == false)
+            {
+                // std::vector<mf_sgd::VPoint<algorithmFPType>*>::iterator it_vec;
+                // VEC_Itr it_vec;
+                for(it_vec = it_map->second->begin(); it_vec < it_map->second->end();it_vec++)
+                {
+                    delete *it_vec;
+                }
+
+                delete it_map->second;
+
+            }
+
+        }
+
+        map.clear();
+
+}
 
 template void Input::generate_points(daal::algorithms::mf_sgd::VPoint<double>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<double>* points_Test, long num_Test,  long row_num_w, long col_num_h);
 
@@ -401,6 +484,14 @@ template void Input::convert_format_binary(daal::algorithms::mf_sgd::VPoint<doub
 
 template void Input::convert_format_binary(daal::algorithms::mf_sgd::VPoint<float>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<float>* points_Test, 
             long num_Test, daal::algorithms::mf_sgd::VPoint_bin* bin_Train, daal::algorithms::mf_sgd::VPoint_bin* bin_Test, long &row_num_w, long &col_num_h);
+
+template void Input::loadDistri(std::string filename, std::unordered_map<long, std::vector<mf_sgd::VPoint<double>*>*> &map, std::vector<long> &lineContainer);
+
+template void Input::loadDistri(std::string filename, std::unordered_map<long, std::vector<mf_sgd::VPoint<float>*>*> &map, std::vector<long> &lineContainer);
+
+template void Input::freeDistri(std::unordered_map<long, std::vector<mf_sgd::VPoint<double>*>*> &map);
+
+template void Input::freeDistri(std::unordered_map<long, std::vector<mf_sgd::VPoint<float>*>*> &map);
 
 } // namespace interface1
 } // namespace mf_sgd

@@ -23,7 +23,7 @@
 */
 #include <iostream>
 
-template<> void updateMF<DAAL_FPTYPE, avx512_mic>(DAAL_FPTYPE* WMat, DAAL_FPTYPE* HMat, DAAL_FPTYPE* workV, int* seq, int idx, const long dim_r, const DAAL_FPTYPE rate, const DAAL_FPTYPE lambda)
+template<> void updateMF_explicit512<DAAL_FPTYPE, avx512_mic>(DAAL_FPTYPE* WMat, DAAL_FPTYPE* HMat, DAAL_FPTYPE* workV, int* seq, int idx, const long dim_r, const DAAL_FPTYPE rate, const DAAL_FPTYPE lambda)
 {
 
     DAAL_FPTYPE Mult = 0;
@@ -204,7 +204,7 @@ template<> void updateMF<DAAL_FPTYPE, avx512_mic>(DAAL_FPTYPE* WMat, DAAL_FPTYPE
 
 }
 
-template<> void computeRMSE<DAAL_FPTYPE, avx512_mic>(DAAL_FPTYPE *WMat,DAAL_FPTYPE *HMat, DAAL_FPTYPE* testV, DAAL_FPTYPE* testRMSE, int idx, const long dim_r)
+template<> void computeRMSE_explicit512<DAAL_FPTYPE, avx512_mic>(DAAL_FPTYPE *WMat,DAAL_FPTYPE *HMat, DAAL_FPTYPE* testV, DAAL_FPTYPE* testRMSE, int idx, const long dim_r)
 {
 
     DAAL_FPTYPE Mult = 0;

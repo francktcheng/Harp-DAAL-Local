@@ -94,6 +94,13 @@ EXT_LIB := -ltbb -ltbbmalloc -ldl
 COPTS := -Wall -w -stdlib=libstdc++ -I./source/utils -std=c++11
 LOPTS := $(DAAL_LIB) $(EXT_LIB)
 
+# using inteMPI
+MPI_DIR := /opt/intel/impi/2017.0.098/intel64
+MPI_LIB := -L$(MPI_DIR)/lib 
+COPTS += -I$(MPI_DIR)/include
+LOPTS += $(MPI_LIB)
+MPICC = $(MPI_DIR)/bin/mpicxx  
+
 RES_DIR=_results/$(compiler)_$(_IA)_$(threading)_$(RES_EXT)
 RES = $(addprefix $(RES_DIR)/, $(if $(filter run, $(mode)), $(addsuffix .res ,$(example)), $(addsuffix .exe,$(example))))
 
@@ -134,8 +141,12 @@ vpath %.cpp $(addprefix ./source/,association_rules boosting cholesky compressio
                                   optimization_solvers optimization_solver/objective_function normalization ridge_regression)
 
 .SECONDARY:
+# $(RES_DIR)/%.exe: %.cpp | $(RES_DIR)/.
+# 	$(CC) $(COPTS) $< -o $@ $(RPATH) $(LOPTS)
+
+#using MPI for distributed mode
 $(RES_DIR)/%.exe: %.cpp | $(RES_DIR)/.
-	$(CC) $(COPTS) $< -o $@ $(RPATH) $(LOPTS)
+	$(MPICC) $(COPTS) $< -o $@ $(LOPTS)
 
 $(RES_DIR)/%.res:  $(RES_DIR)/%.exe
 	$< > $@

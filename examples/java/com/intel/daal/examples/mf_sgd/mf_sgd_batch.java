@@ -38,6 +38,12 @@ import com.intel.daal.examples.utils.Service;
 import com.intel.daal.services.DaalContext;
 
 import java.lang.System.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Iterator;
+import java.util.Set;
+import java.lang.Long;
+import java.util.ArrayList;
 
 class mf_sgd_batch{
 
@@ -111,44 +117,72 @@ class mf_sgd_batch{
 
         // if (args.length > 7)
         // {
-            // generate the dataset
-            // size of training dataset and test dataset
-            num_Train = row_num_w + (int)(0.6*(row_num_w*col_num_h - row_num_w));
-            num_Test = (int)(0.002*(row_num_w*col_num_h- row_num_w));
-
-            // generate the Train and Test datasets
-            points_Train = new VPoint[num_Train];
-            points_Test = new VPoint[num_Test];
-
-            for (int j=0; j<num_Train; j++) 
-                points_Train[j] = new VPoint(0,0,0);
-
-            for (int j=0; j<num_Test; j++) 
-                points_Test[j] = new VPoint(0,0,0);
-      
-            System.out.println("Train set num of Points: " + num_Train);
-            System.out.println("Test set num of Points: " + num_Test);
-
-                          
-            sgdAlgorithm.input.generate_points(points_Train, num_Train, points_Test, num_Test, row_num_w, col_num_h);
-
-            System.out.println("Model W Rows: " + row_num_w);
-            System.out.println("Model H Columns: " + col_num_h);
-            System.out.println("Model Dimension: " + r_dim);
-
+        //     // generate the dataset
+        //     // size of training dataset and test dataset
+        //     num_Train = row_num_w + (int)(0.6*(row_num_w*col_num_h - row_num_w));
+        //     num_Test = (int)(0.002*(row_num_w*col_num_h- row_num_w));
+        //
+        //     // generate the Train and Test datasets
+        //     points_Train = new VPoint[num_Train];
+        //     points_Test = new VPoint[num_Test];
+        //
+        //     for (int j=0; j<num_Train; j++) 
+        //         points_Train[j] = new VPoint(0,0,0);
+        //
+        //     for (int j=0; j<num_Test; j++) 
+        //         points_Test[j] = new VPoint(0,0,0);
+        //
+        //     System.out.println("Train set num of Points: " + num_Train);
+        //     System.out.println("Test set num of Points: " + num_Test);
+        //
+        //                   
+        //     sgdAlgorithm.input.generate_points(points_Train, num_Train, points_Test, num_Test, row_num_w, col_num_h);
+        //
+        //     System.out.println("Model W Rows: " + row_num_w);
+        //     System.out.println("Model H Columns: " + col_num_h);
+        //     System.out.println("Model Dimension: " + r_dim);
+        //
         // }
         // else
         // {
+			//load in the dataset from disk
+			HashMap<Long, ArrayList<VPoint> > map_train = new HashMap<Long, ArrayList<VPoint> >();
+			HashMap<Long, ArrayList<VPoint> > map_test = new HashMap<Long, ArrayList<VPoint> >();
 
+			num_Train = sgdAlgorithm.input.loadData(trainDataFile, map_train);
+			num_Test = sgdAlgorithm.input.loadData(testDataFile, map_test);
 
+			points_Train = new VPoint[num_Train];
+			points_Test = new VPoint[num_Test];
+
+			for (int j=0; j<num_Train; j++) 
+				points_Train[j] = new VPoint(0,0,0);
+
+			for (int j=0; j<num_Test; j++) 
+				points_Test[j] = new VPoint(0,0,0);
+
+			System.out.println("Training points num: " + num_Train);
+
+			int[] row_col_num = sgdAlgorithm.input.convert_format(points_Train, num_Train, points_Test, num_Test, map_train, map_test);
+
+			row_num_w = row_col_num[0];
+			col_num_h = row_col_num[1];
+
+			System.out.println("Row num w: " + row_num_w);
+			System.out.println("Col num h: " + col_num_h);
 
         // }
         
+
         AOSNumericTable dataTable_Train = new AOSNumericTable(context, points_Train);
         AOSNumericTable dataTable_Test = new AOSNumericTable(context, points_Test);
-        
+        //
         sgdAlgorithm.input.set(InputId.dataTrain, dataTable_Train);
         sgdAlgorithm.input.set(InputId.dataTest, dataTable_Test);
+        //
+        sgdAlgorithm.parameter.set(learningRate,lambda, r_dim, row_num_w, col_num_h, iteration, threads, tbb_grainsize, Avx512_explicit);
+		//
+		Result res = sgdAlgorithm.compute();
 
         context.dispose();
     }

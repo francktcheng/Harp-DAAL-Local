@@ -23,7 +23,18 @@ import com.intel.daal.data_management.data.HomogenNumericTable;
 import com.intel.daal.data_management.data.NumericTable;
 import com.intel.daal.services.DaalContext;
 
+import java.lang.System.*;
 import java.util.Random;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Iterator;
+import java.util.Set;
+import java.lang.Long;
+import java.util.ArrayList;
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__MF_SGD__INPUT"></a>
@@ -140,6 +151,176 @@ public final class Input extends com.intel.daal.algorithms.Input {
 
 
     }//}}}
+
+	public int loadData(String DataFile, HashMap<Long, ArrayList<VPoint> > map)
+	{//{{{
+
+		BufferedReader br = null;
+		String line = "";
+		String cvsSplitBy = " ";
+
+		int num_vpoint = 0;
+
+		try
+		{
+			br = new BufferedReader(new FileReader(DataFile));
+
+			while ((line = br.readLine()) != null) {
+
+				String[] vpoints = line.split(cvsSplitBy);
+				int wPos = Integer.parseInt(vpoints[0]);
+				int hPos = Integer.parseInt(vpoints[1]);
+				float val = Float.parseFloat(vpoints[2]);
+
+				VPoint elem = new VPoint(wPos, hPos, val);
+				num_vpoint++;
+
+				if (map.containsKey(new Long(wPos)) == false)
+				{
+					//not found, load element
+					ArrayList<VPoint> array_elem = new ArrayList<>();
+					array_elem.add(elem);
+
+					map.put(new Long(wPos), array_elem);
+
+				}
+				else
+				{
+					//find the row_id
+					map.get(new Long(wPos)).add(elem);
+				}
+
+			}
+
+
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		return num_vpoint;
+
+	}//}}}
+
+	public int[] convert_format(VPoint[] points_Train, int num_Train, VPoint[] points_Test, int num_Test, HashMap<Long, ArrayList<VPoint> > map_train, HashMap<Long, ArrayList<VPoint> > map_test)
+	{//{{{
+
+		HashMap<Long, Long> vMap_row_w = new HashMap<Long, Long>();;
+		HashMap<Long, Long> vMap_col_h = new HashMap<Long, Long>();;
+
+		int row_pos_itr = 0;
+		int col_pos_itr = 0;
+
+		int row_pos = 0;
+		int col_pos = 0;
+		int entry_itr = 0;
+
+		int[] row_col_num = new int[2];
+
+		//loop over map_train 
+		Iterator it = map_train.entrySet().iterator();
+		while (it.hasNext()) {
+			
+			Map.Entry<Long, ArrayList<VPoint> > pair = (Map.Entry)it.next();
+
+			Long key = pair.getKey();
+			ArrayList<VPoint> val_list = pair.getValue();
+
+			if (val_list.size() != 0)
+			{
+
+				//iteration over ArrayList
+				for(int j=0;j<val_list.size();j++)
+				{
+
+				  Long wPos = new Long(val_list.get(j)._wPos);	
+				  Long hPos = new Long(val_list.get(j)._hPos);	
+				  float value = val_list.get(j)._val;	
+
+				  if (vMap_row_w.containsKey(wPos) == false)
+				  {
+
+					  vMap_row_w.put(wPos, new Long(row_pos_itr));
+					  row_pos = row_pos_itr;
+					  row_pos_itr++;
+
+				  }
+				  else
+					  row_pos = vMap_row_w.get(wPos).intValue();
+
+				  if (vMap_col_h.containsKey(hPos) == false)
+				  {
+
+					  vMap_col_h.put(hPos, new Long(col_pos_itr));
+					  col_pos = col_pos_itr;
+					  col_pos_itr++;
+
+				  }
+				  else
+					  col_pos = vMap_col_h.get(hPos).intValue();
+
+				  points_Train[entry_itr]._wPos = row_pos;
+				  points_Train[entry_itr]._hPos = col_pos;
+				  points_Train[entry_itr]._val = value;
+
+				  entry_itr++;
+
+				}
+
+			}
+			
+
+		}
+
+		row_col_num[0] = row_pos_itr;
+		row_col_num[1] = col_pos_itr;
+
+		entry_itr = 0;
+		//loop over map_train 
+		Iterator it2 = map_test.entrySet().iterator();
+		while (it2.hasNext()) {
+
+			Map.Entry<Long, ArrayList<VPoint> > pair2 = (Map.Entry)it2.next();
+
+			Long key = pair2.getKey();
+			ArrayList<VPoint> val_list = pair2.getValue();
+
+			if (val_list.size() != 0)
+			{
+
+				for(int j=0;j<val_list.size();j++)
+				{
+
+				  Long wPos = new Long(val_list.get(j)._wPos);	
+				  Long hPos = new Long(val_list.get(j)._hPos);	
+				  float value = val_list.get(j)._val;	
+
+				  if (vMap_row_w.containsKey(wPos) == false)
+					  row_pos = -1;
+				  else
+					  row_pos = vMap_row_w.get(wPos).intValue();
+
+				  if (vMap_col_h.containsKey(hPos) == false)
+					  col_pos = -1;
+				  else
+					  col_pos = vMap_col_h.get(hPos).intValue();
+
+				  points_Test[entry_itr]._wPos = row_pos;
+				  points_Test[entry_itr]._hPos = col_pos;
+				  points_Test[entry_itr]._val = value;
+
+				  entry_itr++;
+
+				}
+
+			}
+
+		}
+
+		return row_col_num;
+
+	}//}}}
 
     private native void cSetInputTable(long cInput, int id, long ntAddr);
 

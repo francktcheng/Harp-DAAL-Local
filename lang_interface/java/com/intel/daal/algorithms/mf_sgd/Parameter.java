@@ -53,6 +53,28 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
         super(context, cObject);
     }
 
+	
+	/**
+	 * @brief Set up the parameters 
+	 *
+	 * @param learningRate
+	 * @param lambda
+	 * @param Dim_r
+	 * @param Dim_w
+	 * @param Dim_h
+	 * @param iteration
+	 * @param thread_num
+	 * @param tbb_grainsize
+	 * @param Avx512_explicit
+	 *
+	 * @return 
+	 */
+    public void set(double learningRate, double lambda, long Dim_r, long Dim_w, long Dim_h, int iteration, int thread_num, int tbb_grainsize, int Avx512_explicit) {
+        cSetParameters(this.cObject,learningRate, lambda, Dim_r, Dim_w,  Dim_h, iteration, thread_num, tbb_grainsize, Avx512_explicit );
+    }
+
+    private native void cSetParameters(long parAddr, double learningRate, double lambda, long Dim_r, long Dim_w, long Dim_h, int iteration, int thread_num, int tbb_grainsize, 
+			int Avx512_explicit );
 
     // private Batch _function;
     //
@@ -66,5 +88,4 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
     //
     // private native void cSetOptionalResultRequired(long parAddr, boolean flag);
     // private native boolean cGetOptionalResultRequired(long parAddr);
-
 }

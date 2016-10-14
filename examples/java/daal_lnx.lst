@@ -79,6 +79,7 @@ Java_example_list=( association_rules/AssocRulesAprioriBatch         \
                     pca/PCASVDDenseBatch                             \
                     pca/PCASVDDenseDistr                             \
                     pca/PCASVDDenseOnline                            \
+					mf_sgd/mf_sgd_batch								 \
                     qr/QRDenseBatch                                  \
                     qr/QRDenseDistr                                  \
                     qr/QRDenseOnline                                 \

@@ -1,4 +1,4 @@
-/* file: mf_sgd_dense_default_ksnc_fpt_cpu.cpp */
+/* file: mf_sgd_dense_default_batch_fpt.cpp */
 /*******************************************************************************
 * Copyright 2014-2016 Intel Corporation
 *
@@ -17,13 +17,11 @@
 
 /*
 //++
-//  Instantiation of mf_sgd algorithm classes.
+//  Implementation of mf_sgd algorithm and types methods.
 //--
 */
 
-#include "mf_sgd_default_kernel.h"
-#include "mf_sgd_default_ksnc_impl.i"
-#include "mf_sgd_default_ksnccontainer.h"
+#include "mf_sgd_default_distri.h"
 
 namespace daal
 {
@@ -33,12 +31,11 @@ namespace mf_sgd
 {
 namespace interface1
 {
-template class KSNCContainer<DAAL_FPTYPE, daal::algorithms::mf_sgd::defaultSGD, DAAL_CPU>;
-}
-namespace internal
-{
-// template class MF_SGDBatchKernel<DAAL_FPTYPE, defaultSGD, DAAL_CPU>;
-}
-}
-}
-}
+
+// template DAAL_EXPORT void Result::allocate<DAAL_FPTYPE>(const daal::algorithms::Input *input, const daal::algorithms::Parameter *parameter, const int method);
+// template DAAL_EXPORT void Result::allocateImpl<DAAL_FPTYPE>(size_t r, size_t w, size_t h );
+
+}// namespace interface1
+}// namespace mf_sgd
+}// namespace algorithms
+}// namespace daal

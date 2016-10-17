@@ -1,4 +1,4 @@
-/* file: mf_sgd_dense_default_container.h */
+/* file: mf_sgd_dense_ksnccontainer.h */
 /*******************************************************************************
 * Copyright 2014-2016 Intel Corporation
 *

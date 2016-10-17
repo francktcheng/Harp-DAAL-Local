@@ -1,4 +1,4 @@
-/* file: mf_sgd_batch.java */
+/* file: mf_sgd_distri.java */
 /*******************************************************************************
 * Copyright 2014-2016 Intel Corporation
 *
@@ -17,13 +17,13 @@
 
 /*
  //  Content:
- //     Java example of computing mf_sgd factorization in the batch processing mode
+ //     Java example of computing mf_sgd factorization in the distributed processing mode
  ////////////////////////////////////////////////////////////////////////////////
  */
 
 /**
  * <a name="DAAL-EXAMPLE-JAVA-MF_SGD">
- * @example mf_sgd_batch.java
+ * @example mf_sgd_distri.java
  */
 
 package com.intel.daal.examples.mf_sgd;
@@ -45,7 +45,7 @@ import java.util.Set;
 import java.lang.Long;
 import java.util.ArrayList;
 
-class mf_sgd_batch{
+class mf_sgd_distri{
 
     /* Input data set parameters */
     private static final String trainDataFile = "../data/batch/movielens-train.mm";
@@ -122,7 +122,7 @@ class mf_sgd_batch{
         VPoint[] points_Test;
 
         /* Create an algorithm to compute mf_sgd_batch  */
-        Batch sgdAlgorithm = new Batch(context, Float.class, Method.defaultSGD);
+        Distri sgdAlgorithm = new Distri(context, Float.class, Method.defaultSGD);
 
         if (args.length > 7)
         {
@@ -144,7 +144,6 @@ class mf_sgd_batch{
             System.out.println("Train set num of Points: " + num_Train);
             System.out.println("Test set num of Points: " + num_Test);
 
-
             sgdAlgorithm.input.generate_points(points_Train, num_Train, points_Test, num_Test, row_num_w, col_num_h);
 
             System.out.println("Model W Rows: " + row_num_w);
@@ -158,37 +157,37 @@ class mf_sgd_batch{
 			// HashMap<Long, ArrayList<VPoint> > map_train = new HashMap<Long, ArrayList<VPoint> >();
 			// HashMap<Long, ArrayList<VPoint> > map_test = new HashMap<Long, ArrayList<VPoint> >();
 			ArrayList<VPoint> table_train = new ArrayList<>();
-			ArrayList<VPoint> table_test = new ArrayList<>();
+			// ArrayList<VPoint> table_test = new ArrayList<>();
 
 			System.out.println("Starting to load Train and Test data");
 			timeStart = System.currentTimeMillis();
 
 			num_Train = sgdAlgorithm.input.loadData(trainDataFile, table_train);
-			num_Test = sgdAlgorithm.input.loadData(testDataFile, table_test);
+			// num_Test = sgdAlgorithm.input.loadData(testDataFile, table_test);
 
 			timeEnd = System.currentTimeMillis();
 			timeCost = timeEnd - timeStart;
 
-			System.out.println("Finish loading Train and Test data in: " + timeCost + " ms");
+			System.out.println("Finish loading Train data in: " + timeCost + " ms");
 
 			points_Train = new VPoint[num_Train];
-			points_Test = new VPoint[num_Test];
+			// points_Test = new VPoint[num_Test];
 
 			for (int j=0; j<num_Train; j++) 
 				points_Train[j] = new VPoint(0,0,0);
 
-			for (int j=0; j<num_Test; j++) 
-				points_Test[j] = new VPoint(0,0,0);
+			// for (int j=0; j<num_Test; j++) 
+			// 	points_Test[j] = new VPoint(0,0,0);
 
 			System.out.println("Training points num: " + num_Train);
 
 			timeStart = System.currentTimeMillis();
-			int[] row_col_num = sgdAlgorithm.input.convert_format(points_Train, num_Train, points_Test, num_Test, table_train, table_test);
+			int[] row_col_num = sgdAlgorithm.input.convert_format_distri(points_Train, num_Train, table_train);
 
 			timeEnd = System.currentTimeMillis();
 			timeCost = timeEnd - timeStart;
 
-			System.out.println("Converting Train and Test data in: " + timeCost + " ms");
+			System.out.println("Converting Train data in: " + timeCost + " ms");
 
 			row_num_w = row_col_num[0];
 			col_num_h = row_col_num[1];
@@ -198,12 +197,19 @@ class mf_sgd_batch{
 
         }
         
-
         AOSNumericTable dataTable_Train = new AOSNumericTable(context, points_Train);
-        AOSNumericTable dataTable_Test = new AOSNumericTable(context, points_Test);
         sgdAlgorithm.input.set(InputId.dataTrain, dataTable_Train);
-        sgdAlgorithm.input.set(InputId.dataTest, dataTable_Test);
+        
+        NumericTable matrixW = new HomogenNumericTable(context, Double.class, r_dim, row_num_w, NumericTable.AllocationFlag.DoAllocate, 0.5);
+        NumericTable matrixH = new HomogenNumericTable(context, Double.class, r_dim, col_num_h, NumericTable.AllocationFlag.DoAllocate, 0.5);
+
+        PartialResult pres = new PartialResult(context);
+        pres.set(PartialResultId.resWMat, matrixW);
+        pres.set(PartialResultId.resHMat, matrixH);
+        sgdAlgorithm.setPartialResult(pres);
+
         sgdAlgorithm.parameter.set(learningRate,lambda, r_dim, row_num_w, col_num_h, iteration, threads, tbb_grainsize, Avx512_explicit);
+
 		sgdAlgorithm.compute();
 
         context.dispose();

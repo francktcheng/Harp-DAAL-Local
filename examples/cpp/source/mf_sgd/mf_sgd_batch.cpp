@@ -68,11 +68,11 @@ const size_t field_v = 3;
 typedef double sgd_float;
 
 // input dataset files in csv format
-// string trainDataFile = "../../../data/batch/movielens-train.mm";
-// string testDataFile = "../../../data/batch/movielens-test.mm";
+string trainDataFile = "../../../data/batch/movielens-train.mm";
+string testDataFile = "../../../data/batch/movielens-test.mm";
 
-string trainDataFile = "../../../data/batch/yahoomusic-train.mm";
-string testDataFile = "../../../data/batch/yahoomusic-test.mm";
+// string trainDataFile = "../../../data/batch/yahoomusic-train.mm";
+// string testDataFile = "../../../data/batch/yahoomusic-test.mm";
 
 //absolute path used in VTune
 // string trainDataFile = "/home/langshichen/Lib/__release_lnx/daal/examples/data/batch/movielens-train.mm";

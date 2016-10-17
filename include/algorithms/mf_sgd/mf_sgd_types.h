@@ -37,6 +37,7 @@ namespace daal
 {
 
 const int SERIALIZATION_MF_SGD_RESULT_ID = 106000; 
+const int SERIALIZATION_MF_SGD_DISTRI_PARTIAL_RESULT_ID = 106100; 
 
 namespace algorithms
 {
@@ -77,6 +78,12 @@ enum ResultId
 {
     resWMat = 0,   /*!< Output Model W */
     resHMat = 1    /*!< Output Model H */
+};
+
+enum DistributedPartialResultId
+{
+    presWMat = 0,   /*!< Output Model W */
+    presHMat = 1    /*!< Output Model H */
 };
 
 /**
@@ -278,6 +285,68 @@ protected:
     }
 };
 
+class DAAL_EXPORT DistributedPartialResult : public daal::algorithms::PartialResult
+{
+public:
+    /** Default constructor */
+    DistributedPartialResult();
+    /** Default destructor */
+    virtual ~DistributedPartialResult() {}
+
+    /**
+     * Returns the result of the QR decomposition algorithm with the matrix R calculated
+     * \param[in] id    Identifier of the result
+     * \return          Result that corresponds to the given identifier
+     */
+	data_management::NumericTablePtr get(DistributedPartialResultId id) const;
+
+    /**
+     * Sets Result object to store the result of the QR decomposition algorithm
+     * \param[in] id    Identifier of the result
+     * \param[in] value Pointer to the Result object
+     */
+    void set(DistributedPartialResultId id, const data_management::NumericTablePtr &value);
+
+
+        /**
+     * Checks partial results of the algorithm
+     * \param[in] parameter Pointer to parameters
+    * \param[in] method Computation method
+    */
+    void check(const daal::algorithms::Parameter *parameter, int method) const DAAL_C11_OVERRIDE;
+
+    /**
+      * Checks final results of the algorithm
+      * \param[in] input      Pointer to input objects
+      * \param[in] parameter  Pointer to parameters
+      * \param[in] method     Computation method
+      */
+    void check(const daal::algorithms::Input* input, const daal::algorithms::Parameter *parameter, int method) const DAAL_C11_OVERRIDE;
+
+    int getSerializationTag() DAAL_C11_OVERRIDE  { return SERIALIZATION_MF_SGD_DISTRI_PARTIAL_RESULT_ID;}
+
+    /**
+    *  Serializes the object
+    *  \param[in]  arch  Storage for the serialized object or data structure
+    */
+    void serializeImpl(data_management::InputDataArchive  *arch) DAAL_C11_OVERRIDE
+    {serialImpl<data_management::InputDataArchive, false>(arch);}
+
+    /**
+    *  Deserializes the object
+    *  \param[in]  arch  Storage for the deserialized object or data structure
+    */
+    void deserializeImpl(data_management::OutputDataArchive *arch) DAAL_C11_OVERRIDE
+    {serialImpl<data_management::OutputDataArchive, true>(arch);}
+
+protected:
+    /** \private */
+    template<typename Archive, bool onDeserialize>
+    void serialImpl(Archive *arch)
+    {
+        daal::algorithms::PartialResult::serialImpl<Archive, onDeserialize>(arch);
+    }
+};
 
 /**
  * <a name="DAAL-STRUCT-ALGORITHMS__mf_sgd__PARAMETER"></a>
@@ -336,6 +405,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 } // namespace interface1
 using interface1::Input;
 using interface1::Result;
+using interface1::DistributedPartialResult;
 using interface1::Parameter;
 
 } // namespace daal::algorithms::mf_sgd

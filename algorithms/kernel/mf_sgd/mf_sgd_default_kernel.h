@@ -48,6 +48,7 @@ namespace mf_sgd
 namespace internal
 {
 
+//MF-SGD-BATCH kernel
 template<typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
 class MF_SGDBatchKernel : public Kernel
 {
@@ -61,7 +62,19 @@ public:
 
 };
 
-/* MF_SGD kernel implemented by TBB */
+//MF-SGD-DISTRI kernel
+template<typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
+class MF_SGDDistriKernel : public Kernel
+{
+public:
+
+    void compute(NumericTable** TrainSet, NumericTable *r[], const daal::algorithms::Parameter *par);
+
+    void compute_thr(NumericTable** TrainSet, NumericTable *r[], const daal::algorithms::Parameter *par);
+
+};
+
+/* TBB kernel for MF-SGD */
 template<typename interm, CpuType cpu>
 struct MFSGDTBB
 {

@@ -1,4 +1,4 @@
-/* file: Batch.java */
+/* file: Distri.java */
 /*******************************************************************************
 * Copyright 2014-2016 Intel Corporation
 *
@@ -16,18 +16,18 @@
 *******************************************************************************/
 
 /**
- * @brief Contains classes for computing the MF-SGD-Batch 
+ * @brief Contains classes for computing the MF-SGD-Distri 
  */
 package com.intel.daal.algorithms.mf_sgd;
-
-import com.intel.daal.algorithms.AnalysisBatch;
+import com.intel.daal.algorithms.AnalysisDistributed;
 import com.intel.daal.algorithms.ComputeMode;
 import com.intel.daal.algorithms.Precision;
 import com.intel.daal.services.DaalContext;
+// import com.intel.daal.algorithms.PartialResult;
 
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__MF_SGD__BATCH"></a>
- * @brief Computes the results of the mf_sgd algorithm in the batch processing mode
+ * <a name="DAAL-CLASS-ALGORITHMS__MF_SGD__DISTRI"></a>
+ * @brief Computes the results of the mf_sgd algorithm in the distributed processing mode
  * \n<a href="DAAL-REF-MF-SGD-ALGORITHM">mf_sgd algorithm description and usage models</a>
  *
  * @par References
@@ -37,7 +37,7 @@ import com.intel.daal.services.DaalContext;
  *      - Input class
  *      - Result class
  */
-public class Batch extends AnalysisBatch {
+public class Distri extends AnalysisDistributed {
 
     public Input					  input; /*!< %Input data */
     public Method					  method; /*!< Computation method for the algorithm */
@@ -56,7 +56,7 @@ public class Batch extends AnalysisBatch {
      * @param other     An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    public Batch(DaalContext context, Batch other) {
+    public Distri(DaalContext context, Distri other) {
         super(context);
         this.method = other.method;
         prec = other.prec;
@@ -73,7 +73,7 @@ public class Batch extends AnalysisBatch {
      *                  Double.class or Float.class
      * @param method    Computation method, @ref Method
      */
-    public Batch(DaalContext context, Class<? extends Number> cls, Method method) {
+    public Distri(DaalContext context, Class<? extends Number> cls, Method method) {
         super(context);
 
         this.method = method;
@@ -104,11 +104,18 @@ public class Batch extends AnalysisBatch {
      * @return  Results of the mf_sgd algorithm
      */
     @Override
-    public Result compute() {
+    public PartialResult compute() {
         super.compute();
-        // return new Result(getContext(), cGetResult(cObject, prec.getValue(), method.getValue()));
-        // return new Result(getContext());
-		return null;
+        return null;
+    }
+
+    /**
+     * Computes final results of the mf_sgd algorithm     
+     */
+    // @Override
+    public Result finalizeCompute() {
+        super.finalizeCompute();
+        return null;
     }
 
     /**
@@ -119,6 +126,10 @@ public class Batch extends AnalysisBatch {
         cSetResult(cObject, prec.getValue(), method.getValue(), result.getCObject());
     }
 
+    public void setPartialResult(PartialResult presult) {
+        cSetPartialResult(cObject, prec.getValue(), method.getValue(), presult.getCObject());
+    }
+
     /**
      * Returns the newly allocated mf_sgd algorithm
      * with a copy of input objects and parameters of this mf_sgd algorithm
@@ -127,8 +138,8 @@ public class Batch extends AnalysisBatch {
      * @return The newly allocated algorithm
      */
     @Override
-    public Batch clone(DaalContext context) {
-        return new Batch(context, this);
+    public Distri clone(DaalContext context) {
+        return new Distri(context, this);
     }
 
     private native long cInit(int prec, int method);
@@ -137,9 +148,11 @@ public class Batch extends AnalysisBatch {
 
     private native long cGetParameter(long algAddr, int prec, int method);
 
-    private native long cGetResult(long algAddr, int prec, int method);
+    // private native long cGetResult(long algAddr, int prec, int method);
 
     private native void cSetResult(long cAlgorithm, int prec, int method, long cResult);
+
+    private native void cSetPartialResult(long cAlgorithm, int prec, int method, long cPartialResult);
 
     private native long cClone(long algAddr, int prec, int method);
 }

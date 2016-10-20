@@ -1,4 +1,4 @@
-/* file: VPoint.java */
+/* file: VPointD.java */
 /*******************************************************************************
 * Copyright 2014-2016 Intel Corporation
 *
@@ -18,13 +18,13 @@
 package com.intel.daal.algorithms.mf_sgd;
 import java.io.Serializable;
 
-public class VPoint implements Serializable
+public class VPointD implements Serializable
 {
 	public int _wPos;
 	public int _hPos;
-	public float _val;
+	public double _val;
 
-	public VPoint(int wPos, int hPos, float val)
+	public VPointD(int wPos, int hPos, double val)
 	{
 		_wPos = wPos;
 		_hPos = hPos;

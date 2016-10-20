@@ -204,6 +204,7 @@ class mf_sgd_batch{
         sgdAlgorithm.input.set(InputId.dataTrain, dataTable_Train);
         sgdAlgorithm.input.set(InputId.dataTest, dataTable_Test);
         sgdAlgorithm.parameter.set(learningRate,lambda, r_dim, row_num_w, col_num_h, iteration, threads, tbb_grainsize, Avx512_explicit);
+        sgdAlgorithm.parameter.setRatio(0.8);
 		sgdAlgorithm.compute();
 
         context.dispose();

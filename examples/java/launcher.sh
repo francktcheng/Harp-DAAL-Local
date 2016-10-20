@@ -124,3 +124,5 @@ for example in ${Java_example_list[@]}; do
         fi
     fi
 done
+
+cp ${res_path} .

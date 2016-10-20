@@ -59,10 +59,10 @@ namespace internal
 {
 
 template<typename interm, CpuType cpu>
-void updateMF(interm *WMat,interm *HMat, interm* workV, int* seq, int idx, const long dim_r, const interm rate, const interm lambda);
+void updateMF(interm *WMat,interm *HMat, interm* workV, int idx, const long dim_r, const interm rate, const interm lambda);
 
 template<typename interm, CpuType cpu>
-void updateMF_explicit512(interm *WMat,interm *HMat, interm* workV, int* seq, int idx, const long dim_r, const interm rate, const interm lambda);
+void updateMF_explicit512(interm *WMat,interm *HMat, interm* workV, int idx, const long dim_r, const interm rate, const interm lambda);
 
 template<typename interm, CpuType cpu>
 void computeRMSE(interm *WMat,interm *HMat, interm* testV, interm* testRMSE, int idx, const long dim_r);
@@ -89,13 +89,14 @@ MFSGDTBB<interm, cpu>::MFSGDTBB(
         int* workWPos,
         int* workHPos,
         interm *workV,
-        int* seq,
         const long Dim,
         const interm learningRate,
         const interm lambda,
         currentMutex_t* mutex_w,
         currentMutex_t* mutex_h,
-        const int Avx512_explicit
+        const int Avx512_explicit,
+        const int step,
+        const int dim_train
 
 )
 {/*{{{*/
@@ -106,7 +107,6 @@ MFSGDTBB<interm, cpu>::MFSGDTBB(
     _workHPos = workHPos;
 
     _workV = workV;
-    _seq = seq;
     _Dim = Dim;
     _learningRate = learningRate;
     _lambda = lambda;
@@ -114,6 +114,12 @@ MFSGDTBB<interm, cpu>::MFSGDTBB(
     _mutex_w = mutex_w;
     _mutex_h = mutex_h;
     _Avx512_explicit = Avx512_explicit;
+
+    _step = step;
+    _dim_train = dim_train;
+
+    _itr = 0;
+
 }/*}}}*/
 
 template<typename interm, CpuType cpu>
@@ -134,27 +140,34 @@ void MFSGDTBB<interm, cpu>::operator()( const blocked_range<int>& range ) const
 
     int* workWPos = _workWPos;
     int* workHPos = _workHPos;
-    int* seq = _seq;
     interm* workV = _workV;
 
     long Dim = _Dim;
     interm learningRate = _learningRate;
     interm lambda = _lambda;
 
+    int step = _step;
+    int dim_train = _dim_train;
+    int itr = _itr;
+
+    int index;
+
     for( int i=range.begin(); i!=range.end(); ++i )
     {
 
-        // using local variables
-        WMat = mtWDataTable + workWPos[seq[i]]*Dim;
-        HMat = mtHDataTable + workHPos[seq[i]]*Dim;
+        index = (i + itr*step)%dim_train;
 
-        /* currentMutex_t::scoped_lock lock_w(_mutex_w[_workWPos[_seq[i]]]); */
-        /* currentMutex_t::scoped_lock lock_h(_mutex_h[_workHPos[_seq[i]]]); */
+        // using local variables
+        WMat = mtWDataTable + workWPos[index]*Dim;
+        HMat = mtHDataTable + workHPos[index]*Dim;
+
+        /* currentMutex_t::scoped_lock lock_w(_mutex_w[_workWPos[index]]); */
+        /* currentMutex_t::scoped_lock lock_h(_mutex_h[_workHPos[index]]); */
         
         if (_Avx512_explicit == 1)
-            updateMF_explicit512<interm, cpu>(WMat, HMat, workV, seq, i, Dim, learningRate, lambda);
+            updateMF_explicit512<interm, cpu>(WMat, HMat, workV, index, Dim, learningRate, lambda);
         else
-            updateMF<interm, cpu>(WMat, HMat, workV, seq, i, Dim, learningRate, lambda);
+            updateMF<interm, cpu>(WMat, HMat, workV, index, Dim, learningRate, lambda);
 
         /* lock_w.release(); */
         /* lock_h.release(); */
@@ -258,7 +271,7 @@ void MFSGDTBB_TEST<interm, cpu>::operator()( const blocked_range<int>& range ) c
  * @param lambda
  */
 template<typename interm, CpuType cpu>
-void updateMF(interm *WMat,interm *HMat, interm* workV, int* seq, int idx, const long dim_r, const interm rate, const interm lambda)
+void updateMF(interm *WMat,interm *HMat, interm* workV, int idx, const long dim_r, const interm rate, const interm lambda)
 {/*{{{*/
 
     interm Mult = 0;
@@ -269,15 +282,15 @@ void updateMF(interm *WMat,interm *HMat, interm* workV, int* seq, int idx, const
     for(int p = 0; p<dim_r; p++)
         Mult += (WMat[p]*HMat[p]);
 
-    Err = workV[seq[idx]] - Mult;
+    Err = workV[idx] - Mult;
 
     for(int p = 0;p<dim_r;p++)
     {
         WMatVal = WMat[p];
         HMatVal = HMat[p];
 
-        WMat[p] = WMat[p] + rate*(Err*HMatVal - lambda*WMatVal);
-        HMat[p] = HMat[p] + rate*(Err*WMatVal - lambda*HMatVal);
+        WMat[p] = WMatVal + rate*(Err*HMatVal - lambda*WMatVal);
+        HMat[p] = HMatVal + rate*(Err*WMatVal - lambda*HMatVal);
 
     }
 
@@ -300,7 +313,7 @@ void updateMF(interm *WMat,interm *HMat, interm* workV, int* seq, int idx, const
  * @param lambda
  */
 template<typename interm, CpuType cpu>
-void updateMF_explicit512(interm *WMat,interm *HMat, interm* workV, int* seq, int idx, const long dim_r, const interm rate, const interm lambda)
+void updateMF_explicit512(interm *WMat,interm *HMat, interm* workV, int idx, const long dim_r, const interm rate, const interm lambda)
 {/*{{{*/
 
     interm Mult = 0;
@@ -311,15 +324,15 @@ void updateMF_explicit512(interm *WMat,interm *HMat, interm* workV, int* seq, in
     for(int p = 0; p<dim_r; p++)
         Mult += (WMat[p]*HMat[p]);
 
-    Err = workV[seq[idx]] - Mult;
+    Err = workV[idx] - Mult;
 
     for(int p = 0;p<dim_r;p++)
     {
         WMatVal = WMat[p];
         HMatVal = HMat[p];
 
-        WMat[p] = WMat[p] + rate*(Err*HMatVal - lambda*WMatVal);
-        HMat[p] = HMat[p] + rate*(Err*WMatVal - lambda*HMatVal);
+        WMat[p] = WMatVal + rate*(Err*HMatVal - lambda*WMatVal);
+        HMat[p] = HMatVal + rate*(Err*WMatVal - lambda*HMatVal);
 
     }
 

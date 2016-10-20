@@ -366,6 +366,8 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _thread_num = 0;
         _tbb_grainsize = 0;
         _Avx512_explicit = 0;
+        _ratio = 1.0;
+        _itr = 0;
     }
 
     virtual ~Parameter() {}
@@ -389,6 +391,16 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _Avx512_explicit = Avx512_explicit;
     }
 
+    void setRatio(double ratio)
+    {
+        _ratio = ratio;
+    }
+
+    void setIteration(int itr)
+    {
+        _itr = itr;
+    }
+
     double _learningRate;                     // the rate of learning by SGD 
     double _lambda;                           // the lambda parameter in standard SGD
     long    _Dim_r;                           //the feature dimension of model W and H
@@ -398,6 +410,8 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     int     _thread_num;                      //specify the threads used by TBB
     int     _tbb_grainsize;                   //specify the grainsize for TBB parallel_for
     int     _Avx512_explicit;                 //specify whether use explicit Avx512 instructions 
+    double  _ratio;                           //control the percentage of tasks to execute
+    int     _itr;                             //the iteration index 
 
 };
 /** @} */

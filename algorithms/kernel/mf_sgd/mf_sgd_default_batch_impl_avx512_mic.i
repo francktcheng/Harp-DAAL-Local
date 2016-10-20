@@ -23,7 +23,7 @@
 */
 #include <iostream>
 
-template<> void updateMF_explicit512<DAAL_FPTYPE, avx512_mic>(DAAL_FPTYPE* WMat, DAAL_FPTYPE* HMat, DAAL_FPTYPE* workV, int* seq, int idx, const long dim_r, const DAAL_FPTYPE rate, const DAAL_FPTYPE lambda)
+template<> void updateMF_explicit512<DAAL_FPTYPE, avx512_mic>(DAAL_FPTYPE* WMat, DAAL_FPTYPE* HMat, DAAL_FPTYPE* workV, int idx, const long dim_r, const DAAL_FPTYPE rate, const DAAL_FPTYPE lambda)
 {
 
     DAAL_FPTYPE Mult = 0;
@@ -55,7 +55,7 @@ template<> void updateMF_explicit512<DAAL_FPTYPE, avx512_mic>(DAAL_FPTYPE* WMat,
         Mult += mul_res;
     }
 
-    Err = workV[seq[idx]] - Mult;
+    Err = workV[idx] - Mult;
 
     __m512  err_v  = _mm512_set1_ps (Err);
     __m512  rate_v = _mm512_set1_ps (rate);
@@ -111,7 +111,7 @@ template<> void updateMF_explicit512<DAAL_FPTYPE, avx512_mic>(DAAL_FPTYPE* WMat,
         Mult += mul_res;
     }
 
-    Err = workV[seq[idx]] - Mult;
+    Err = workV[idx] - Mult;
 
     __m512d  err_v  = _mm512_set1_pd (Err);
     __m512d  rate_v = _mm512_set1_pd (rate);

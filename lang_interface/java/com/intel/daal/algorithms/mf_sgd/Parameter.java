@@ -73,8 +73,21 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
         cSetParameters(this.cObject,learningRate, lambda, Dim_r, Dim_w,  Dim_h, iteration, thread_num, tbb_grainsize, Avx512_explicit );
     }
 
+    public void setRatio(double ratio) {
+        cSetRatio(this.cObject, ratio);
+
+    }
+
+    public void setIteration(int itr) {
+        cSetIteration(this.cObject, itr);
+    }
+
     private native void cSetParameters(long parAddr, double learningRate, double lambda, long Dim_r, long Dim_w, long Dim_h, int iteration, int thread_num, int tbb_grainsize, 
 			int Avx512_explicit );
+
+    private native void cSetRatio(long parAddr, double ratio);
+
+    private native void cSetIteration(long parAddr, int itr);
 
     // private Batch _function;
     //

@@ -59,6 +59,7 @@ JNIEXPORT jlong JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Input_cGetInputTa
     return jniInput<mf_sgd::Input>::get<mf_sgd::InputId, NumericTable>(inputAddr, id);
 }
 
+
 // /*
 //  * Class:     com_intel_daal_algorithms_qr_DistributedStep2MasterInput
 //  * Method:    cAddDataCollection

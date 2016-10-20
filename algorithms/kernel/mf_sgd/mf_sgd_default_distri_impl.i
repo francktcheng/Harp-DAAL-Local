@@ -104,6 +104,9 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSe
     const int tbb_grainsize = parameter->_tbb_grainsize;
     const int Avx512_explicit = parameter->_Avx512_explicit;
 
+    const double ratio = parameter->_ratio;
+    const int itr = parameter->_itr;
+
     const int dim_train = TrainSet[0]->getNumberOfRows();
 
     /* ------------- Retrieve Training Data Set -------------*/
@@ -160,11 +163,18 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSe
     }
 
     /* set up the sequence of workflow */
-    int* seq = new int[dim_train];
-    for(int j=0;j<dim_train;j++)
-        seq[j] = j;
+    /* int* seq = new int[dim_train]; */
+    /* for(int j=0;j<dim_train;j++) */
+        /* seq[j] = j; */
 
-    MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, seq, dim_r, learningRate, lambda, mutex_w, mutex_h, Avx512_explicit);
+    /* if ratio != 1, dim_ratio is the ratio of computed tasks */
+    int dim_ratio = (int)(ratio*dim_train);
+
+    /* step is the stride of choosing tasks in a rotated way */
+    const int step = dim_train - dim_ratio;
+
+    MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, dim_r, learningRate, lambda, mutex_w, mutex_h, Avx512_explicit, step, dim_train);
+    mfsgd.setItr(itr);
 
     int k, p;
 
@@ -177,9 +187,9 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSe
 
     /* training MF-SGD */
     if (tbb_grainsize != 0)
-        parallel_for(blocked_range<int>(0, dim_train, tbb_grainsize), mfsgd);
+        parallel_for(blocked_range<int>(0, dim_ratio, tbb_grainsize), mfsgd);
     else
-        parallel_for(blocked_range<int>(0, dim_train), mfsgd, auto_partitioner());
+        parallel_for(blocked_range<int>(0, dim_ratio), mfsgd, auto_partitioner());
 
     clock_gettime(CLOCK_MONOTONIC, &ts2);
 
@@ -194,8 +204,6 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSe
 
     delete[] mutex_w;
     delete[] mutex_h;
-
-    delete[] seq;
 
     return;
 }/*}}}*/

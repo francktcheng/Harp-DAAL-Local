@@ -84,13 +84,16 @@ struct MFSGDTBB
     int* _workWPos;
     int* _workHPos;
     interm* _workV;
-    int* _seq;
 
     long _Dim;
     interm _learningRate;
     interm _lambda;
 
     int _Avx512_explicit;
+
+    int _step;
+    int _dim_train;
+    int _itr;
 
     currentMutex_t* _mutex_w;
     currentMutex_t* _mutex_h;
@@ -102,16 +105,22 @@ struct MFSGDTBB
             int* workWPos,
             int* workHPos,
             interm *workV,
-            int* seq,
             const long Dim,
             const interm learningRate,
             const interm lambda,
             currentMutex_t* mutex_w,
             currentMutex_t* mutex_h,
-            const int Avx512_explicit
+            const int Avx512_explicit,
+            const int step,
+            const int dim_train
     );
 
     void operator()( const blocked_range<int>& range ) const; 
+
+    void setItr(int itr)
+    {
+        _itr = itr;
+    }
 
 
 };

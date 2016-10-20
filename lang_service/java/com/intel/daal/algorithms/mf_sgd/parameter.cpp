@@ -49,17 +49,14 @@ JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cSetPara
 	((mf_sgd::Parameter*)parAddr)->_Avx512_explicit = avx512_explicit;
 }
 
-/*
- * Class:     com_intel_daal_algorithms_mf_sgd_Input
- * Method:    cGetInputTable
- * Signature: (JI)J
- */
-JNIEXPORT jlong JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Input_cGetInputTable
-(JNIEnv *env, jobject thisObj, jlong inputAddr, jint id)
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cSetRatio
+(JNIEnv *env, jobject thisObj, jlong parAddr, jdouble ratio)
 {
-    if(id != dataTrain && id != dataTest) { return (jlong) - 1; }
-
-    return jniInput<mf_sgd::Input>::get<mf_sgd::InputId, NumericTable>(inputAddr, id);
+	((mf_sgd::Parameter*)parAddr)->_ratio = ratio;
 }
 
-
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cSetIteration
+(JNIEnv *env, jobject thisObj, jlong parAddr, jint itr)
+{
+	((mf_sgd::Parameter*)parAddr)->_itr = itr;
+}

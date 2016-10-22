@@ -60,3 +60,21 @@ JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cSetIter
 {
 	((mf_sgd::Parameter*)parAddr)->_itr = itr;
 }
+
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cSetInnerItr
+(JNIEnv *env, jobject thisObj, jlong parAddr, jint innerItr)
+{
+	((mf_sgd::Parameter*)parAddr)->_innerItr = innerItr;
+}
+
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cSetInnerNum
+(JNIEnv *env, jobject thisObj, jlong parAddr, jint innerNum)
+{
+	((mf_sgd::Parameter*)parAddr)->_innerNum = innerNum;
+}
+
+
+
+
+
+

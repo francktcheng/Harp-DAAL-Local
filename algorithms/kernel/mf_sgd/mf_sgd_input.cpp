@@ -47,7 +47,8 @@ namespace interface1
 
 /** Default constructor */
 // Input::Input() : daal::algorithms::Input(1) {}
-Input::Input() : daal::algorithms::Input(2) {}
+// Input::Input() : daal::algorithms::Input(2) {}
+Input::Input() : daal::algorithms::Input(5) {}
 
 /**
  * Returns input object of the mf_sgd decomposition algorithm

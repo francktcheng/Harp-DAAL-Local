@@ -41,7 +41,7 @@ using namespace daal::algorithms::mf_sgd;
 JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Input_cSetInputTable
 (JNIEnv *env, jobject thisObj, jlong inputAddr, jint id, jlong ntAddr)
 {
-    if(id != dataTrain && id != dataTest) { return; }
+    // if(id != dataTrain && id != dataTest) { return; }
 
     jniInput<mf_sgd::Input>::set<mf_sgd::InputId, NumericTable>(inputAddr, id, ntAddr);
 }
@@ -54,7 +54,7 @@ JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Input_cSetInputTab
 JNIEXPORT jlong JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Input_cGetInputTable
 (JNIEnv *env, jobject thisObj, jlong inputAddr, jint id)
 {
-    if(id != dataTrain && id != dataTest) { return (jlong) - 1; }
+    // if(id != dataTrain && id != dataTest) { return (jlong) - 1; }
 
     return jniInput<mf_sgd::Input>::get<mf_sgd::InputId, NumericTable>(inputAddr, id);
 }

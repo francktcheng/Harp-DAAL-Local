@@ -56,11 +56,11 @@ public final class Input extends com.intel.daal.algorithms.Input {
      * @param val   Value of the input object
      */
     public void set(InputId id, NumericTable val) {
-        if (id == InputId.dataTrain || id == InputId.dataTest) {
+        // if (id == InputId.dataTrain || id == InputId.dataTest) {
             cSetInputTable(cObject, id.getValue(), val.getCObject());
-        } else {
-            throw new IllegalArgumentException("id unsupported");
-        }
+        // } else {
+            // throw new IllegalArgumentException("id unsupported");
+        // }
     }
 
     /**
@@ -69,11 +69,11 @@ public final class Input extends com.intel.daal.algorithms.Input {
      * @return   Input object that corresponds to the given identifier
      */
     public NumericTable get(InputId id) {
-        if (id == InputId.dataTrain || id == InputId.dataTest) {
+        // if (id == InputId.dataTrain || id == InputId.dataTest) {
             return new HomogenNumericTable(getContext(), cGetInputTable(cObject, id.getValue()));
-        } else {
-            throw new IllegalArgumentException("id unsupported");
-        }
+        // } else {
+            // throw new IllegalArgumentException("id unsupported");
+        // }
     }
 
     public void generate_points(VPoint[] points_Train, int num_Train, VPoint[] points_Test, int num_Test, int row_num_w, int col_num_h)

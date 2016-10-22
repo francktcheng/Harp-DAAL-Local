@@ -82,12 +82,24 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
         cSetIteration(this.cObject, itr);
     }
 
+    public void setInnerItr(int innerItr) {
+        cSetInnerItr(this.cObject, innerItr);
+    }
+
+    public void setInnerNum(int innerNum) {
+        cSetInnerNum(this.cObject, innerNum);
+    }
+
     private native void cSetParameters(long parAddr, double learningRate, double lambda, long Dim_r, long Dim_w, long Dim_h, int iteration, int thread_num, int tbb_grainsize, 
 			int Avx512_explicit );
 
     private native void cSetRatio(long parAddr, double ratio);
 
     private native void cSetIteration(long parAddr, int itr);
+
+    private native void cSetInnerItr(long parAddr, int innerItr);
+
+    private native void cSetInnerNum(long parAddr, int innerNum);
 
     // private Batch _function;
     //

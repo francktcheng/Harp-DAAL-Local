@@ -67,7 +67,10 @@ enum Method
 enum InputId
 {
     dataTrain = 0,      /*!< Input model W */
-	dataTest = 1	   /*!< Input model H */
+	dataTest = 1,	   /*!< Input model H */
+	wPos = 2,	   /*!< Input model H */
+	hPos = 3,	   /*!< Input model H */
+	val = 4	   /*!< Input model H */
 };
 
 /**
@@ -368,6 +371,9 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _Avx512_explicit = 0;
         _ratio = 1.0;
         _itr = 0;
+        _innerItr = 0;
+        _innerNum = 0;
+
     }
 
     virtual ~Parameter() {}
@@ -401,6 +407,16 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _itr = itr;
     }
 
+    void setInnerItr(int innerItr)
+    {
+        _innerItr = innerItr;
+    }
+
+    void setInnerNum(int innerNum)
+    {
+        _innerNum = innerNum;
+    }
+
     double _learningRate;                     // the rate of learning by SGD 
     double _lambda;                           // the lambda parameter in standard SGD
     long    _Dim_r;                           //the feature dimension of model W and H
@@ -412,6 +428,8 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     int     _Avx512_explicit;                 //specify whether use explicit Avx512 instructions 
     double  _ratio;                           //control the percentage of tasks to execute
     int     _itr;                             //the iteration index 
+    int     _innerItr;
+    int     _innerNum;
 
 };
 /** @} */

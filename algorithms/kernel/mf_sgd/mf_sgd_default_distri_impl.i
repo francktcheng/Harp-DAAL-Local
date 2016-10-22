@@ -72,9 +72,9 @@ namespace internal
      * @param par
      */
 template <typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
-void MF_SGDDistriKernel<interm, method, cpu>::compute(NumericTable** TrainSet, NumericTable *r[], const daal::algorithms::Parameter *par)
+void MF_SGDDistriKernel<interm, method, cpu>::compute(NumericTable** TrainWPos, NumericTable** TrainHPos, NumericTable** TrainVal, NumericTable *r[], const daal::algorithms::Parameter *par)
 {
-    MF_SGDDistriKernel<interm, method, cpu>::compute_thr(TrainSet, r, par);
+    MF_SGDDistriKernel<interm, method, cpu>::compute_thr(TrainWPos,TrainHPos,TrainVal, r, par);
 }
 
 
@@ -89,7 +89,7 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute(NumericTable** TrainSet, N
  * @param par
  */
 template <typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
-void MF_SGDDistriKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet, NumericTable *r[], const daal::algorithms::Parameter *par)
+void MF_SGDDistriKernel<interm, method, cpu>::compute_thr(NumericTable** TrainWPos, NumericTable** TrainHPos, NumericTable** TrainVal, NumericTable *r[], const daal::algorithms::Parameter *par)
 {/*{{{*/
 
     /* retrieve members of parameter */
@@ -107,29 +107,43 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSe
     const double ratio = parameter->_ratio;
     const int itr = parameter->_itr;
 
-    const int dim_train = TrainSet[0]->getNumberOfRows();
+    const int dim_train = TrainVal[0]->getNumberOfRows();
+
+    struct timespec ts1;
+    struct timespec ts2;
+    long diff;
+
+    double getTrainDataTime = 0;
 
     /* ------------- Retrieve Training Data Set -------------*/
 
-    FeatureMicroTable<int, readOnly, cpu> workflowW_ptr(TrainSet[0]);
-    FeatureMicroTable<int, readOnly, cpu> workflowH_ptr(TrainSet[0]);
-    FeatureMicroTable<interm, readOnly, cpu> workflow_ptr(TrainSet[0]);
+    clock_gettime(CLOCK_MONOTONIC, &ts1);
+
+    FeatureMicroTable<int, readOnly, cpu> workflowW_ptr(TrainWPos[0]);
+    FeatureMicroTable<int, readOnly, cpu> workflowH_ptr(TrainHPos[0]);
+    FeatureMicroTable<interm, readOnly, cpu> workflow_ptr(TrainVal[0]);
 
     int *workWPos = 0;
     workflowW_ptr.getBlockOfColumnValues(0, 0, dim_train, &workWPos);
 
     int *workHPos = 0;
-    workflowH_ptr.getBlockOfColumnValues(1, 0, dim_train, &workHPos);
+    workflowH_ptr.getBlockOfColumnValues(0, 0, dim_train, &workHPos);
 
     interm *workV;
-    workflow_ptr.getBlockOfColumnValues(2,0,dim_train,&workV);
+    workflow_ptr.getBlockOfColumnValues(0, 0, dim_train, &workV);
+
+    clock_gettime(CLOCK_MONOTONIC, &ts2);
+    
+    diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
+    getTrainDataTime += (double)(diff)/1000000L;
+    std::cout<<"Training Data load time: "<<getTrainDataTime<<std::endl<<std::flush;
 
     /* ---------------- Retrieve Model W ---------------- */
     BlockMicroTable<interm, readWrite, cpu> mtWDataTable(r[0]);
 
     /* debug */
-    //std::cout<<"model W row: "<<r[0]->getNumberOfRows()<<std::endl;
-    //std::cout<<"model W col: "<<r[0]->getNumberOfColumns()<<std::endl;
+    //std::cout<<"model W row: "<<r[0]->getNumberOfRows()<<std::endl<<std::flush;
+    //std::cout<<"model W col: "<<r[0]->getNumberOfColumns()<<std::endl<<std::flush;
 
     interm* mtWDataPtr = 0;
     mtWDataTable.getBlockOfRows(0, dim_w, &mtWDataPtr);
@@ -138,8 +152,8 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSe
     BlockMicroTable<interm, readWrite, cpu> mtHDataTable(r[1]);
 
     // debug 
-    // std::cout<<"model H row: "<<r[1]->getNumberOfRows()<<std::endl;
-    // std::cout<<"model H col: "<<r[1]->getNumberOfColumns()<<std::endl;
+    // std::cout<<"model H row: "<<r[1]->getNumberOfRows()<<std::endl<<std::flush;
+    // std::cout<<"model H col: "<<r[1]->getNumberOfColumns()<<std::endl<<std::flush;
 
     interm* mtHDataPtr = 0;
     mtHDataTable.getBlockOfRows(0, dim_h, &mtHDataPtr);
@@ -178,9 +192,6 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSe
 
     int k, p;
 
-    struct timespec ts1;
-    struct timespec ts2;
-    long diff;
     double train_time = 0;
 
     clock_gettime(CLOCK_MONOTONIC, &ts1);
@@ -198,7 +209,7 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSe
     train_time += (double)(diff)/1000000L;
 
     init.terminate();
-    printf("Training time this iteration: %f\n", train_time);
+    std::cout<<"Training time this iteration: "<<train_time<<std::endl<<std::flush;
 
     /* ------------------- Finishing TBB based Training  -------------------*/
 

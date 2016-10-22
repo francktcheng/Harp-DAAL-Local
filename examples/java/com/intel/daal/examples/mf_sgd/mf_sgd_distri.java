@@ -44,6 +44,8 @@ import java.util.Iterator;
 import java.util.Set;
 import java.lang.Long;
 import java.util.ArrayList;
+import java.nio.DoubleBuffer;
+import java.nio.IntBuffer;
 
 class mf_sgd_distri{
 
@@ -197,8 +199,35 @@ class mf_sgd_distri{
 
         }
         
-        AOSNumericTable dataTable_Train = new AOSNumericTable(context, points_Train);
-        sgdAlgorithm.input.set(InputId.dataTrain, dataTable_Train);
+        // AOSNumericTable dataTable_Train = new AOSNumericTable(context, points_Train);
+        int train_num = 100;
+        int[] wPos = new int[train_num];
+        int[] hPos = new int[train_num];
+        double[] val = new double[train_num];
+
+        for(int p=0;p<train_num;p++)
+        {
+            wPos[p] = p;
+            hPos[p] = p;
+            val[p] = 5.0;
+        }
+
+        NumericTable trainWPos = new HomogenNumericTable(context, Integer.class, 1, train_num, NumericTable.AllocationFlag.DoAllocate);
+        NumericTable trainHPos = new HomogenNumericTable(context, Integer.class, 1, train_num, NumericTable.AllocationFlag.DoAllocate);
+        NumericTable trainVal = new HomogenNumericTable(context, Double.class, 1, train_num, NumericTable.AllocationFlag.DoAllocate);
+
+        IntBuffer wPos_array_buf = IntBuffer.wrap(wPos);
+		trainWPos.releaseBlockOfColumnValues(0, 0, train_num, wPos_array_buf);
+
+        IntBuffer hPos_array_buf = IntBuffer.wrap(hPos);
+		trainHPos.releaseBlockOfColumnValues(0, 0, train_num, hPos_array_buf);
+
+        DoubleBuffer val_array_buf = DoubleBuffer.wrap(val);
+		trainVal.releaseBlockOfColumnValues(0, 0, train_num, val_array_buf);
+
+        sgdAlgorithm.input.set(InputId.dataWPos, trainWPos);
+        sgdAlgorithm.input.set(InputId.dataHPos, trainHPos);
+        sgdAlgorithm.input.set(InputId.dataVal, trainVal);
         
         NumericTable matrixW = new HomogenNumericTable(context, Double.class, r_dim, row_num_w, NumericTable.AllocationFlag.DoAllocate, 0.5);
         NumericTable matrixH = new HomogenNumericTable(context, Double.class, r_dim, col_num_h, NumericTable.AllocationFlag.DoAllocate, 0.5);

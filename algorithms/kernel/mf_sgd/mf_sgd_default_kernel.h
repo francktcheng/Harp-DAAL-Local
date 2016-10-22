@@ -68,9 +68,9 @@ class MF_SGDDistriKernel : public Kernel
 {
 public:
 
-    void compute(NumericTable** TrainSet, NumericTable *r[], const daal::algorithms::Parameter *par);
+    void compute(NumericTable** TrainWPos, NumericTable** TrainHPos, NumericTable** TrainVal, NumericTable *r[], const daal::algorithms::Parameter *par);
 
-    void compute_thr(NumericTable** TrainSet, NumericTable *r[], const daal::algorithms::Parameter *par);
+    void compute_thr(NumericTable** TrainWPos, NumericTable** TrainHPos, NumericTable** TrainVal, NumericTable *r[], const daal::algorithms::Parameter *par);
 
 };
 

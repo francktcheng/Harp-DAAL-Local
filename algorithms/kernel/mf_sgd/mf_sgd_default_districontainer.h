@@ -64,9 +64,13 @@ void DistriContainer<step, interm, method, cpu>::compute()
     Input *input = static_cast<Input *>(_in);
     DistributedPartialResult *result = static_cast<DistributedPartialResult *>(_pres);
 
-    NumericTable *a0 = static_cast<NumericTable *>(input->get(dataTrain).get());
+    NumericTable *a0 = static_cast<NumericTable *>(input->get(wPos).get());
+    NumericTable *a1 = static_cast<NumericTable *>(input->get(hPos).get());
+    NumericTable *a2 = static_cast<NumericTable *>(input->get(val).get());
 
-    NumericTable **TrainSet = &a0;
+    NumericTable **TrainWPos = &a0;
+    NumericTable **TrainHPos = &a1;
+    NumericTable **TrainVal = &a2;
 
     NumericTable *r[2];
 
@@ -77,7 +81,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
     daal::services::Environment::env &env = *_env;
 
     /* invoke the MF_SGDBatchKernel */
-    __DAAL_CALL_KERNEL(env, internal::MF_SGDDistriKernel, __DAAL_KERNEL_ARGUMENTS(interm, method), compute, TrainSet, r, par);
+    __DAAL_CALL_KERNEL(env, internal::MF_SGDDistriKernel, __DAAL_KERNEL_ARGUMENTS(interm, method), compute, TrainWPos, TrainHPos, TrainVal, r, par);
    
 }
 

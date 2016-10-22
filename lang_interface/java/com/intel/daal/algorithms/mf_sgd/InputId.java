@@ -39,8 +39,14 @@ public final class InputId {
 
     private static final int dataTrainId = 0;
     private static final int dataTestId = 1;
+    private static final int dataWPosId = 2;
+    private static final int dataHPosId = 3;
+    private static final int dataValId = 4;
 
     /** %Input data table */
     public static final InputId dataTrain = new InputId(dataTrainId);
     public static final InputId dataTest = new InputId(dataTestId);
+    public static final InputId dataWPos = new InputId(dataWPosId);
+    public static final InputId dataHPos = new InputId(dataHPosId);
+    public static final InputId dataVal = new InputId(dataValId);
 }

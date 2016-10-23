@@ -237,7 +237,7 @@ class mf_sgd_distri{
         pres.set(PartialResultId.resHMat, matrixH);
         sgdAlgorithm.setPartialResult(pres);
 
-        sgdAlgorithm.parameter.set(learningRate,lambda, r_dim, row_num_w, col_num_h, iteration, threads, tbb_grainsize, Avx512_explicit);
+        sgdAlgorithm.parameter.set(learningRate,lambda, r_dim, row_num_w, col_num_h, iteration, threads, tbb_grainsize, 1);
 
 		sgdAlgorithm.compute();
 

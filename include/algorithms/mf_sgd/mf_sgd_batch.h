@@ -52,7 +52,7 @@ namespace interface1
  *
  */
 template<typename algorithmFPType, Method method, CpuType cpu>
-class DAAL_EXPORT BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+class DAAL_EXPORT BatchContainer : public daal::algorithms::AnalysisContainerIface<batch> 
 {
 public:
     /**
@@ -101,8 +101,8 @@ public:
     Batch(const Batch<algorithmFPType, method> &other)
     {
         initialize();
-        input.set(dataTrain, other.input.get(dataTrain));
-        input.set(dataTest, other.input.get(dataTest));
+        input.set(dataTrain, other.input.get(dataTrain)); /* !< input training dataset */
+        input.set(dataTest, other.input.get(dataTest)); /* !< input test dataset */
         parameter = other.parameter;
     }
 
@@ -116,10 +116,7 @@ public:
      * Returns the structure that contains the results of the mf_sgd decomposition algorithm
      * \return Structure that contains the results of the mf_sgd decomposition algorithm
      */
-    services::SharedPtr<Result> getResult()
-    {
-        return _result;
-    }
+    services::SharedPtr<Result> getResult() { return _result; }
 
     /**
      * Register user-allocated memory to store the results of the mf_sgd decomposition algorithm
@@ -150,12 +147,9 @@ protected:
 
     virtual void allocateResult() DAAL_C11_OVERRIDE
     {
-        // the function to allocate the result
+         /*  the function to allocate the result */
         _result = services::SharedPtr<Result>(new Result());
-
         _result->allocate<algorithmFPType>(&input, _par, 0);
-
-        // _res is a pointer to shared pointer _result
         _res = _result.get();
     }
 

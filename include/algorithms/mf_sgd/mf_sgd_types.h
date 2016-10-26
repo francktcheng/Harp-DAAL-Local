@@ -26,8 +26,9 @@
 #define __MF_SGD_TYPES_H__
 
 #include <string>
-#include <unordered_map>
 #include <vector>
+#include <unordered_map>
+
 #include "algorithms/algorithm.h"
 #include "data_management/data/numeric_table.h"
 #include "data_management/data/homogen_numeric_table.h"
@@ -57,7 +58,7 @@ namespace mf_sgd
  */
 enum Method
 {
-    defaultSGD    = 0 /*!< Default method */
+    defaultSGD    = 0 /*!< Default Standard SGD */
 };
 
 /**
@@ -66,11 +67,11 @@ enum Method
  */
 enum InputId
 {
-    dataTrain = 0,      /*!< Input model W */
-	dataTest = 1,	   /*!< Input model H */
-	wPos = 2,	   /*!< Input model H */
-	hPos = 3,	   /*!< Input model H */
-	val = 4	   /*!< Input model H */
+    dataTrain = 0,		  /*!< Training Dataset */
+	dataTest = 1,	      /*!< Test Dataset */
+	wPos = 2,	          /*!< array of row position in model W of training dataset, used in distributed mode */
+	hPos = 3,	          /*!< array of col position in model H of training dataset, used in distributed mode */
+	val = 4				  /*!< array of val of training data, used in distributed mode */
 };
 
 /**
@@ -79,25 +80,29 @@ enum InputId
  */
 enum ResultId
 {
-    resWMat = 0,   /*!< Output Model W */
-    resHMat = 1    /*!< Output Model H */
-};
-
-enum DistributedPartialResultId
-{
-    presWMat = 0,   /*!< Output Model W */
-    presHMat = 1    /*!< Output Model H */
+    resWMat = 0,   /*!< Model W */
+    resHMat = 1    /*!< Model H */
 };
 
 /**
- * @brief A struct for storing sparse matrix data from CSV file 
+ * <a name="DAAL-ENUM-ALGORITHMS__mf_sgd__DISTRIBUTED_RESULTID"></a>
+ * Available types of partial results of the mf_sgd algorithm
+ */
+enum DistributedPartialResultId
+{
+    presWMat = 0,   /*!< Model W, used in distributed mode */
+    presHMat = 1    /*!< Model H, used in distributed mode*/
+};
+
+/**
+ * @brief A struct to store sparse matrix data from CSV file 
  */
 template<typename interm>
 struct VPoint 
 {
-    long wPos; //abs row id in Model W
-    long hPos; //abs column id in Model H
-    interm val;
+    int64_t wPos;		/*!< row position in model W of training data point */
+    int64_t hPos;		/*!< col position in model H of training data point */
+    interm val;			/*!< value of training data */
 };
 
 
@@ -133,72 +138,91 @@ public:
      */
     void set(InputId id, const data_management::NumericTablePtr &value);
 
+	/**
+	 * @brief get the column num of NumericTable associated to an inputid
+	 *
+	 * @param[in] id of input table
+	 * @return column num of input table 
+	 */
     size_t getNumberOfColumns(InputId id) const;
 
+	/**
+	 * @brief get the column num of NumericTable associated to an inputid
+	 *
+	 * @param[in]  id of input table
+	 *
+	 * @return row num of input table 
+	 */
     size_t getNumberOfRows(InputId id) const;
 
-
-    /**
-     * @brief generate an input dataset for mf_sgd 
-     *
-     * @tparam algorithmFPType
-     * @param points_Train
-     * @param num_Train
-     * @param points_Test
-     * @param num_Test
-     * @param row_num_w
-     * @param col_num_h
-     */
-    template <typename algorithmFPType>
-    void generate_points(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Train, long num_Train, 
-            daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Test, long num_Test,  long row_num_w, long col_num_h);
-
-	/**
-	 * @brief load dataset of CSV file 
-	 *
-	 * @tparam algorithmFPType
-	 * @param filename
-	 * @param map
-	 * @param lineContainer
-	 */
-    template <typename algorithmFPType>
-	void loadData(std::string filename, std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map, long &num_points, std::vector<long>* lineContainer);
-
-
-	/**
-	 * @brief convert read in csv files into VPoints 
-	 *
-	 * @tparam algorithmFPType
-	 * @param points_Train
-	 * @param num_Train
-	 * @param points_Test
-	 * @param num_Test
-	 * @param map_train
-	 * @param map_test
-	 * @param row_num_w
-	 * @param col_num_h
-	 */
-	template <typename algorithmFPType>
-    void convert_format(daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Train, long num_Train, daal::algorithms::mf_sgd::VPoint<algorithmFPType>* points_Test, 
-            long num_Test, std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map_train, 
-			std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map_test, long &row_num_w, long &col_num_h);
-
-	/**
-	 * @brief free up the memory allocated in the map 
-	 *
-	 * @tparam algorithmFPType
-	 * @param map
-	 */
-	template <typename algorithmFPType>
-	void freeData(std::unordered_map<long, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map);
-
-
-    /**
-     * Checks parameters of the algorithm
-     * \param[in] parameter Pointer to the parameters
-    * \param[in] method Computation method
-    */
     void check(const daal::algorithms::Parameter *parameter, int method) const DAAL_C11_OVERRIDE;
+
+	/**
+	 * @brief A generator for examples to create the training and testing datasets
+	 *
+	 * @tparam algorithmFPType, float or double
+	 * @param[in] num_Train
+	 * @param[in] num_Test
+	 * @param[in] row_num_w
+	 * @param[in] col_num_h
+	 * @param[in,out] points_Train
+	 * @param[in,out] points_Test
+	 */
+    template <typename algorithmFPType>
+    void generate_points(const int64_t num_Train,
+						 const int64_t num_Test, 
+						 const int64_t row_num_w, 
+						 const int64_t col_num_h,
+						 mf_sgd::VPoint<algorithmFPType>* points_Train,
+						 mf_sgd::VPoint<algorithmFPType>* points_Test);
+                                                                                
+	/**
+	 * @brief load data from CSV files 
+	 *
+	 * @tparam algorithmFPType, float or double
+	 * @param[in] filename
+	 * @param[in,out] lineContainer  An array to contain all the row ids of data points 
+	 * @param[in,out] map A map to store all the data points 
+	 *
+	 * @return the number of loaded data points  
+	 */
+    template <typename algorithmFPType>
+	int64_t loadData(const std::string filename, std::vector<int64_t>* lineContainer, 
+				    std::unordered_map<int64_t, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map);
+
+	/**
+	 * @brief Convert loaded data from CSV files into mf_sgd::VPoint format
+	 *
+	 * @tparam algorithmFPType, float or double
+	 * @param[in] map_train loaded train data from function loadData
+	 * @param[in] map_test loaded test data from function loadData
+	 * @param[in] num_Train num of train points
+	 * @param[in] num_Test num of test points
+	 * @param[in,out] points_Train allocated array of points that stores VPoints converted from loaded data
+	 * @param[in,out] points_Test allocated array of points that stores VPoints converted from loaded data
+	 * @param[out] row_num_w row num of W model for train data
+	 * @param[out] col_num_h col num of H model for train data 
+	 */
+	template <typename algorithmFPType>
+    void convert_format(std::unordered_map<int64_t, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map_train,
+						std::unordered_map<int64_t, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map_test,
+						const int64_t num_Train,
+					    const int64_t num_Test,
+						mf_sgd::VPoint<algorithmFPType>* points_Train,  
+						mf_sgd::VPoint<algorithmFPType>* points_Test, 
+						int64_t &row_num_w, 
+						int64_t &col_num_h);
+
+	
+	/**
+	 * @brief free the allocated data of mf_sgd::VPoint
+	 *
+	 * @tparam algorithmFPType
+	 * @param map
+	 */
+	template <typename algorithmFPType>
+	void freeData(std::unordered_map<int64_t, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map);
+
 
 
 };

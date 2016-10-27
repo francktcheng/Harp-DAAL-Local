@@ -94,15 +94,7 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_thr(const NumericTable** T
 
     const int dim_train = TrainVal[0]->getNumberOfRows();
 
-    struct timespec ts1;
-    struct timespec ts2;
-    long diff;
-
-    double getTrainDataTime = 0;
-
     /* ------------- Retrieve Training Data Set -------------*/
-
-    clock_gettime(CLOCK_MONOTONIC, &ts1);
 
     FeatureMicroTable<int, readOnly, cpu> workflowW_ptr(TrainWPos[0]);
     FeatureMicroTable<int, readOnly, cpu> workflowH_ptr(TrainHPos[0]);
@@ -117,18 +109,8 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_thr(const NumericTable** T
     interm *workV;
     workflow_ptr.getBlockOfColumnValues(0, 0, dim_train, &workV);
 
-    clock_gettime(CLOCK_MONOTONIC, &ts2);
-    
-    diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
-    getTrainDataTime += (double)(diff)/1000000L;
-    std::cout<<"Training Data load time: "<<getTrainDataTime<<std::endl<<std::flush;
-
     /* ---------------- Retrieve Model W ---------------- */
     BlockMicroTable<interm, readWrite, cpu> mtWDataTable(r[0]);
-
-    /* debug */
-    //std::cout<<"model W row: "<<r[0]->getNumberOfRows()<<std::endl<<std::flush;
-    //std::cout<<"model W col: "<<r[0]->getNumberOfColumns()<<std::endl<<std::flush;
 
     interm* mtWDataPtr = 0;
     mtWDataTable.getBlockOfRows(0, dim_w, &mtWDataPtr);
@@ -136,35 +118,26 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_thr(const NumericTable** T
     /* ---------------- Retrieve Model H ---------------- */
     BlockMicroTable<interm, readWrite, cpu> mtHDataTable(r[1]);
 
-    // debug 
-    // std::cout<<"model H row: "<<r[1]->getNumberOfRows()<<std::endl<<std::flush;
-    // std::cout<<"model H col: "<<r[1]->getNumberOfColumns()<<std::endl<<std::flush;
-
     interm* mtHDataPtr = 0;
     mtHDataTable.getBlockOfRows(0, dim_h, &mtHDataPtr);
 
     /* create the mutex for WData and HData */
-    currentMutex_t* mutex_w = new currentMutex_t[dim_w];
-    currentMutex_t* mutex_h = new currentMutex_t[dim_h];
+    services::SharedPtr<currentMutex_t> mutex_w(new currentMutex_t[dim_w]);
+    services::SharedPtr<currentMutex_t> mutex_h(new currentMutex_t[dim_h]);
 
     /* ------------------- Starting TBB based Training  -------------------*/
     task_scheduler_init init(task_scheduler_init::deferred);
 
     if (thread_num != 0)
     {
-        // use explicitly specified num of threads 
+        /* use explicitly specified num of threads  */
         init.initialize(thread_num);
     }
     else
     {
-        // use automatically generated threads by TBB 
+        /* use automatically generated threads by TBB  */
         init.initialize();
     }
-
-    /* set up the sequence of workflow */
-    /* int* seq = new int[dim_train]; */
-    /* for(int j=0;j<dim_train;j++) */
-        /* seq[j] = j; */
 
     /* if ratio != 1, dim_ratio is the ratio of computed tasks */
     int dim_ratio = (int)(ratio*dim_train);
@@ -172,11 +145,12 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_thr(const NumericTable** T
     /* step is the stride of choosing tasks in a rotated way */
     const int step = dim_train - dim_ratio;
 
-    MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, dim_r, learningRate, lambda, mutex_w, mutex_h, Avx512_explicit, step, dim_train);
+    MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, dim_r, learningRate, lambda, mutex_w.get(), mutex_h.get(), Avx512_explicit, step, dim_train);
     mfsgd.setItr(itr);
 
-    int k, p;
-
+    struct timespec ts1;
+	struct timespec ts2;
+    int64_t diff = 0;
     double train_time = 0;
 
     clock_gettime(CLOCK_MONOTONIC, &ts1);
@@ -188,20 +162,16 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_thr(const NumericTable** T
         parallel_for(blocked_range<int>(0, dim_ratio), mfsgd, auto_partitioner());
 
     clock_gettime(CLOCK_MONOTONIC, &ts2);
-
     /* get the training time for each iteration */
     diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
     train_time += (double)(diff)/1000000L;
 
     init.terminate();
-    std::cout<<"Training time this iteration: "<<train_time<<std::endl<<std::flush;
-
-    /* ------------------- Finishing TBB based Training  -------------------*/
-
-    delete[] mutex_w;
-    delete[] mutex_h;
+    std::printf("Training time this iteration: %f\n", train_time);
+    std::fflush(stdout);
 
     return;
+
 }/*}}}*/
 
 

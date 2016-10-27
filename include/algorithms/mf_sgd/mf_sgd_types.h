@@ -215,6 +215,23 @@ public:
 						mf_sgd::VPoint<algorithmFPType>* points_Test, 
 						int64_t &row_num_w, 
 						int64_t &col_num_h);
+     /**
+	 * @brief Convert loaded data from CSV files into mf_sgd::VPoint format
+	 * implemented in mf_sgd_default_distri.h
+	 *
+	 * @tparam algorithmFPType, float or double
+	 * @param[in] map_train loaded train data from function loadData
+	 * @param[in] num_Train num of train points
+	 * @param[in,out] points_Train allocated array of points that stores VPoints converted from loaded data
+	 * @param[out] row_num_w row num of W model for train data
+	 * @param[out] col_num_h col num of H model for train data 
+	 */
+    template <typename algorithmFPType>
+    void convert_format_distri(std::unordered_map<int64_t, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map_train,
+						const int64_t num_Train,
+						mf_sgd::VPoint<algorithmFPType>* points_Train,  
+						int64_t &row_num_w, 
+						int64_t &col_num_h);
 
 	/**
 	 * @brief free the allocated data of mf_sgd::VPoint

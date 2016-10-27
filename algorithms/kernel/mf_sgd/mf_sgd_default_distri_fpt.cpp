@@ -32,6 +32,12 @@ namespace mf_sgd
 namespace interface1
 {
 
+template void Input::convert_format_distri<DAAL_FPTYPE>(std::unordered_map<int64_t, std::vector<mf_sgd::VPoint<DAAL_FPTYPE>*>*> &map_train,
+						                                const int64_t num_Train,
+						                                mf_sgd::VPoint<DAAL_FPTYPE>* points_Train,  
+						                                int64_t &row_num_w, 
+						                                int64_t &col_num_h);
+
 
 }// namespace interface1
 }// namespace mf_sgd

@@ -35,6 +35,7 @@ import java.util.Iterator;
 import java.util.Set;
 import java.lang.Long;
 import java.util.ArrayList;
+import java.nio.FloatBuffer;
 import java.nio.DoubleBuffer;
 import java.nio.IntBuffer;
 
@@ -50,8 +51,8 @@ import com.intel.daal.services.DaalContext;
 class mf_sgd_distri{
 
     /* Input data set parameters */
-    private static final String trainDataFile = "../data/batch/movielens-train.mm";
-    private static final String testDataFile = "../data/batch/movielens-test.mm";
+    private static final String trainDataFile = "../data/distributed/movielens-train.mm";
+    private static final String testDataFile = "../data/distributed/movielens-test.mm";
 
     private static double learningRate = 0.005;
     private static double lambda = 0.002;
@@ -98,7 +99,7 @@ class mf_sgd_distri{
         /* create HomogenNumericTable to store training data */
         NumericTable trainWPos = new HomogenNumericTable(context, Integer.class, 1, num_Train, NumericTable.AllocationFlag.DoAllocate);
         NumericTable trainHPos = new HomogenNumericTable(context, Integer.class, 1, num_Train, NumericTable.AllocationFlag.DoAllocate);
-        NumericTable trainVal = new HomogenNumericTable(context, float.class, 1, num_Train, NumericTable.AllocationFlag.DoAllocate);
+        NumericTable trainVal = new HomogenNumericTable(context, Float.class, 1, num_Train, NumericTable.AllocationFlag.DoAllocate);
 
         IntBuffer wPos_array_buf = IntBuffer.wrap(wPos);
         trainWPos.releaseBlockOfColumnValues(0, 0, num_Train, wPos_array_buf);
@@ -106,24 +107,31 @@ class mf_sgd_distri{
         IntBuffer hPos_array_buf = IntBuffer.wrap(hPos);
         trainHPos.releaseBlockOfColumnValues(0, 0, num_Train, hPos_array_buf);
 
-        DoubleBuffer val_array_buf = DoubleBuffer.wrap(val);
+        FloatBuffer val_array_buf = FloatBuffer.wrap(val);
         trainVal.releaseBlockOfColumnValues(0, 0, num_Train, val_array_buf);
 
+        /* load training table into sgdAlgorithm */
         sgdAlgorithm.input.set(InputId.dataWPos, trainWPos);
         sgdAlgorithm.input.set(InputId.dataHPos, trainHPos);
         sgdAlgorithm.input.set(InputId.dataVal, trainVal);
 
-        NumericTable matrixW = new HomogenNumericTable(context, Double.class, r_dim, row_num_w, NumericTable.AllocationFlag.DoAllocate);
-        NumericTable matrixH = new HomogenNumericTable(context, Double.class, r_dim, col_num_h, NumericTable.AllocationFlag.DoAllocate);
+        NumericTable matrixW = new HomogenNumericTable(context, Float.class, r_dim, row_num_w, NumericTable.AllocationFlag.DoAllocate, 0.5);
+        NumericTable matrixH = new HomogenNumericTable(context, Float.class, r_dim, col_num_h, NumericTable.AllocationFlag.DoAllocate, 0.5);
 
+        /* load model W, H into sgdAlgorithm */
         PartialResult pres = new PartialResult(context);
-        pres.set(PartialResultId.resWMat, matrixW);
-        pres.set(PartialResultId.resHMat, matrixH);
-
+        pres.set(PartialResultId.presWMat, matrixW);
+        pres.set(PartialResultId.presHMat, matrixH);
         sgdAlgorithm.setPartialResult(pres);
+
+        /* set up parameters */
         sgdAlgorithm.parameter.set(learningRate,lambda, r_dim, row_num_w, col_num_h, iteration, threads, tbb_grainsize, Avx_explicit);
 
         sgdAlgorithm.compute();
+
+        /* printout result model W, H, first 10 rows and columns */
+        Service.printNumericTable("Model W:", matrixW, 10,10);
+        Service.printNumericTable("Model H:", matrixH, 10,10);
 
         context.dispose();
 

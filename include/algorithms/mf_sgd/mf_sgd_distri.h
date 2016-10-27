@@ -123,6 +123,12 @@ public:
     services::SharedPtr<Result> getResult() { return _result;}
 
     /**
+     * @brief Returns the structure that contains the partial results of the mf_sgd decomposition algorithm
+     * @return Structure that contains the partial results of the mf_sgd decomposition algorithm
+     */
+    services::SharedPtr<DistributedPartialResult> getPartialResult() { return _presult;}
+
+    /**
      * @brief Register user-allocated memory to store the results of the mf_sgd decomposition algorithm
 	 * @param[in] user-allocated Result object
      */
@@ -139,6 +145,7 @@ public:
 	 */
     void setPartialResult(const services::SharedPtr<DistributedPartialResult>& pres)
     {
+        _presult = pres;
         _pres = pres.get();
     }
 
@@ -178,6 +185,7 @@ protected:
 
 private:
     services::SharedPtr<Result> _result;
+    services::SharedPtr<DistributedPartialResult> _presult;
 };
 /** @} */
 } // namespace interface1

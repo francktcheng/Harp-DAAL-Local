@@ -138,13 +138,10 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(const NumericTable** Tr
     mtHDataTable.getBlockOfRows(0, dim_h, &mtHDataPtr);
 
     /* create the mutex for WData and HData */
-    /* currentMutex_t* mutex_w = new currentMutex_t[dim_w]; */
-    /* currentMutex_t* mutex_h = new currentMutex_t[dim_h]; */
     services::SharedPtr<currentMutex_t> mutex_w(new currentMutex_t[dim_w]);
     services::SharedPtr<currentMutex_t> mutex_h(new currentMutex_t[dim_h]);
 
     /* RMSE value for test dataset after each iteration */
-    /* interm* testRMSE = new interm[dim_test]; */
     services::SharedPtr<interm> testRMSE(new interm[dim_test]);
 
     interm totalRMSE = 0;

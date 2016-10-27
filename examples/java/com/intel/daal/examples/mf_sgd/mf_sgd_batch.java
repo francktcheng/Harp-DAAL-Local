@@ -103,7 +103,14 @@ class mf_sgd_batch{
         sgdAlgorithm.parameter.set(learningRate,lambda, r_dim, row_num_w, col_num_h, iteration, threads, tbb_grainsize, Avx_explicit);
         sgdAlgorithm.parameter.setRatio(1.0);   /* ratio 1.0 means we train all the points */
 
-        sgdAlgorithm.compute();
+        Result res = sgdAlgorithm.compute();
+
+        NumericTable matrixW = res.get(ResultId.resWMat);
+        NumericTable matrixH = res.get(ResultId.resHMat);
+
+        /* printout result model W, H, first 10 rows and columns */
+        Service.printNumericTable("Model W:", matrixW, 10,10);
+        Service.printNumericTable("Model H:", matrixH, 10,10);
 
         context.dispose();
     }

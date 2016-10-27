@@ -26,8 +26,8 @@
 
 #include "common_helpers.h"
 
-#define matrixQId com_intel_daal_algorithms_mf_sgd_ResultId_matrixQId
-#define matrixRId com_intel_daal_algorithms_mf_sgd_ResultId_matrixRId
+#define resWMatId com_intel_daal_algorithms_mf_sgd_ResultId_resWMatId
+#define resHMatId com_intel_daal_algorithms_mf_sgd_ResultId_resHMatId
 
 USING_COMMON_NAMESPACES()
 using namespace daal::algorithms::mf_sgd;
@@ -51,11 +51,11 @@ JNIEXPORT jlong JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Result_cNewResult
 JNIEXPORT jlong JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Result_cGetResultTable
 (JNIEnv *env, jobject thisObj, jlong resAddr, jint id)
 {
-    if ( id == resWMat )
+    if ( id == resWMatId )
     {
         return jniArgument<mf_sgd::Result>::get<mf_sgd::ResultId, NumericTable>(resAddr, mf_sgd::resWMat);
     }
-    else if(id == resHMat)
+    else if(id == resHMatId)
     {
         return jniArgument<mf_sgd::Result>::get<mf_sgd::ResultId, NumericTable>(resAddr, mf_sgd::resHMat);
     }

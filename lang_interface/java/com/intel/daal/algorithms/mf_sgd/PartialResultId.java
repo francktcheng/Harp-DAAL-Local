@@ -37,9 +37,9 @@ public final class PartialResultId {
         return _value;
     }
 
-    private static final int resWMatId = 0;
-    private static final int resHMatId = 1;
+    private static final int presWMatId = 0;
+    private static final int presHMatId = 1;
 
-    public static final PartialResultId resWMat = new PartialResultId(resWMatId); /*!< model matrix W */
-    public static final PartialResultId resHMat = new PartialResultId(resHMatId); /*!< model matrix H */
+    public static final PartialResultId presWMat = new PartialResultId(presWMatId); /*!< model matrix W */
+    public static final PartialResultId presHMat = new PartialResultId(presHMatId); /*!< model matrix H */
 }

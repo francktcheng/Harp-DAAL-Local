@@ -1,4 +1,4 @@
-/* file: mf_sgd_dense_batch.cpp */
+/* file: mf_sgd_batch.cpp */
 /*******************************************************************************
  * Copyright 2014-2016 Intel Corporation
  *
@@ -21,8 +21,8 @@
    !******************************************************************************/
 
 /**
- * <a name="DAAL-EXAMPLE-CPP-mf_sgd_BATCH"></a>
- * \example mf_sgd_dense_batch.cpp
+ * <a name="DAAL-EXAMPLE-CPP-MF_SGD_BATCH"></a>
+ * \example mf_sgd_batch.cpp
  */
 #include <cstdlib> 
 #include <ctime> 

@@ -20,19 +20,16 @@
 //  Implementation of mf_sgd calculation algorithm container.
 //--
 */
-
-//#include "mf_sgd.h"
-#include "mf_sgd_types.h"
-#include "mf_sgd_batch.h"
-#include "mf_sgd_default_kernel.h"
+#include <math.h>       
 #include <cstdlib> 
 #include <ctime> 
 #include <iostream>
-#include <math.h>       
 #include <random>
-
 #include "numeric_table.h"
 #include "service_rng.h"
+#include "mf_sgd_types.h"
+#include "mf_sgd_batch.h"
+#include "mf_sgd_default_kernel.h"
 
 namespace daal
 {
@@ -41,9 +38,6 @@ namespace algorithms
 namespace mf_sgd
 {
 
-/**
- *  \brief Initialize list of cholesky kernels with implementations for supported architectures
- */
 template<typename interm, Method method, CpuType cpu>
 BatchContainer<interm, method, cpu>::BatchContainer(daal::services::Environment::env *daalEnv)
 {
@@ -59,31 +53,27 @@ BatchContainer<interm, method, cpu>::~BatchContainer()
 template<typename interm, Method method, CpuType cpu>
 void BatchContainer<interm, method, cpu>::compute()
 {
-    // prepare the computation
-
     Input *input = static_cast<Input *>(_in);
     Result *result = static_cast<Result *>(_res);
 
+    /* retrieve the training dataset and test dataset */
+    const NumericTable *a0 = static_cast<const NumericTable *>(input->get(dataTrain).get());
+    const NumericTable *a1 = static_cast<const NumericTable *>(input->get(dataTest).get());
 
-    NumericTable *a0 = static_cast<NumericTable *>(input->get(dataTrain).get());
-    NumericTable *a1 = static_cast<NumericTable *>(input->get(dataTest).get());
+    const NumericTable **TrainSet = &a0;
+    const NumericTable **TestSet = &a1;
 
-    NumericTable **TrainSet = &a0;
-    NumericTable **TestSet = &a1;
-
+    /* get the W and H model */
     NumericTable *r[2];
-
     r[0] = static_cast<NumericTable *>(result->get(resWMat).get());
     r[1] = static_cast<NumericTable *>(result->get(resHMat).get());
 
-    // initialize mode W and H with random values
-    // To to implemented
+    /* initialize mode W and H with random values */
     size_t w_row = r[0]->getNumberOfRows();
     size_t w_col = r[0]->getNumberOfColumns();
 
     size_t h_row = r[1]->getNumberOfRows();
     size_t h_col = r[1]->getNumberOfColumns();
-
 
     BlockDescriptor<interm> W_Block;
     BlockDescriptor<interm> H_Block;
@@ -94,20 +84,7 @@ void BatchContainer<interm, method, cpu>::compute()
     interm *W_Ptr = W_Block.getBlockPtr();
     interm *H_Ptr = H_Block.getBlockPtr();
 
-    int q;
-    interm scale = 1.0/sqrt((interm)w_col);
-
-    /*std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<interm> dis(0, scale);
-
-    for (q = 0; q < w_row*w_col; q++) {
-        W_Ptr[q] = dis(gen); 
-    }
-
-    for (q = 0; q < h_row*h_col; q++) {
-        H_Ptr[q] = dis(gen);
-    }*/
+    interm scale = 1.0/sqrt(static_cast<interm>(w_col));
 
 	daal::internal::UniformRng<interm, daal::sse2> rng1(time(0));
     rng1.uniform(w_row*w_col, 0.0, scale, W_Ptr);

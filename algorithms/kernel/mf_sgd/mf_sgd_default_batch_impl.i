@@ -17,12 +17,19 @@
 
 /*
 //++
-//  Implementation of mf_sgds
+//  Implementation of mf_sgds batch mode
 //--
 */
 
 #ifndef __MF_SGD_KERNEL_BATCH_IMPL_I__
 #define __MF_SGD_KERNEL_BATCH_IMPL_I__
+
+#include <time.h>
+#include <math.h>       
+#include <algorithm>
+#include <cstdlib> 
+#include <cstdio> 
+#include <iostream>
 
 #include "service_lapack.h"
 #include "service_memory.h"
@@ -30,24 +37,17 @@
 #include "service_defines.h"
 #include "service_micro_table.h"
 #include "service_numeric_table.h"
-
 #include "threading.h"
 #include "task_scheduler_init.h"
 #include "blocked_range.h"
 #include "parallel_for.h"
 #include "queuing_mutex.h"
-#include <algorithm>
-#include <math.h>       
-#include <cstdlib> 
-#include <iostream>
-#include <time.h>
 
 #include "mf_sgd_default_impl.i"
 
 using namespace tbb;
 using namespace daal::internal;
 using namespace daal::services::internal;
-
 
 typedef queuing_mutex currentMutex_t;
 
@@ -60,26 +60,19 @@ namespace mf_sgd
 namespace internal
 {
 
-/**
- *  \brief Kernel for mf_sgd mf_sgd calculation
- */
 template <typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
-void MF_SGDBatchKernel<interm, method, cpu>::compute(NumericTable** TrainSet,NumericTable** TestSet,
+void MF_SGDBatchKernel<interm, method, cpu>::compute(const NumericTable** TrainSet, const NumericTable** TestSet,
                  NumericTable *r[], const daal::algorithms::Parameter *par)
 {
     MF_SGDBatchKernel<interm, method, cpu>::compute_thr(TrainSet, TestSet, r, par);
 }
 
-
-/*
-    Algorithm for parallel mf_sgd computation:
-    -------------------------------------
-    
-*/
+/* A multi-threading version by using TBB */
 template <typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
-void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet, NumericTable** TestSet,
+void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(const NumericTable** TrainSet, const NumericTable** TestSet,
                  NumericTable *r[], const daal::algorithms::Parameter *par)
 {/*{{{*/
+
     /* retrieve members of parameter */
     const Parameter *parameter = static_cast<const Parameter *>(par);
     const long dim_r = parameter->_Dim_r;
@@ -98,8 +91,7 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
     const int dim_train = TrainSet[0]->getNumberOfRows();
     const int dim_test = TestSet[0]->getNumberOfRows();
 
-    /* ------------- Retrieve Training Data Set -------------*/
-
+    /*  Retrieve Training Data Set */
     FeatureMicroTable<int, readOnly, cpu> workflowW_ptr(TrainSet[0]);
     FeatureMicroTable<int, readOnly, cpu> workflowH_ptr(TrainSet[0]);
     FeatureMicroTable<interm, readOnly, cpu> workflow_ptr(TrainSet[0]);
@@ -113,14 +105,7 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
     interm *workV;
     workflow_ptr.getBlockOfColumnValues(2,0,dim_train,&workV);
 
-    /* debug */
-    /*for( int j = 0; j< 20;j++)
-    {
-        std::cout<<"V: "<<j<<" wPos: "<<workWPos[j]<<" hPos: "<<workHPos[j]<<" val: "<<workV[j]<<std::endl;
-    }*/
-
-    /* ------------- Retrieve Test Data Set -------------*/
-
+    /*  Retrieve Test Data Set */
     FeatureMicroTable<int, readOnly, cpu> testW_ptr(TestSet[0]);
     FeatureMicroTable<int, readOnly, cpu> testH_ptr(TestSet[0]);
     FeatureMicroTable<interm, readOnly, cpu> test_ptr(TestSet[0]);
@@ -134,112 +119,91 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
     interm *testV;
     test_ptr.getBlockOfColumnValues(2, 0, dim_test, &testV);
 
-    /* debug */
-    std::cout<<"Total test points: "<<dim_test<<std::endl;
-
-
-
-    /* ---------------- Retrieve Model W ---------------- */
+    /*  Retrieve Model W  */
     BlockMicroTable<interm, readWrite, cpu> mtWDataTable(r[0]);
 
-    /* debug */
-    std::cout<<"model W row: "<<r[0]->getNumberOfRows()<<std::endl;
-    std::cout<<"model W col: "<<r[0]->getNumberOfColumns()<<std::endl;
-
-    /* interm** mtWDataPtr = new interm*[dim_w]; */
- 
-    /* for(int j = 0; j<dim_w;j++) */
-    /* { */
-    /*      mtWDataTable.getBlockOfRows(j, 1, &(mtWDataPtr[j])); */
-    /* }   */
+    /* screen print out the size of model data */
+    std::printf("model W row: %zu\n",r[0]->getNumberOfRows());
+    std::fflush(stdout);
+    std::printf("model W col: %zu\n",r[0]->getNumberOfColumns());
+    std::fflush(stdout);
 
     interm* mtWDataPtr = 0;
     mtWDataTable.getBlockOfRows(0, dim_w, &mtWDataPtr);
 
-    /* ---------------- Retrieve Model H ---------------- */
+    /*  Retrieve Model H  */
     BlockMicroTable<interm, readWrite, cpu> mtHDataTable(r[1]);
-
-    // debug 
-    // std::cout<<"model H row: "<<r[1]->getNumberOfRows()<<std::endl;
-    // std::cout<<"model H col: "<<r[1]->getNumberOfColumns()<<std::endl;
 
     interm* mtHDataPtr = 0;
     mtHDataTable.getBlockOfRows(0, dim_h, &mtHDataPtr);
 
     /* create the mutex for WData and HData */
-    currentMutex_t* mutex_w = new currentMutex_t[dim_w];
-    currentMutex_t* mutex_h = new currentMutex_t[dim_h];
+    /* currentMutex_t* mutex_w = new currentMutex_t[dim_w]; */
+    /* currentMutex_t* mutex_h = new currentMutex_t[dim_h]; */
+    services::SharedPtr<currentMutex_t> mutex_w(new currentMutex_t[dim_w]);
+    services::SharedPtr<currentMutex_t> mutex_h(new currentMutex_t[dim_h]);
 
     /* RMSE value for test dataset after each iteration */
-    interm* testRMSE = new interm[dim_test];
+    /* interm* testRMSE = new interm[dim_test]; */
+    services::SharedPtr<interm> testRMSE(new interm[dim_test]);
 
     interm totalRMSE = 0;
 
-    /* ------------------- Starting TBB based Training  -------------------*/
+    /*  Starting TBB based Training  */
     task_scheduler_init init(task_scheduler_init::deferred);
 
     if (thread_num != 0)
     {
-        // use explicitly specified num of threads 
-        // init = new task_scheduler_init(task_scheduler_init::deferred); 
+        /* use explicitly specified num of threads  */
         init.initialize(thread_num);
     }
     else
     {
-        // use automatically generated threads by TBB 
-        // init = new task_scheduler_init(task_scheduler_init::automatic); 
-
+        /* use automatically generated threads by TBB  */
         init.initialize();
     }
 
-    /* set up the sequence of workflow */
-    /* int* seq = new int[dim_train]; */
-    /* for(int j=0;j<dim_train;j++) */
-        /* seq[j] = j; */
-
     /* if ratio != 1, dim_ratio is the ratio of computed tasks */
-    int dim_ratio = (int)(ratio*dim_train);
+    const int dim_ratio = static_cast<const int>(ratio*dim_train);
 
     /* step is the stride of choosing tasks in a rotated way */
     const int step = dim_train - dim_ratio;
 
-    MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, dim_r, learningRate, lambda, mutex_w, mutex_h, Avx512_explicit, step, dim_train);
+    MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, dim_r, learningRate, lambda, mutex_w.get(), mutex_h.get(), Avx512_explicit, step, dim_train);
 
-    MFSGDTBB_TEST<interm, cpu> mfsgd_test(mtWDataPtr, mtHDataPtr, testWPos, testHPos, testV, dim_r, testRMSE, mutex_w, mutex_h, Avx512_explicit);
+    MFSGDTBB_TEST<interm, cpu> mfsgd_test(mtWDataPtr, mtHDataPtr, testWPos, testHPos, testV, dim_r, testRMSE.get(), mutex_w.get(), mutex_h.get(), Avx512_explicit);
 
-    /*---------------- Test MF-SGD before iteration ----------------*/
-
-
+    /* Test MF-SGD before iteration */
     if (tbb_grainsize != 0)
     {
-        // use explicitly specified grainsize
+        /* use explicitly specified grainsize */
         parallel_for(blocked_range<int>(0, dim_test, tbb_grainsize), mfsgd_test);
     }
     else
     {
-        // use auto-partitioner by TBB
+        /* use auto-partitioner by TBB */
         parallel_for(blocked_range<int>(0, dim_test), mfsgd_test, auto_partitioner());
     }
 
     totalRMSE = 0;
+    interm* testRMSE_ptr = testRMSE.get();
+
     for(int k=0;k<dim_test;k++)
-        totalRMSE += testRMSE[k];
+        totalRMSE += testRMSE_ptr[k];
 
     totalRMSE = totalRMSE/dim_test;
 
-    printf("RMSE before interation: %f\n", sqrt(totalRMSE));
+    std::printf("RMSE before interation: %f\n", sqrt(totalRMSE));
+    std::fflush(stdout);
 
-    /*---------------- End of Test MF-SGD before iteration ----------------*/
-    int k, p;
-
+    /* End of Test MF-SGD before iteration */
     struct timespec ts1;
 	struct timespec ts2;
-    long diff;
+    int64_t diff = 0;
     double train_time = 0;
 
     for(int j=0;j<iteration;j++)
     {
-
         mfsgd.setItr(j);
         clock_gettime(CLOCK_MONOTONIC, &ts1);
 
@@ -253,7 +217,8 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
 
         /* get the training time for each iteration */
         diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
-	    train_time += (double)(diff)/1000000L;
+	    /* train_time += (double)(diff)/1000000L; */
+	    train_time += static_cast<double>((diff)/1000000L);
 
         /* Test MF-SGD */
         if (tbb_grainsize != 0)
@@ -262,27 +227,21 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(NumericTable** TrainSet
             parallel_for(blocked_range<int>(0, dim_test), mfsgd_test, auto_partitioner());
 
         totalRMSE = 0;
-        for(k=0;k<dim_test;k++)
-            totalRMSE += testRMSE[k];
+        for(int k=0;k<dim_test;k++)
+            totalRMSE += testRMSE_ptr[k];
 
         totalRMSE = totalRMSE/dim_test;
-
-        printf("RMSE after interation %d: %f, train time: %f\n", j, sqrt(totalRMSE), (double)(diff)/1000000L);
-
+        std::printf("RMSE after interation %d: %f, train time: %f\n", j, sqrt(totalRMSE), static_cast<double>(diff/1000000L));
+        std::fflush(stdout);
     }
 
     init.terminate();
 
-    printf("Average training time per iteration: %f, total time: %f\n", train_time/iteration, train_time);
-
-    /* ------------------- Finishing TBB based Training  -------------------*/
-
-    delete[] mutex_w;
-    delete[] mutex_h;
-
-    delete[] testRMSE;
+    std::printf("Average training time per iteration: %f, total time: %f\n", train_time/iteration, train_time);
+    std::fflush(stdout);
 
     return;
+
 }/*}}}*/
 
 

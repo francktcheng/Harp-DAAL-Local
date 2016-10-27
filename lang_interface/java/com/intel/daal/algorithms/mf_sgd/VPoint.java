@@ -18,11 +18,15 @@
 package com.intel.daal.algorithms.mf_sgd;
 import java.io.Serializable;
 
+
+/**
+ * @brief A class to store points in Train/Test dataset
+ */
 public class VPoint implements Serializable
 {
-	public int _wPos;
-	public int _hPos;
-	public float _val;
+	public int _wPos;   /* row id of points in model W */
+	public int _hPos;   /* col id of points in model H */
+	public float _val;  /* value of points */
 
 	public VPoint(int wPos, int hPos, float val)
 	{

@@ -29,6 +29,7 @@
 #include "algorithms/algorithm.h"
 #include "data_management/data/numeric_table.h"
 #include "services/daal_defines.h"
+
 #include "algorithms/mf_sgd/mf_sgd_types.h"
 
 namespace daal
@@ -153,25 +154,14 @@ protected:
 
     virtual void allocateResult() DAAL_C11_OVERRIDE
     {
-        // the function to allocate the result
         _result = services::SharedPtr<Result>(new Result());
-
         _result->allocate<algorithmFPType>(&input, _par, 0);
-
-        // _res is a pointer to shared pointer _result
         _res = _result.get();
     }
 
-    virtual void allocatePartialResult() DAAL_C11_OVERRIDE
-	{
+    virtual void allocatePartialResult() DAAL_C11_OVERRIDE {}
 
-
-	}
-
-	virtual void initializePartialResult() DAAL_C11_OVERRIDE
-	{
-
-	}
+	virtual void initializePartialResult() DAAL_C11_OVERRIDE {}
 
     void initialize()
     {

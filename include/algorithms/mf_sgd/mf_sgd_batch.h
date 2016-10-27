@@ -101,8 +101,8 @@ public:
     Batch(const Batch<algorithmFPType, method> &other)
     {
         initialize();
-        input.set(dataTrain, other.input.get(dataTrain)); /* !< input training dataset */
-        input.set(dataTest, other.input.get(dataTest)); /* !< input test dataset */
+        input.set(dataTrain, other.input.get(dataTrain));		/* !< copy input training dataset */
+        input.set(dataTest, other.input.get(dataTest));			/* !< copy input test dataset */
         parameter = other.parameter;
     }
 

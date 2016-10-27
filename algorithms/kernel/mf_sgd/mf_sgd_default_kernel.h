@@ -24,15 +24,14 @@
 #ifndef __MF_SGD_FPK_H__
 #define __MF_SGD_FPK_H__
 
-#include "mf_sgd_batch.h"
-#include "kernel.h"
-#include "numeric_table.h"
-
-// head files for TBB
 #include "task_scheduler_init.h"
 #include "blocked_range.h"
 #include "parallel_for.h"
 #include "queuing_mutex.h"
+#include "numeric_table.h"
+#include "kernel.h"
+
+#include "mf_sgd_batch.h"
 
 using namespace tbb;
 using namespace daal::data_management;
@@ -48,57 +47,73 @@ namespace mf_sgd
 namespace internal
 {
 
-//MF-SGD-BATCH kernel
+/**
+ * @brief computation kernel for mf_sgd batch mode 
+ *
+ * @tparam interm
+ * @tparam method
+ * @tparam cpu
+ */
 template<typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
 class MF_SGDBatchKernel : public Kernel
 {
 public:
 
-    void compute(NumericTable** TrainSet,NumericTable** TestSet,
+    /**
+     * @brief compute and update W, H model by Training data
+     *
+     * @param[in] TrainSet  train dataset stored in an AOSNumericTable
+     * @param[in] TestSet  test dataset stored in an AOSNumericTable
+     * @param[in,out] r[] model W and H
+     * @param[in] par
+     */
+    void compute(const NumericTable** TrainSet, const NumericTable** TestSet,
                  NumericTable *r[], const daal::algorithms::Parameter *par);
 
-    void compute_thr(NumericTable** TrainSet,NumericTable** TestSet,
+    /* a multi-threading version of compute implemented by TBB */
+    void compute_thr(const NumericTable** TrainSet,const NumericTable** TestSet,
                  NumericTable *r[], const daal::algorithms::Parameter *par);
 
 };
 
-//MF-SGD-DISTRI kernel
+/**
+ * @brief computation kernel for mf_sgd distributed mode
+ *
+ * @tparam interm
+ * @tparam method
+ * @tparam cpu
+ */
 template<typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
 class MF_SGDDistriKernel : public Kernel
 {
 public:
 
-    void compute(NumericTable** TrainWPos, NumericTable** TrainHPos, NumericTable** TrainVal, NumericTable *r[], const daal::algorithms::Parameter *par);
+    /**
+     * @brief compute and update W, H model by Training data
+     *
+     * @param[in] TrainWPos row id of training point in W model, stored in HomogenNumericTable 
+     * @param[in] TrainHPos col id of training point in H model, stored in HomogenNumericTable
+     * @param[in] TrainVal  value of training point, stored in HomogenNumericTable
+     * @param[in,out] r[] model W and H
+     * @param[in] par
+     */
+    void compute(const NumericTable** TrainWPos, const NumericTable** TrainHPos, const NumericTable** TrainVal, NumericTable *r[], const daal::algorithms::Parameter *par);
 
-    void compute_thr(NumericTable** TrainWPos, NumericTable** TrainHPos, NumericTable** TrainVal, NumericTable *r[], const daal::algorithms::Parameter *par);
+    /* a multi-threading version of compute implemented by TBB */
+    void compute_thr(const NumericTable** TrainWPos, const NumericTable** TrainHPos, const NumericTable** TrainVal, NumericTable *r[], const daal::algorithms::Parameter *par);
 
 };
 
-/* TBB kernel for MF-SGD */
+/**
+ * @brief A TBB kernel for computing MF-SGD
+ *
+ * @tparam interm
+ * @tparam cpu
+ */
 template<typename interm, CpuType cpu>
 struct MFSGDTBB
 {
-    interm* _mtWDataTable;
-    interm* _mtHDataTable;
-
-    int* _workWPos;
-    int* _workHPos;
-    interm* _workV;
-
-    long _Dim;
-    interm _learningRate;
-    interm _lambda;
-
-    int _Avx512_explicit;
-
-    int _step;
-    int _dim_train;
-    int _itr;
-
-    currentMutex_t* _mutex_w;
-    currentMutex_t* _mutex_h;
-
-    
+   /* default constructor */ 
     MFSGDTBB(
             interm* mtWDataTable,
             interm* mtHDataTable,
@@ -113,37 +128,53 @@ struct MFSGDTBB
             const int Avx512_explicit,
             const int step,
             const int dim_train
-    );
+            );
 
+	
+
+	/**
+	 * @brief operator used by parallel_for template
+	 *
+	 * @param[in] range range of parallel block to execute by a thread
+	 */
     void operator()( const blocked_range<int>& range ) const; 
 
-    void setItr(int itr)
-    {
-        _itr = itr;
-    }
+	
+	/**
+	 * @brief set up the id of iteration
+	 * used in distributed mode
+	 *
+	 * @param itr
+	 */
+    void setItr(int itr) { _itr = itr;}
 
+    interm* _mtWDataTable;  /* model W */
+    interm* _mtHDataTable;  /* model H */
 
-};
+    int* _workWPos;         /* row id of point in W */
+    int* _workHPos;		    /* col id of point in H */
+    interm* _workV;         /* value of point */
 
-/* MF_SGD_Test kernel implemented by TBB */
-// calculating the RMSE value
-template<typename interm, CpuType cpu>
-struct MFSGDTBB_TEST
-{
-    interm* _mtWDataTable;
-    interm* _mtHDataTable;
+    long _Dim;              /* dimension of vector in model W and H */
+    interm _learningRate;
+    interm _lambda;
 
-    int* _testWPos;
-    int* _testHPos;
-    interm* _testV;
+    int _Avx512_explicit;   /* 1 if use explicit avx intrincis 0 if use compiler vectorization */
 
-    int _Dim;
-    interm* _testRMSE;
-    int _Avx512_explicit;
+    int _step;              /* stride of tasks if only part of tasks are executed */
+    int _dim_train;         /* total number of tasks */
+    int _itr;               /* iteration id  */
 
     currentMutex_t* _mutex_w;
     currentMutex_t* _mutex_h;
 
+};
+
+/* MF_SGD_Test kernel implemented by TBB */
+template<typename interm, CpuType cpu>
+struct MFSGDTBB_TEST
+{
+    
     MFSGDTBB_TEST(
 
             interm* mtWDataTable,
@@ -159,6 +190,20 @@ struct MFSGDTBB_TEST
     );
 
     void operator()( const blocked_range<int>& range ) const; 
+
+	interm* _mtWDataTable;   /* model W */
+    interm* _mtHDataTable;   /* model H */
+
+    int* _testWPos;          /* row id of point in W */
+    int* _testHPos;          /* col id of point in H */
+    interm* _testV;          /* value of point  */
+
+    int _Dim;                /* dimension of model data */
+    interm* _testRMSE;       /* RMSE value calculated for each training point */
+    int _Avx512_explicit;    /* 1 to use explicit avx intrinsics or 0 not */
+
+    currentMutex_t* _mutex_w;
+    currentMutex_t* _mutex_h;
 
 
 };

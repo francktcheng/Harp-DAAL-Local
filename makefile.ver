@@ -17,7 +17,8 @@
 MAJOR   =       2017
 MINOR   =       0
 UPDATE  =       0
-BUILD   =       $(shell date +'%Y%m%d')
+# BUILD   =       $(shell date +'%Y%m%d')
+BUILD   =       20161026 
 STATUS  =       P
 
 #-------------------------------------------------------------------------------

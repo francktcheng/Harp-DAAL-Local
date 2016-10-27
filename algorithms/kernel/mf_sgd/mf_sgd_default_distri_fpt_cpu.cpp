@@ -37,7 +37,7 @@ template class DistriContainer<step1Local, DAAL_FPTYPE, daal::algorithms::mf_sgd
 }
 namespace internal
 {
-	template class MF_SGDDistriKernel<DAAL_FPTYPE, defaultSGD, DAAL_CPU>;
+template class MF_SGDDistriKernel<DAAL_FPTYPE, defaultSGD, DAAL_CPU>;
 }
 }
 }

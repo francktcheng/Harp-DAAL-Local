@@ -39,10 +39,10 @@ import com.intel.daal.services.DaalContext;
  */
 public class Distri extends AnalysisDistributed {
 
-    public Input					  input; /*!< %Input data */
-    public Method					  method; /*!< Computation method for the algorithm */
-	public Parameter				  parameter;
-    private Precision                 prec; /*!< Precision of intermediate computations */
+    public Input					  input;         /*!< %Input data */
+    public Method					  method;        /*!< Computation method for the algorithm */
+	public Parameter				  parameter;     /*!< Parameters for the algorithm */
+    private Precision                 prec;          /*!< Precision of intermediate computations */
 
     /** @private */
     static {
@@ -101,7 +101,7 @@ public class Distri extends AnalysisDistributed {
 
     /**
      * Runs the mf_sgd algorithm
-     * @return  Results of the mf_sgd algorithm
+     * @return  Partial Results of the mf_sgd_distri mode 
      */
     @Override
     public PartialResult compute() {
@@ -147,8 +147,6 @@ public class Distri extends AnalysisDistributed {
     private native long cGetInput(long algAddr, int prec, int method);
 
     private native long cGetParameter(long algAddr, int prec, int method);
-
-    // private native long cGetResult(long algAddr, int prec, int method);
 
     private native void cSetResult(long cAlgorithm, int prec, int method, long cResult);
 

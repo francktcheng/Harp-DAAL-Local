@@ -1,4 +1,4 @@
-/* file: mf_sgd_default_ksnc_impl.i */
+/* file: mf_sgd_default_distri_impl.i */
 /*******************************************************************************
 * Copyright 2014-2016 Intel Corporation
 *
@@ -24,6 +24,12 @@
 #ifndef __MF_SGD_KERNEL_DISTRI_IMPL_I__
 #define __MF_SGD_KERNEL_DISTRI_IMPL_I__
 
+#include <time.h>
+#include <math.h>       
+#include <algorithm>
+#include <cstdlib> 
+#include <iostream>
+
 #include "service_lapack.h"
 #include "service_memory.h"
 #include "service_math.h"
@@ -36,11 +42,6 @@
 #include "blocked_range.h"
 #include "parallel_for.h"
 #include "queuing_mutex.h"
-#include <algorithm>
-#include <math.h>       
-#include <cstdlib> 
-#include <iostream>
-#include <time.h>
 
 #include "mf_sgd_default_impl.i"
 
@@ -58,38 +59,22 @@ namespace mf_sgd
 {
 namespace internal
 {
-
-
-
-    /**
-     * @brief compute the training set in distributed mode  
-     *
-     * @tparam interm
-     * @tparam method
-     * @tparam cpu
-     * @param TrainSet
-     * @param r[]
-     * @param par
-     */
+    
 template <typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
-void MF_SGDDistriKernel<interm, method, cpu>::compute(NumericTable** TrainWPos, NumericTable** TrainHPos, NumericTable** TrainVal, NumericTable *r[], const daal::algorithms::Parameter *par)
+void MF_SGDDistriKernel<interm, method, cpu>::compute(const NumericTable** TrainWPos, 
+                                                      const NumericTable** TrainHPos, 
+                                                      const NumericTable** TrainVal, 
+                                                      NumericTable *r[], const daal::algorithms::Parameter *par)
 {
     MF_SGDDistriKernel<interm, method, cpu>::compute_thr(TrainWPos,TrainHPos,TrainVal, r, par);
 }
 
-
-/**
- * @brief compute the training set with multi-threading in distributed mode
- *
- * @tparam interm
- * @tparam method
- * @tparam cpu
- * @param TrainSet
- * @param r[]
- * @param par
- */
 template <typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
-void MF_SGDDistriKernel<interm, method, cpu>::compute_thr(NumericTable** TrainWPos, NumericTable** TrainHPos, NumericTable** TrainVal, NumericTable *r[], const daal::algorithms::Parameter *par)
+void MF_SGDDistriKernel<interm, method, cpu>::compute_thr(const NumericTable** TrainWPos, 
+                                                          const NumericTable** TrainHPos, 
+                                                          const NumericTable** TrainVal, 
+                                                          NumericTable *r[], 
+                                                          const daal::algorithms::Parameter *par)
 {/*{{{*/
 
     /* retrieve members of parameter */

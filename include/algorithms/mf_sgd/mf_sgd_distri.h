@@ -18,8 +18,8 @@
 /*
 //++
 //  Implementation of the interface for the mf_sgd decomposition algorithm in the
-//  knl_snc processing mode, SNC-4 mode split KNL into four numa nodes, this implementation 
-//  uses MPI to handle inter-node communication, and it uses TBB within a node to achieve parallelism.  
+//  distributed processing mode, users could use MPI or Hadoop to handle the communication
+//  tasks
 //--
 */
 
@@ -29,6 +29,7 @@
 #include "algorithms/algorithm.h"
 #include "data_management/data/numeric_table.h"
 #include "services/daal_defines.h"
+
 #include "algorithms/mf_sgd/mf_sgd_types.h"
 
 namespace daal
@@ -40,13 +41,13 @@ namespace mf_sgd
 
 namespace interface1
 {
-/** @defgroup mf_sgd_distri Batch
+/** @defgroup mf_sgd_distri 
 * @ingroup mf_sgd_distri
 * @{
 */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__mf_sgd__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the mf_sgd decomposition algorithm in the SNC processing mode of KNL
+ * <a name="DAAL-CLASS-ALGORITHMS__MF_SGD__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the mf_sgd decomposition algorithm in distributed mode 
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the mf_sgd decomposition algorithm, double or float
  * \tparam method           Computation method of the mf_sgd decomposition algorithm, \ref daal::algorithms::mf_sgd::Method
@@ -73,7 +74,7 @@ public:
 };
 
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__mf_sgd_distributed"></a>
+ * <a name="DAAL-CLASS-ALGORITHMS__MF_SGD_DISTRIBUTED"></a>
  * \brief Computes the results of the mf_sgd algorithm in the distributed processing mode.
  * \n<a href="DAAL-REF-mf_sgd-ALGORITHM">mf_sgd decomposition algorithm description and usage models</a>
  *
@@ -81,7 +82,7 @@ public:
  * \tparam method           Computation method of the algorithm, \ref daal::algorithms::mf_sgd::Method
  *
  * \par Enumerations
- *      - \ref Method   Computation methods for the mf_sgd decomposition algorithm
+ * \ref Method   Computation methods for the mf_sgd decomposition algorithm
  */
 template<ComputeStep step, typename algorithmFPType = double, Method method = defaultSGD>
 class DAAL_EXPORT Distri : public daal::algorithms::Analysis<distributed>
@@ -90,6 +91,7 @@ public:
     Input input;            /*!< Input object */
     Parameter parameter;    /*!< mf_sgd decomposition parameters */
 
+	/* default constructor */
     Distri()
     {
         initialize();
@@ -98,35 +100,31 @@ public:
     /**
      * Constructs a mf_sgd decomposition algorithm by copying input objects and parameters
      * of another mf_sgd decomposition algorithm
-     * \param[in] other An algorithm to be used as the source to initialize the input objects
+     * @param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
     Distri(const Distri<step, algorithmFPType, method> &other)
     {
         initialize();
-        input.set(dataTrain, other.input.get(dataTrain));
-        // input.set(dataTest, other.input.get(dataTest));
+        input.set(dataTrain, other.input.get(dataTrain)); /* copy the input training dataset */
         parameter = other.parameter;
     }
 
-    /**
-    * Returns method of the algorithm
-    * \return Method of the algorithm
-    */
+	/**
+	 * @brief Returns method of the algorithm
+	 * @return 
+	 */
     virtual int getMethod() const DAAL_C11_OVERRIDE { return(int)method; }
 
     /**
-     * Returns the structure that contains the results of the mf_sgd decomposition algorithm
-     * \return Structure that contains the results of the mf_sgd decomposition algorithm
+     * @brief Returns the structure that contains the results of the mf_sgd decomposition algorithm
+     * @return Structure that contains the results of the mf_sgd decomposition algorithm
      */
-    services::SharedPtr<Result> getResult()
-    {
-        return _result;
-    }
+    services::SharedPtr<Result> getResult() { return _result;}
 
     /**
-     * Register user-allocated memory to store the results of the mf_sgd decomposition algorithm
-     * \return Structure to store the results of the mf_sgd decomposition algorithm
+     * @brief Register user-allocated memory to store the results of the mf_sgd decomposition algorithm
+	 * @param[in] user-allocated Result object
      */
     void setResult(const services::SharedPtr<Result>& res)
     {
@@ -135,16 +133,19 @@ public:
         _res = _result.get();
     }
 
+	/**
+	 * @brief Register user-allocated memory to store the partial results of the mf_sgd decomposition algorithm
+	 * @param[in] user-allocated DistributedPartialResult object
+	 */
     void setPartialResult(const services::SharedPtr<DistributedPartialResult>& pres)
     {
-        // DAAL_CHECK(res, ErrorNullResult)
-        // _result = res;
         _pres = pres.get();
     }
+
     /**
-     * Returns a pointer to the newly allocated mf_sgd decomposition algorithm
+     * @brief Returns a pointer to the newly allocated mf_sgd decomposition algorithm
      * with a copy of input objects and parameters of this mf_sgd decomposition algorithm
-     * \return Pointer to the newly allocated algorithm
+     * @return Pointer to the newly allocated algorithm
      */
     services::SharedPtr<Distri<step, algorithmFPType, method> > clone() const
     {
@@ -152,40 +153,24 @@ public:
     }
 
 protected:
+
+	/**
+	 * @brief a copy function  
+	 * @return a pointer to copyed Distri object 
+	 */
     virtual Distri<step, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
     {
         return new Distri<step, algorithmFPType, method>(*this);
     }
 
-    virtual void allocateResult() DAAL_C11_OVERRIDE
-    {
-		//no need to allocate result here
+    virtual void allocateResult() DAAL_C11_OVERRIDE {}
 
-        // the function to allocate the result
-        // _result = services::SharedPtr<Result>(new Result());
+    virtual void allocatePartialResult() DAAL_C11_OVERRIDE {}
 
-        // _result->allocate<algorithmFPType>(&input, _par, 0);
-
-        // _res is a pointer to shared pointer _result
-        // _res = _result.get();
-    }
-
-    virtual void allocatePartialResult() DAAL_C11_OVERRIDE
-	{
-		//no need to allocate result here
-        // _pres = 1;
-        // _pres = new PartialResult();
-	}
-
-	virtual void initializePartialResult() DAAL_C11_OVERRIDE
-	{
-		//no need to allocate result here
-
-	}
+	virtual void initializePartialResult() DAAL_C11_OVERRIDE {}
 
     void initialize()
     {
-        //_ac is a algorithmDispatchContainer
         Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistriContainer, step, algorithmFPType, method)(&_env);
         _in   = &input;
         _par  = &parameter;

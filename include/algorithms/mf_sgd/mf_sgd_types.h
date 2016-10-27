@@ -159,6 +159,7 @@ public:
 
 	/**
 	 * @brief A generator for examples to create the training and testing datasets
+	 * implemented in mf_sgd_default_batch.h
 	 *
 	 * @tparam algorithmFPType, float or double
 	 * @param[in] num_Train
@@ -178,10 +179,11 @@ public:
                                                                                 
 	/**
 	 * @brief load data from CSV files 
+	 * implemented in mf_sgd_default_batch.h
 	 *
 	 * @tparam algorithmFPType, float or double
 	 * @param[in] filename
-	 * @param[in,out] lineContainer  An array to contain all the row ids of data points 
+	 * @param[out] lineContainer An array to contain all the row ids of data points used in ksnc mode
 	 * @param[in,out] map A map to store all the data points 
 	 *
 	 * @return the number of loaded data points  
@@ -192,6 +194,7 @@ public:
 
 	/**
 	 * @brief Convert loaded data from CSV files into mf_sgd::VPoint format
+	 * implemented in mf_sgd_default_batch.h
 	 *
 	 * @tparam algorithmFPType, float or double
 	 * @param[in] map_train loaded train data from function loadData
@@ -213,27 +216,23 @@ public:
 						int64_t &row_num_w, 
 						int64_t &col_num_h);
 
-	
 	/**
 	 * @brief free the allocated data of mf_sgd::VPoint
+	 * implemented in mf_sgd_default_batch.h
 	 *
 	 * @tparam algorithmFPType
 	 * @param map
 	 */
 	template <typename algorithmFPType>
 	void freeData(std::unordered_map<int64_t, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map);
-
-
-
 };
 
 
 
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__mf_sgd__RESULT"></a>
- * \brief Provides methods to access final results obtained with the compute() method of the mf_sgd decomposition algorithm
- *        in the batch processing mode or finalizeCompute() method of algorithm in the online processing mode
- *        or on the second and third steps of the algorithm in the distributed processing mode
+ * <a name="DAAL-CLASS-ALGORITHMS__MF_SGD__RESULT"></a>
+ * \brief Provides methods to access results obtained with the compute() method of the mf_sgd decomposition algorithm
+ *        in the batch processing mode 
  */
 class DAAL_EXPORT Result : public daal::algorithms::Result
 {
@@ -278,7 +277,7 @@ public:
 
     /**
      * Allocates memory for storing final results of the mf_sgd decomposition algorithm
-     * \tparam     algorithmFPType  Data type to be used for storage in resulting HomogenNumericTable
+     * \tparam     algorithmFPType float or double 
      * \param[in]  r  dimension of feature vector, num col of model W and num row of model H 
      * \param[in]  w  Number of rows in the model W 
      * \param[in]  h  Number of cols in the model H 
@@ -286,6 +285,11 @@ public:
     template <typename algorithmFPType>
     DAAL_EXPORT void allocateImpl(size_t r, size_t w, size_t h);
 
+	/**
+	 * @brief get a serialization tag for result
+	 *
+	 * @return serilization code  
+	 */
     int getSerializationTag() DAAL_C11_OVERRIDE  { return SERIALIZATION_MF_SGD_RESULT_ID; }
 
     /**
@@ -312,6 +316,12 @@ protected:
     }
 };
 
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__mf_sgd__RESULT"></a>
+ * \brief Provides methods to access results obtained with the compute() method of the mf_sgd decomposition algorithm
+ *        in the batch processing mode or finalizeCompute() method of algorithm in the online processing mode
+ *        or on the second and third steps of the algorithm in the distributed processing mode
+ */
 class DAAL_EXPORT DistributedPartialResult : public daal::algorithms::PartialResult
 {
 public:
@@ -321,26 +331,26 @@ public:
     virtual ~DistributedPartialResult() {}
 
     /**
-     * Returns the result of the QR decomposition algorithm with the matrix R calculated
+     * Returns the result of the mf_sgd decomposition algorithm 
      * \param[in] id    Identifier of the result
      * \return          Result that corresponds to the given identifier
      */
 	data_management::NumericTablePtr get(DistributedPartialResultId id) const;
 
     /**
-     * Sets Result object to store the result of the QR decomposition algorithm
+     * Sets Result object to store the result of the mf_sgd decomposition algorithm
      * \param[in] id    Identifier of the result
      * \param[in] value Pointer to the Result object
      */
     void set(DistributedPartialResultId id, const data_management::NumericTablePtr &value);
 
 
-        /**
-     * Checks partial results of the algorithm
-     * \param[in] parameter Pointer to parameters
-    * \param[in] method Computation method
-    */
-    void check(const daal::algorithms::Parameter *parameter, int method) const DAAL_C11_OVERRIDE;
+	/**
+	 * Checks partial results of the algorithm
+	 * \param[in] parameter Pointer to parameters
+	 * \param[in] method Computation method
+	 */
+	void check(const daal::algorithms::Parameter *parameter, int method) const DAAL_C11_OVERRIDE;
 
     /**
       * Checks final results of the algorithm
@@ -350,6 +360,11 @@ public:
       */
     void check(const daal::algorithms::Input* input, const daal::algorithms::Parameter *parameter, int method) const DAAL_C11_OVERRIDE;
 
+	/**
+	 * @brief get serilization tag for partial result
+	 *
+	 * @return serilization code for partial result
+	 */
     int getSerializationTag() DAAL_C11_OVERRIDE  { return SERIALIZATION_MF_SGD_DISTRI_PARTIAL_RESULT_ID;}
 
     /**
@@ -378,10 +393,12 @@ protected:
 /**
  * <a name="DAAL-STRUCT-ALGORITHMS__mf_sgd__PARAMETER"></a>
  * \brief Parameters for the mf_sgd decomposition compute method
+ * used in both of batch mode and distributed mode
  */
 struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 {
 
+	/* default constructor */
     Parameter() 
     {
         _learningRate = 0.0;
@@ -397,17 +414,24 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _itr = 0;
         _innerItr = 0;
         _innerNum = 0;
-
     }
 
     virtual ~Parameter() {}
 
-    /**
-     * Checks the correctness of the parameter
-     */
-    // virtual void check() const;
-    //
-    void setParameter(double learningRate, double lambda, long Dim_r, long Dim_w, long Dim_h, int iteration, int thread_num, int tbb_grainsize, int Avx512_explicit)
+	/**
+	 * @brief set the parameters in both of batch mode and distributed mode 
+	 *
+	 * @param learningRate
+	 * @param lambda
+	 * @param Dim_r
+	 * @param Dim_w
+	 * @param Dim_h
+	 * @param iteration
+	 * @param thread_num
+	 * @param tbb_grainsize
+	 * @param Avx512_explicit
+	 */
+    void setParameter(double learningRate, double lambda, int64_t Dim_r, int64_t Dim_w, int64_t Dim_h, size_t iteration, size_t thread_num, size_t tbb_grainsize, size_t Avx512_explicit)
     {
 
         _learningRate = learningRate;
@@ -421,39 +445,62 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _Avx512_explicit = Avx512_explicit;
     }
 
+	/**
+	 * @brief set the ratio of executed tasks by all the tasks
+	 *
+	 * @param ratio
+	 */
     void setRatio(double ratio)
     {
         _ratio = ratio;
     }
 
-    void setIteration(int itr)
+	/**
+	 * @brief set the iteration id, 
+	 * used in distributed mode
+	 *
+	 * @param itr
+	 */
+    void setIteration(size_t itr)
     {
         _itr = itr;
     }
 
-    void setInnerItr(int innerItr)
+	/**
+	 * @brief set the inner iteration id
+	 * used in distributed mode (e.g., model rotation)
+	 *
+	 * @param innerItr
+	 */
+    void setInnerItr(size_t innerItr)
     {
         _innerItr = innerItr;
     }
 
-    void setInnerNum(int innerNum)
+	/**
+	 * @brief set the total inner iteration number
+	 * used in distributed mode (e.g., model rotation)
+	 *
+	 * @param innerNum
+	 */
+    void setInnerNum(size_t innerNum)
     {
         _innerNum = innerNum;
     }
 
-    double _learningRate;                     // the rate of learning by SGD 
-    double _lambda;                           // the lambda parameter in standard SGD
-    long    _Dim_r;                           //the feature dimension of model W and H
-    long    _Dim_w;                           //the row num of model W
-    long    _Dim_h;                           //the column num of model H
-    int    _iteration;                       //the iterations of SGD
-    int     _thread_num;                      //specify the threads used by TBB
-    int     _tbb_grainsize;                   //specify the grainsize for TBB parallel_for
-    int     _Avx512_explicit;                 //specify whether use explicit Avx512 instructions 
-    double  _ratio;                           //control the percentage of tasks to execute
-    int     _itr;                             //the iteration index 
-    int     _innerItr;
-    int     _innerNum;
+    double		_learningRate;                    /* the rate of learning by SGD  */
+    double		_lambda;                          /* the lambda parameter in standard SGD */
+    double      _ratio;                           /* control the percentage of tasks to execute */
+    int64_t     _Dim_r;                           /* the feature dimension of model W and H */
+    int64_t     _Dim_w;                           /* the row num of model W */
+    int64_t     _Dim_h;                           /* the column num of model H */
+    size_t      _iteration;                       /* the iterations of SGD */
+    size_t      _thread_num;                      /* specify the threads used by TBB */
+    size_t      _tbb_grainsize;                   /* specify the grainsize for TBB parallel_for */
+    size_t      _Avx512_explicit;                 /* specify whether use explicit Avx512 instructions  */
+    size_t      _itr;                             /* id of training iteration, used in distributed mode */
+    size_t      _innerItr;						  /* id of inner training iteration, used in distributed mode, e.g., model rotation  */
+    size_t      _innerNum;						  /* total num of inner training iteration, used in distributed mode, e.g., model rotation */
 
 };
 /** @} */

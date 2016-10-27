@@ -17,7 +17,7 @@
 
 /*
 //++
-//  Implementation of mf_sgd calculation algorithm container.
+//  Implementation of mf_sgd calculation algorithm container for SNC-4 mode of KNL
 //--
 */
 

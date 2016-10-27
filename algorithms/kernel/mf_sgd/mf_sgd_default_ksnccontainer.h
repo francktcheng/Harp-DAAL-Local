@@ -17,14 +17,10 @@
 
 /*
 //++
-//  Implementation of mf_sgd calculation algorithm container.
+//  Implementation of mf_sgd calculation algorithm container for SNC-4 mode of KNL
+//  TODO
 //--
 */
-
-//#include "mf_sgd.h"
-#include "mf_sgd_types.h"
-#include "mf_sgd_ksnc.h"
-#include "mf_sgd_default_kernel.h"
 #include <cstdlib> 
 #include <ctime> 
 #include <iostream>
@@ -34,6 +30,10 @@
 #include "numeric_table.h"
 #include "service_rng.h"
 
+#include "mf_sgd_types.h"
+#include "mf_sgd_ksnc.h"
+#include "mf_sgd_default_kernel.h"
+
 namespace daal
 {
 namespace algorithms
@@ -41,11 +41,6 @@ namespace algorithms
 namespace mf_sgd
 {
     
-// typedef std::mt19937 CppRNG;
-
-/**
- *  \brief Initialize list of cholesky kernels with implementations for supported architectures
- */
 template<typename interm, Method method, CpuType cpu>
 KSNCContainer<interm, method, cpu>::KSNCContainer(daal::services::Environment::env *daalEnv)
 {
@@ -61,18 +56,14 @@ KSNCContainer<interm, method, cpu>::~KSNCContainer()
 template<typename interm, Method method, CpuType cpu>
 void KSNCContainer<interm, method, cpu>::compute()
 {
-    // prepare the computation
-
-    
+    /* TODO */
 
 }
 
 template<typename interm, Method method, CpuType cpu>
 void KSNCContainer<interm, method, cpu>::finalizeCompute()
 {
-    // prepare the computation
-
-    
+    /* TODO */
 
 }
 

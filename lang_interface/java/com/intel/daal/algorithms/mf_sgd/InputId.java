@@ -37,11 +37,11 @@ public final class InputId {
         return _value;
     }
 
-    private static final int dataTrainId = 0;
-    private static final int dataTestId = 1;
-    private static final int dataWPosId = 2;
-    private static final int dataHPosId = 3;
-    private static final int dataValId = 4;
+    private static final int dataTrainId = 0;   /* training data in AOSNumericTable */
+    private static final int dataTestId = 1;    /* test data in AOSNumericTable */
+    private static final int dataWPosId = 2;    /* Row id of training points in Model W stored in homogenNumericTable */
+    private static final int dataHPosId = 3;    /* Col id of training points in Model H stored in homogenNumericTable */
+    private static final int dataValId = 4;     /* Value of training points stored in homogenNumericTable */
 
     /** %Input data table */
     public static final InputId dataTrain = new InputId(dataTrainId);

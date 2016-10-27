@@ -38,48 +38,17 @@ namespace interface1
 /** Default constructor */
 Result::Result() : daal::algorithms::Result(2) {}
 
-/**
- * Returns the result of the mf_sgd decomposition algorithm
- * \param[in] id    Identifier of the result
- * \return          Result that corresponds to the given identifier
- */
 NumericTablePtr Result::get(ResultId id) const
 {
     return staticPointerCast<NumericTable, SerializationIface>(Argument::get(id));
 }
 
-/**
- * Sets an input object for the mf_sgd decomposition algorithm
- * \param[in] id    Identifier of the result
- * \param[in] value Pointer to the result
- */
 void Result::set(ResultId id, const NumericTablePtr &value)
 {
     Argument::set(id, value);
 }
 
-/**
- * Checks final results of the algorithm
- * \param[in] input  Pointer to input objects
- * \param[in] par    Pointer to parameters
- * \param[in] method Computation method
- */
-void Result::check(const daal::algorithms::Input *input, const daal::algorithms::Parameter *par, int method) const
-{
-    const Input *algInput = static_cast<const Input *>(input);
-
-    size_t nVectors_Train = algInput->get(dataTrain)->getNumberOfRows();
-    size_t nFeatures_Train = algInput->get(dataTrain)->getNumberOfColumns();
-
-    size_t nVectors_Test = algInput->get(dataTest)->getNumberOfRows();
-    size_t nFeatures_Test = algInput->get(dataTest)->getNumberOfColumns();
-
-    int unexpectedLayouts = (int)packed_mask;
-
-    // To Do check with Train and Test
-    // if(!checkNumericTable(get(resWMat).get(), this->_errors.get(), "resWMat", unexpectedLayouts, 0, nFeatures, nVectors)) { return; }
-    // if(!checkNumericTable(get(resHMat).get(), this->_errors.get(), "resHMat", unexpectedLayouts, 0, nFeatures, nFeatures)) { return; }
-}
+void Result::check(const daal::algorithms::Input *input, const daal::algorithms::Parameter *par, int method) const {}
 
 
 } // namespace interface1

@@ -57,41 +57,68 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
 	/**
 	 * @brief Set up the parameters 
 	 *
-	 * @param learningRate
-	 * @param lambda
-	 * @param Dim_r
-	 * @param Dim_w
-	 * @param Dim_h
-	 * @param iteration
-	 * @param thread_num
-	 * @param tbb_grainsize
-	 * @param Avx512_explicit
+	 * @param learningRate  the rate of learning by SGD  
+	 * @param lambda  the lambda parameter in standard SGD
+	 * @param Dim_r  the feature dimension of model W and H
+	 * @param Dim_w  the row num of model W
+	 * @param Dim_h  the column num of model H
+	 * @param iteration  the iterations of SGD
+	 * @param thread_num  specify the threads used by TBB
+	 * @param tbb_grainsize  specify the grainsize for TBB parallel_for
+	 * @param Avx_explicit  specify whether use explicit Avx instructions
 	 *
 	 * @return 
 	 */
-    public void set(double learningRate, double lambda, long Dim_r, long Dim_w, long Dim_h, int iteration, int thread_num, int tbb_grainsize, int Avx512_explicit) {
-        cSetParameters(this.cObject,learningRate, lambda, Dim_r, Dim_w,  Dim_h, iteration, thread_num, tbb_grainsize, Avx512_explicit );
+    public void set(double learningRate, double lambda, long Dim_r, long Dim_w, long Dim_h, int iteration, int thread_num, int tbb_grainsize, int Avx_explicit) {
+        cSetParameters(this.cObject,learningRate, lambda, Dim_r, Dim_w,  Dim_h, iteration, thread_num, tbb_grainsize, Avx_explicit );
     }
 
+    /**
+     * @brief control the percentage of tasks to execute
+     *
+     * @param ratio
+     *
+     * @return 
+     */
     public void setRatio(double ratio) {
         cSetRatio(this.cObject, ratio);
-
     }
 
+    /**
+     * @brief set the id of training iteration, used in distributed mode
+     *
+     * @param itr
+     *
+     * @return 
+     */
     public void setIteration(int itr) {
         cSetIteration(this.cObject, itr);
     }
 
+    /**
+     * @brief set the id of inner training iteration, used in distributed mode, e.g., model rotation
+     *
+     * @param innerItr
+     *
+     * @return 
+     */
     public void setInnerItr(int innerItr) {
         cSetInnerItr(this.cObject, innerItr);
     }
 
+    /**
+     * @brief total num of inner training iteration, used in distributed mode, e.g., model rotation
+     *
+     * @param innerNum
+     *
+     * @return 
+     */
     public void setInnerNum(int innerNum) {
         cSetInnerNum(this.cObject, innerNum);
     }
 
     private native void cSetParameters(long parAddr, double learningRate, double lambda, long Dim_r, long Dim_w, long Dim_h, int iteration, int thread_num, int tbb_grainsize, 
-			int Avx512_explicit );
+			int Avx_explicit );
 
     private native void cSetRatio(long parAddr, double ratio);
 
@@ -101,16 +128,4 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
 
     private native void cSetInnerNum(long parAddr, int innerNum);
 
-    // private Batch _function;
-    //
-    // private native void cSetFunction(long parAddr, long function);
-    //
-    // private native void cSetNIterations(long parAddr, long nIterations);
-    // private native long cGetNIterations(long parAddr);
-    //
-    // private native void cSetAccuracyThreshold(long parAddr, double accuracyThreshold);
-    // private native double cGetAccuracyThreshold(long parAddr);
-    //
-    // private native void cSetOptionalResultRequired(long parAddr, boolean flag);
-    // private native boolean cGetOptionalResultRequired(long parAddr);
 }

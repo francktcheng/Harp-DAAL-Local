@@ -17,7 +17,7 @@
 
 /*
 //++
-//  Instantiation of mf_sgd algorithm classes.
+//  Instantiation of mf_sgd algorithm classes for SNC-4 mode of KNL
 //--
 */
 
@@ -37,7 +37,6 @@ template class KSNCContainer<DAAL_FPTYPE, daal::algorithms::mf_sgd::defaultSGD, 
 }
 namespace internal
 {
-// template class MF_SGDBatchKernel<DAAL_FPTYPE, defaultSGD, DAAL_CPU>;
 }
 }
 }

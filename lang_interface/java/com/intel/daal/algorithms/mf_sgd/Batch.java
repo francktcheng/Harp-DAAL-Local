@@ -106,8 +106,6 @@ public class Batch extends AnalysisBatch {
     @Override
     public Result compute() {
         super.compute();
-        // return new Result(getContext(), cGetResult(cObject, prec.getValue(), method.getValue()));
-        // return new Result(getContext());
 		return null;
     }
 

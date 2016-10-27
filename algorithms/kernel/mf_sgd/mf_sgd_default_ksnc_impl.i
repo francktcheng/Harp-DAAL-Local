@@ -18,11 +18,18 @@
 /*
 //++
 //  Implementation of knl snc mode mf_sgd method
+//  TODO
 //--
 */
 
 #ifndef __MF_SGD_KERNEL_KSNC_IMPL_I__
 #define __MF_SGD_KERNEL_KSNC_IMPL_I__
+
+#include <algorithm>
+#include <math.h>       
+#include <cstdlib> 
+#include <iostream>
+#include <time.h>
 
 #include "service_lapack.h"
 #include "service_memory.h"
@@ -31,18 +38,13 @@
 #include "service_micro_table.h"
 #include "service_numeric_table.h"
 
-#include "mf_sgd_default_impl.i"
-
 #include "threading.h"
 #include "task_scheduler_init.h"
 #include "blocked_range.h"
 #include "parallel_for.h"
 #include "queuing_mutex.h"
-#include <algorithm>
-#include <math.h>       
-#include <cstdlib> 
-#include <iostream>
-#include <time.h>
+
+#include "mf_sgd_default_impl.i"
 
 using namespace tbb;
 using namespace daal::internal;
@@ -63,52 +65,6 @@ namespace mf_sgd
 {
 namespace internal
 {
-
-// template<typename interm, CpuType cpu>
-// void updateMF(interm *WMat,interm *HMat, interm* workV, int* seq, int idx, const long dim_r, const interm rate, const interm lambda);
-//
-// template<typename interm, CpuType cpu>
-// void updateMF_explicit512(interm *WMat,interm *HMat, interm* workV, int* seq, int idx, const long dim_r, const interm rate, const interm lambda);
-//
-// template<typename interm, CpuType cpu>
-// void computeRMSE(interm *WMat,interm *HMat, interm* testV, interm* testRMSE, int idx, const long dim_r);
-//
-// template<typename interm, CpuType cpu>
-// void computeRMSE_explicit512(interm *WMat,interm *HMat, interm* testV, interm* testRMSE, int idx, const long dim_r);
-
-/**
- *  \brief Kernel for mf_sgd mf_sgd calculation
- */
-
-
-
-/* Max number of blocks depending on arch */
-#if( __CPUID__(DAAL_CPU) >= __avx512_mic__ )
-    #define DEF_MAX_BLOCKS 256
-#else
-    #define DEF_MAX_BLOCKS 128
-#endif
-
-/*
-    Algorithm for parallel mf_sgd computation:
-    -------------------------------------
-    
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 } // namespace daal::internal

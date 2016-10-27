@@ -32,8 +32,6 @@ namespace mf_sgd
 namespace interface1
 {
 
-// template DAAL_EXPORT void Result::allocate<DAAL_FPTYPE>(const daal::algorithms::Input *input, const daal::algorithms::Parameter *parameter, const int method);
-// template DAAL_EXPORT void Result::allocateImpl<DAAL_FPTYPE>(size_t r, size_t w, size_t h );
 
 }// namespace interface1
 }// namespace mf_sgd

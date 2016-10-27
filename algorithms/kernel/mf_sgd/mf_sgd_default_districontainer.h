@@ -20,19 +20,17 @@
 //  Implementation of mf_sgd calculation algorithm container.
 //--
 */
-
-//#include "mf_sgd.h"
-#include "mf_sgd_types.h"
-#include "mf_sgd_distri.h"
-#include "mf_sgd_default_kernel.h"
 #include <cstdlib> 
 #include <ctime> 
 #include <iostream>
 #include <math.h>       
 #include <random>
-
 #include "numeric_table.h"
 #include "service_rng.h"
+
+#include "mf_sgd_types.h"
+#include "mf_sgd_distri.h"
+#include "mf_sgd_default_kernel.h"
 
 namespace daal
 {
@@ -43,7 +41,7 @@ namespace mf_sgd
     
 
 /**
- *  \brief Initialize list of mf_sgd with implementations for supported architectures
+ *  @brief Initialize list of mf_sgd with implementations for supported architectures
  */
 template<ComputeStep step, typename interm, Method method, CpuType cpu>
 DistriContainer<step, interm, method, cpu>::DistriContainer(daal::services::Environment::env *daalEnv)
@@ -64,13 +62,13 @@ void DistriContainer<step, interm, method, cpu>::compute()
     Input *input = static_cast<Input *>(_in);
     DistributedPartialResult *result = static_cast<DistributedPartialResult *>(_pres);
 
-    NumericTable *a0 = static_cast<NumericTable *>(input->get(wPos).get());
-    NumericTable *a1 = static_cast<NumericTable *>(input->get(hPos).get());
-    NumericTable *a2 = static_cast<NumericTable *>(input->get(val).get());
+    const NumericTable *a0 = static_cast<const NumericTable *>(input->get(wPos).get());
+    const NumericTable *a1 = static_cast<const NumericTable *>(input->get(hPos).get());
+    const NumericTable *a2 = static_cast<const NumericTable *>(input->get(val).get());
 
-    NumericTable **TrainWPos = &a0;
-    NumericTable **TrainHPos = &a1;
-    NumericTable **TrainVal = &a2;
+    const NumericTable **TrainWPos = &a0;
+    const NumericTable **TrainHPos = &a1;
+    const NumericTable **TrainVal = &a2;
 
     NumericTable *r[2];
 
@@ -86,13 +84,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
 }
 
 template<ComputeStep step, typename interm, Method method, CpuType cpu>
-void DistriContainer<step, interm, method, cpu>::finalizeCompute()
-{
-    // prepare the computation
-
-    
-
-}
+void DistriContainer<step, interm, method, cpu>::finalizeCompute() {}
 
 }
 }

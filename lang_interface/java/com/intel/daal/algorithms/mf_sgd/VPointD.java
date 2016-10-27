@@ -18,6 +18,9 @@
 package com.intel.daal.algorithms.mf_sgd;
 import java.io.Serializable;
 
+/**
+ * @brief A double precision version of VPoint
+ */
 public class VPointD implements Serializable
 {
 	public int _wPos;

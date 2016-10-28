@@ -6,7 +6,7 @@ DAAL2017 is licensed under Apache License 2.0.
 
 This solver could be used to factorize a sparse matrix $V$ into two dense matrices $W$ and $H$, which is widely
 
-$V = W H$
+$V = WH$
 
 used in the recommender systems, such as the recommended movies provided to users by Netflix. This Matrix Factorization 
 (MF for short) uses a machine learning algorithm, Stochastic Gradient Descent (SGD), to find the two object matrices $W$ and 
@@ -17,13 +17,13 @@ of that value by model $W$ and $H$. The procedure could be expressed as two stag
 
 1.Training Stage
 
-$E^{t-1}_{ij} = V^{t-1}_{train,ij} - \sum_{k=0}^r W^{t-1}_{ik} H^{t-1}_{kj}$
-$W^t_{i*} = W^{t-1}_{i*} - \eta (E^{t-1}_{ij}\cdot H^{t-1}_{*j} - \lambda \cdot W^{t-1}_{i*})$
-$H^t_{*j} = H^{t-1}_{*j} - \eta (E^{t-1}_{ij}\cdot W^{t-1}_{i*} - \lambda \cdot H^{t-1}_{*j})$
+* $E^{t-1}_{ij} = V^{t-1}_{train,ij} - \sum_{k=0}^r W^{t-1}_{ik} H^{t-1}_{kj}$
+* $W^t_{i*} = W^{t-1}_{i*} - \eta (E^{t-1}_{ij}\cdot H^{t-1}_{*j} - \lambda \cdot W^{t-1}_{i*})$
+* $H^t_{*j} = H^{t-1}_{*j} - \eta (E^{t-1}_{ij}\cdot W^{t-1}_{i*} - \lambda \cdot H^{t-1}_{*j})$
 
 2.Test Stage
 
-$RMSE = V_{test, ij} - \sum_{k=0}^{r}W_{i,k}H_{k,j}$
+* $RMSE = V_{test, ij} - \sum_{k=0}^{r}W_{i,k}H_{k,j}$
 
 The training process uses an iterative Standard SGD algorithm, which contains one vector inner product and two AXPY updates. In order to 
 improve the performance of these linear algebra computation, we implement these kernels within DAAL's framework by using highly optimized 

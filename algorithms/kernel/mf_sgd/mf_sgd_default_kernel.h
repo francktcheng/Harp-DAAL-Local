@@ -125,7 +125,7 @@ struct MFSGDTBB
             const interm lambda,
             currentMutex_t* mutex_w,
             currentMutex_t* mutex_h,
-            const int Avx512_explicit,
+            const int Avx_explicit,
             const int step,
             const int dim_train
             );
@@ -159,7 +159,7 @@ struct MFSGDTBB
     interm _learningRate;
     interm _lambda;
 
-    int _Avx512_explicit;   /* 1 if use explicit avx intrincis 0 if use compiler vectorization */
+    int _Avx_explicit;   /* 1 if use explicit avx intrincis 0 if use compiler vectorization */
 
     int _step;              /* stride of tasks if only part of tasks are executed */
     int _dim_train;         /* total number of tasks */
@@ -186,7 +186,7 @@ struct MFSGDTBB_TEST
             interm* testRMSE,
             currentMutex_t* mutex_w,
             currentMutex_t* mutex_h,
-            const int Avx512_explicit
+            const int Avx_explicit
     );
 
     void operator()( const blocked_range<int>& range ) const; 
@@ -200,7 +200,7 @@ struct MFSGDTBB_TEST
 
     int _Dim;                /* dimension of model data */
     interm* _testRMSE;       /* RMSE value calculated for each training point */
-    int _Avx512_explicit;    /* 1 to use explicit avx intrinsics or 0 not */
+    int _Avx_explicit;    /* 1 to use explicit avx intrinsics or 0 not */
 
     currentMutex_t* _mutex_w;
     currentMutex_t* _mutex_h;

@@ -95,7 +95,7 @@ MFSGDTBB<interm, cpu>::MFSGDTBB(
         const interm lambda,
         currentMutex_t* mutex_w,
         currentMutex_t* mutex_h,
-        const int Avx512_explicit,
+        const int Avx_explicit,
         const int step,
         const int dim_train
 
@@ -115,7 +115,7 @@ MFSGDTBB<interm, cpu>::MFSGDTBB(
 
     _mutex_w = mutex_w;
     _mutex_h = mutex_h;
-    _Avx512_explicit = Avx512_explicit;
+    _Avx_explicit = Avx_explicit;
 
     _step = step;
     _dim_train = dim_train;
@@ -168,7 +168,7 @@ void MFSGDTBB<interm, cpu>::operator()( const blocked_range<int>& range ) const
         //currentMutex_t::scoped_lock lock_w(_mutex_w[_workWPos[index]]);
         //currentMutex_t::scoped_lock lock_h(_mutex_h[_workHPos[index]]);
         
-        if (_Avx512_explicit == 1)
+        if (_Avx_explicit == 1)
             updateMF_explicit<interm, cpu>(WMat, HMat, workV, index, Dim, learningRate, lambda);
         else
             updateMF<interm, cpu>(WMat, HMat, workV, index, Dim, learningRate, lambda);
@@ -191,7 +191,7 @@ MFSGDTBB_TEST<interm, cpu>::MFSGDTBB_TEST(
         interm* testRMSE,
         currentMutex_t* mutex_w,
         currentMutex_t* mutex_h,
-        const int Avx512_explicit
+        const int Avx_explicit
 
 )
 {/*{{{*/
@@ -210,7 +210,7 @@ MFSGDTBB_TEST<interm, cpu>::MFSGDTBB_TEST(
     _mutex_w = mutex_w;
     _mutex_h = mutex_h;
 
-    _Avx512_explicit = Avx512_explicit;
+    _Avx_explicit = Avx_explicit;
 
 }/*}}}*/
 
@@ -245,7 +245,7 @@ void MFSGDTBB_TEST<interm, cpu>::operator()( const blocked_range<int>& range ) c
             currentMutex_t::scoped_lock lock_w(_mutex_w[_testWPos[i]]);
             currentMutex_t::scoped_lock lock_h(_mutex_h[_testHPos[i]]);
 
-            if (_Avx512_explicit == 1)
+            if (_Avx_explicit == 1)
                 computeRMSE_explicit<interm, cpu>(WMat, HMat, testV, testRMSE, i, Dim);
             else
                 computeRMSE<interm, cpu>(WMat, HMat, testV, testRMSE, i, Dim);

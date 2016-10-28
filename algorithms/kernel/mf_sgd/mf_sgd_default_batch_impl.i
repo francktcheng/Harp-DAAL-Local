@@ -75,15 +75,15 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(const NumericTable** Tr
 
     /* retrieve members of parameter */
     const Parameter *parameter = static_cast<const Parameter *>(par);
-    const long dim_r = parameter->_Dim_r;
-    const long dim_w = parameter->_Dim_w;
-    const long dim_h = parameter->_Dim_h;
+    const int64_t dim_r = parameter->_Dim_r;
+    const int64_t dim_w = parameter->_Dim_w;
+    const int64_t dim_h = parameter->_Dim_h;
     const double learningRate = parameter->_learningRate;
     const double lambda = parameter->_lambda;
     const int iteration = parameter->_iteration;
     const int thread_num = parameter->_thread_num;
     const int tbb_grainsize = parameter->_tbb_grainsize;
-    const int Avx512_explicit = parameter->_Avx512_explicit;
+    const int Avx_explicit = parameter->_Avx_explicit;
 
     const double ratio = parameter->_ratio;
     const int itr = parameter->_itr;
@@ -166,9 +166,9 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(const NumericTable** Tr
     /* step is the stride of choosing tasks in a rotated way */
     const int step = dim_train - dim_ratio;
 
-    MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, dim_r, learningRate, lambda, mutex_w.get(), mutex_h.get(), Avx512_explicit, step, dim_train);
+    MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, dim_r, learningRate, lambda, mutex_w.get(), mutex_h.get(), Avx_explicit, step, dim_train);
 
-    MFSGDTBB_TEST<interm, cpu> mfsgd_test(mtWDataPtr, mtHDataPtr, testWPos, testHPos, testV, dim_r, testRMSE.get(), mutex_w.get(), mutex_h.get(), Avx512_explicit);
+    MFSGDTBB_TEST<interm, cpu> mfsgd_test(mtWDataPtr, mtHDataPtr, testWPos, testHPos, testV, dim_r, testRMSE.get(), mutex_w.get(), mutex_h.get(), Avx_explicit);
 
     /* Test MF-SGD before iteration */
     if (tbb_grainsize != 0)

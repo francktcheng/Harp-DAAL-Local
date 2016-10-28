@@ -57,7 +57,7 @@ class mf_sgd_batch{
     private static int iteration = 10;		         /* num of iterations in SGD training */
 
     private static int threads = 0;			         /* specify the num of threads used by TBB, when 0 TBB chooses automatic threads num  */
-    private static int tbb_grainsize = 10000;        /* 0 by auto partitioner of TBB or user specified tbb grainsize   */
+    private static int tbb_grainsize = 0;        /* 0 by auto partitioner of TBB or user specified tbb grainsize   */
     private static int Avx_explicit = 0;             /* 0 to use compiler generated vectorization codes, 1 to use explicit intel intrinsic codes */
 
     private static int r_dim = 128;                  /* dimension of vectors in model W and model H */

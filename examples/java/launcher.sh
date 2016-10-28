@@ -75,11 +75,9 @@ fi
 # Setting path for JavaAPI library
 os_name=`uname -s`
 if [ "${os_name}" == "Darwin" ]; then
-    # Djava_library_path=${DAALROOT}/lib
-    Djava_library_path=${DAALROOT}/../../__work/lnx32e/daal/lib
+    Djava_library_path=${DAALROOT}/lib
 else
-    # Djava_library_path=${DAALROOT}/lib/${full_ia}_lin
-    Djava_library_path=${DAALROOT}/../../__work/lnx32e/daal/lib
+    Djava_library_path=${DAALROOT}/lib/${full_ia}_lin
 fi
 
 # Setting a path for result folder to put results of examples in

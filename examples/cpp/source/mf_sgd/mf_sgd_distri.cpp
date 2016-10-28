@@ -52,12 +52,12 @@ const size_t Avx_explicit = 0;			/* 0 to use compiler generated vectorization co
 const int64_t r_dim = 128;
 
 /* input dataset files in csv format */
-const string trainDataFile = "../../../data/distributed/movielens-train.mm";
-const string testDataFile = "../../../data/distributed/movielens-test.mm";
+const string trainDataFile = "../data/distributed/movielens-train.mm";
+const string testDataFile = "../data/distributed/movielens-test.mm";
 
 /* choose the precision */
-// typedef float sgd_float;
-typedef double sgd_float;
+typedef float sgd_float;
+// typedef double sgd_float;
 
 int main(int argc, char *argv[])
 {

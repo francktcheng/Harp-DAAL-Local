@@ -384,7 +384,6 @@ $(call containing,_neh, $(CORE.objs_a)): COPT += $(mc3_OPT)  -DDAAL_CPU=sse42
 $(call containing,_snb, $(CORE.objs_a)): COPT += $(avx_OPT)  -DDAAL_CPU=avx
 $(call containing,_hsw, $(CORE.objs_a)): COPT += $(avx2_OPT) -DDAAL_CPU=avx2
 $(call containing,_knl, $(CORE.objs_a)): COPT += $(knl_OPT)  -DDAAL_CPU=avx512_mic
-# $(call containing,_knl, $(CORE.objs_a)): COPT += -no-vec -DDAAL_CPU=avx512_mic
 $(call containing,_skx, $(CORE.objs_a)): COPT += $(skx_OPT)  -DDAAL_CPU=avx512
 $(call containing,_flt, $(CORE.objs_a)): COPT += -DDAAL_FPTYPE=float
 $(call containing,_dbl, $(CORE.objs_a)): COPT += -DDAAL_FPTYPE=double
@@ -400,7 +399,6 @@ $(call containing,_neh, $(CORE.objs_y)): COPT += $(mc3_OPT)  -DDAAL_CPU=sse42
 $(call containing,_snb, $(CORE.objs_y)): COPT += $(avx_OPT)  -DDAAL_CPU=avx
 $(call containing,_hsw, $(CORE.objs_y)): COPT += $(avx2_OPT) -DDAAL_CPU=avx2
 $(call containing,_knl, $(CORE.objs_y)): COPT += $(knl_OPT)  -DDAAL_CPU=avx512_mic
-# $(call containing,_knl, $(CORE.objs_y)): COPT += -no-vec -DDAAL_CPU=avx512_mic
 $(call containing,_skx, $(CORE.objs_y)): COPT += $(skx_OPT)  -DDAAL_CPU=avx512
 $(call containing,_flt, $(CORE.objs_y)): COPT += -DDAAL_FPTYPE=float
 $(call containing,_dbl, $(CORE.objs_y)): COPT += -DDAAL_FPTYPE=double

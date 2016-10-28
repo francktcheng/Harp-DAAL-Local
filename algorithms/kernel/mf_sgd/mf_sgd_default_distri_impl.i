@@ -87,7 +87,7 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_thr(const NumericTable** T
     const int iteration = parameter->_iteration;
     const int thread_num = parameter->_thread_num;
     const int tbb_grainsize = parameter->_tbb_grainsize;
-    const int Avx512_explicit = parameter->_Avx512_explicit;
+    const int Avx_explicit = parameter->_Avx_explicit;
 
     const double ratio = parameter->_ratio;
     const int itr = parameter->_itr;
@@ -145,7 +145,7 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_thr(const NumericTable** T
     /* step is the stride of choosing tasks in a rotated way */
     const int step = dim_train - dim_ratio;
 
-    MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, dim_r, learningRate, lambda, mutex_w.get(), mutex_h.get(), Avx512_explicit, step, dim_train);
+    MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, dim_r, learningRate, lambda, mutex_w.get(), mutex_h.get(), Avx_explicit, step, dim_train);
     mfsgd.setItr(itr);
 
     struct timespec ts1;

@@ -426,7 +426,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _iteration = 10;
         _thread_num = 0;
         _tbb_grainsize = 0;
-        _Avx512_explicit = 0;
+        _Avx_explicit = 0;
         _ratio = 1.0;
         _itr = 0;
         _innerItr = 0;
@@ -446,9 +446,9 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 	 * @param iteration
 	 * @param thread_num
 	 * @param tbb_grainsize
-	 * @param Avx512_explicit
+	 * @param Avx_explicit
 	 */
-    void setParameter(double learningRate, double lambda, int64_t Dim_r, int64_t Dim_w, int64_t Dim_h, size_t iteration, size_t thread_num, size_t tbb_grainsize, size_t Avx512_explicit)
+    void setParameter(double learningRate, double lambda, int64_t Dim_r, int64_t Dim_w, int64_t Dim_h, size_t iteration, size_t thread_num, size_t tbb_grainsize, size_t Avx_explicit)
     {
 
         _learningRate = learningRate;
@@ -459,7 +459,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _iteration = iteration;
         _thread_num = thread_num;
         _tbb_grainsize = tbb_grainsize;
-        _Avx512_explicit = Avx512_explicit;
+        _Avx_explicit = Avx_explicit;
     }
 
 	/**
@@ -514,7 +514,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     size_t      _iteration;                       /* the iterations of SGD */
     size_t      _thread_num;                      /* specify the threads used by TBB */
     size_t      _tbb_grainsize;                   /* specify the grainsize for TBB parallel_for */
-    size_t      _Avx512_explicit;                 /* specify whether use explicit Avx512 instructions  */
+    size_t      _Avx_explicit;                    /* specify whether use explicit Avx instructions  */
     size_t      _itr;                             /* id of training iteration, used in distributed mode */
     size_t      _innerItr;						  /* id of inner training iteration, used in distributed mode, e.g., model rotation  */
     size_t      _innerNum;						  /* total num of inner training iteration, used in distributed mode, e.g., model rotation */

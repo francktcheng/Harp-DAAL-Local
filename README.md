@@ -1,144 +1,59 @@
-# Intel(R) Data Analytics Acceleration Library
-Intel(R) Data Analytics Acceleration Library (Intel(R) DAAL) helps speed up big data analysis by providing highly optimized algorithmic building blocks for all stages of data analytics (preprocessing, transformation, analysis, modeling, validation, and decision making) in batch, online, and distributed processing modes of computation.
+# DAAL-MF-SGD 
 
-## License
-Intel DAAL is licensed under Apache License 2.0.
+DAAL-MF-SGD is an algorithm that we implemented based on the DAAL2017 version released by Intel. 
+at their github repository: https://github.com/01org/daal
+DAAL2017 is licensed under Apache License 2.0.
 
-## Online Documentation
-You can find the latest Intel DAAL documentation on the [Intel(R) Data Analytics Acceleration Library 2017 Beta Update 1 Documentation Download](https://software.intel.com/en-us/articles/intel-daal-2017-beta-documentation-download) web page.
+This solver could be used to factorize a sparse matrix $V$ into two dense matrices $W$ and $H$, which is widely
 
-## How to Contribute
-We welcome community contributions to Intel DAAL. If you have an idea how to improve the product:
+$V = W H$
 
-* Let us know about your proposal via [https://github.com/01org/daal/issues](https://github.com/01org/daal/issues) or [Intel(R) DAAL Forum](https://software.intel.com/en-us/forums/intel-data-analytics-acceleration-library)
-* Make sure you can build the product and run all the examples with your patch
-* In case of a larger feature, provide a relevant example
-* Submit a pull request at [https://github.com/01org/daal/pulls](https://github.com/01org/daal/pulls)
+used in the recommender systems, such as the recommended movies provided to users by Netflix. This Matrix Factorization 
+(MF for short) uses a machine learning algorithm, Stochastic Gradient Descent (SGD), to find the two object matrices $W$ and 
+$H$. In this machine learning scenario, matrix $V$ contains two datasets, one is the training set and the other is the 
+test set. Both of matrices $W$ and $H$ are considered to be model data, whose values are updated by the training process of 
+SGD. After the training, we evaluate the result by calculating the difference between the true value of test points and the multiplication
+of that value by model $W$ and $H$. The procedure could be expressed as two stages:
 
-We will review your contribution and, if any additional fixes or modifications are necessary, may give some feedback to guide you. When accepted, your pull request will be merged into our internal and GitHub* repositories.
+1.Training Stage
 
-Intel DAAL is licensed under [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0). By contributing to the project, you agree to the license and copyright terms therein and release your contribution under these terms.
+$E^{t-1}_{ij} = V^{t-1}_{train,ij} - \sum_{k=0}^r W^{t-1}_{ik} H^{t-1}_{kj}$
+$W^t_{i*} = W^{t-1}_{i*} - \eta (E^{t-1}_{ij}\cdot H^{t-1}_{*j} - \lambda \cdot W^{t-1}_{i*})$
+$H^t_{*j} = H^{t-1}_{*j} - \eta (E^{t-1}_{ij}\cdot W^{t-1}_{i*} - \lambda \cdot H^{t-1}_{*j})$
 
-## <a name="system-requirements"></a>System Requirements
-Intel DAAL supports the IA-32 and Intel(R) 64 architectures. For a detailed explanation of these architecture names, read the [Intel Architecture Platform Terminology for Development Tools](https://software.intel.com/en-us/articles/intel-architecture-platform-terminology-for-development-tools) article.
+2.Test Stage
 
-The lists below contain the system requirements necessary to support application development with Intel DAAL. We tested Intel DAAL on the operating systems and with the compilers listed below, but Intel DAAL is expected to work on many more Linux* distributions as well.
+$RMSE = V_{test, ij} - \sum_{k=0}^{r}W_{i,k}H_{k,j}$
 
-Let us know if you have any troubles with the distribution you are using.
+The training process uses an iterative Standard SGD algorithm, which contains one vector inner product and two AXPY updates. In order to 
+improve the performance of these linear algebra computation, we implement these kernels within DAAL's framework by using highly optimized 
+libraries and tools from Intel. 
 
-### Validated Operating Systems
-* Windows* 8 (IA-32 / Intel(R) 64)
-* Windows* 8.1 (IA-32 / Intel(R) 64)
-* Windows* 10 (IA-32 / Intel(R) 64)
-* Windows Server* 2008 R2 SP1 and SP2
-* Windows HPC Server* 2008 R2
-* Windows Server* 2012
-* Red Hat Enterprise Linux* 6 (IA-32 / Intel(R) 64)
-* Red Hat Enterprise Linux* 7 (IA-32 / Intel(R) 64)
-* Red Hat Fedora Core* 20 (IA-32 / Intel(R) 64)
-* Red Hat Fedora Core* 23 (IA-32 / Intel(R) 64)
-* Red Hat Fedora Core* 24 (IA-32 / Intel(R) 64)
-* SUSE Linux Enterprise Server* 11
-* SUSE Linux Enterprise Server* 12
-* Debian GNU/Linux* 8 (IA-32 / Intel(R) 64)
-* Ubuntu* 14.04 LTS (IA-32 / Intel(R) 64)
-* Ubuntu* 15.10 (IA-32 / Intel(R) 64)
-* OS X\* 10.11 (Xcode* 7.0)
+Our delivered package includes a core part of C++ native codes under the following paths of DAAL2017,
 
-### Validated C/C++ Compilers for Windows*
-* Intel(R) C++ Compiler 16.0 for Windows* OS
-* Intel(R) C++ Compiler 17.0 Beta for Windows* OS
-* Microsoft Visual Studio* 2013
-* Microsoft Visual Studio* 2015
+* daal/include/algorithms/mf_sgd
+* daal/algorithms/mf_sgd
 
-### Validated C/C++ Compilers for Linux*
-* Intel(R) C++ Compiler 16.0 for Linux* OS
-* Intel(R) C++ Compiler 17.0 Beta for Linux* OS
-* GNU Compiler Collection* 5.1 and later
+and it also has a Java interface under the paths 
 
-### Validated C/C++ Compilers for OS X*
-* Intel(R) C++ Compiler 16.0 for OS X*
-* Intel(R) C++ Compiler 17.0 Beta for OS X*
-* Clang\* from Xcode* 7
+* daal/lang_interface/java/com/intel/daal/algorithms/mf_sgd
+* daal/lang_service/java/com/intel/daal/algorithms/mf_sgd
 
-### Validated Java* Compilers:
-* Java\* SE 8 from Sun Microsystems*
+There are examples of SGD under the paths
 
-## Installation
-You can install Intel DAAL from the provided binary packages or from the GitHub* sources.
+* daal/examples/cpp/source/mf_sgd
+* daal/examples/java/com/intel/daal/examples/mf_sgd
 
-For platform-specific getting started documents, see the following pages:
+To Run the examples, unzip the movielens train and test dataset under *daal/examples/data/batch*.
+Using tar to combine the three split files of movielens-train into one movielens-train.mm file.
 
-* [Getting Started with Intel(R) Data Analytics Acceleration Library for Windows*](https://software.intel.com/en-us/get-started-with-daal-for-windows)
-* [Getting Started with Intel(R) Data Analytics Acceleration Library for Linux*](https://software.intel.com/en-us/get-started-with-daal-for-linux)
-* [Getting Started with Intel(R) Data Analytics Acceleration Library for OS X*](https://software.intel.com/en-us/get-started-with-daal-for-osx)
+Copy the two files:
 
-### Installing from the Binaries
-You can download an archive from the GitHub\* release page at [https://github.com/01org/daal/releases](https://github.com/01org/daal/releases). This archive contains a script to set the environment variables for library usage in the *daal/bin* directory.
+* movielens-train.mm
+* movielens-test.mm
 
-If you have issues with running the script, you may need to replace the *INSTALLDIR* string in *daal/bin/daalvars.sh* and/or *daal/bin/daalvars.csh* with the name of the directory where you unpacked the archive.
+into *daal/examples/data/distributed* if you would like to test the distributed examples. 
 
-### Installing from the Sources
+A detailed online documentation could be found at https://github.iu.edu/pages/IU-Big-Data-Lab/DAAL-2017-MF-SGD/
 
-#### Required Software
-* C/C++ compiler (see [System Requirements](#system-requirements))
-* Java\* JDK (see [System Requirements](#system-requirements))
-* Microsoft Visual Studio\* (Windows* only)
-* [http://msys2.github.io](http://msys2.github.io) with the msys/make package (Windows* only); install the package as follows:
 
-        pacman -S msys/make
-
-#### Installation Steps
-1. Clone the sources from GitHub* as follows:
-
-        git clone --recursive https://github.com/01org/daal.git
-
-2. Set the PATH environment variable to the MSYS2\* bin directory (Windows* only); for example:
-
-        set PATH=C:\msys64\usr\bin;%PATH%
-
-3. Set an environment variable for Microsoft Visual Studio\* (Windows* only); for example:
-
-        call "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" x64
-
-4. Set an environment variable for one of the supported C/C++ compilers
-
-5. Set an environment variable for one of the supported Java* compilers; for example:
-
-        set PATH=C:\Program Files\Java\jdk1.8.0_77\bin;%PATH%
-        set INCLUDE=C:\Program Files\Java\jdk1.8.0_77\include;C:\Program Files\Java\jdk1.8.0_77\include\win32;%INCLUDE%
-
-6. Build Intel DAAL via the command-line interface with the following commands, depending on your platform:
-
- *  on Linux\* using Intel(R) C++ Compiler:
-
-            make daal PLAT=lnx32e
-
- *  on Linux\* using GNU Compiler Collection\*:
-
-            make daal PLAT=lnx32e COMPILER=gnu
-
- *  on OS X* using Intel(R) C++ Compiler:
-
-            make daal PLAT=mac32e
-
- *  on OS X\* using Clang\*:
-
-            make daal PLAT=mac32e COMPILER=clang
-
- *  on Windows* using Intel(R) C++ Compiler:
-
-            make daal PLAT=win32e
-
- *  on Windows\* using Microsoft Visual* C++ Compiler:
-
-            make daal PLAT=win32e COMPILER=vc
-
-Built libraries are located in the *\_\_release\_{os_name}/daal* directory.
-
-## Python*
-Intel DAAL can be also used with Python\* interfaces. You can find the pyDAAL package at [http://anaconda.org/intel/pydaal](http://anaconda.org/intel/pydaal).
-
-## See Also
-* [Intel(R) DAAL Product Page](https://software.intel.com/en-us/intel-daal)
-* [Intel(R) DAAL Forum](https://software.intel.com/en-us/forums/intel-data-analytics-acceleration-library)

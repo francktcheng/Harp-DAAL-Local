@@ -23,7 +23,6 @@ package com.intel.daal.algorithms.mf_sgd;
 import com.intel.daal.services.DaalContext;
 import com.intel.daal.data_management.data.NumericTable;
 import com.intel.daal.data_management.data.HomogenNumericTable;
-import com.intel.daal.algorithms.optimization_solver.sum_of_functions.Batch;
 import com.intel.daal.data_management.data.Factory;
 
 /**

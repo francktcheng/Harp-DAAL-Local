@@ -36,6 +36,10 @@
 #include "daal.h"
 #include "service.h"
 
+#define DEBUG_MF_SGD 0
+// #define DEBUG_MF_SGD_OUT 1
+#define DEBUG_MF_SGD_IN 2
+
 using namespace std;
 using namespace daal;
 using namespace daal::algorithms;
@@ -46,16 +50,19 @@ const double learningRate = 0.0001;
 // const double lambda = 0.002;
 const double lambda = 1;
 const size_t iteration = 10;		    /* num of iterations in SGD training */
+
+#ifdef DEBUG_MF_SGD
+size_t threads = 0;			    /* specify the num of threads used by TBB, when 0 TBB chooses automatic threads num  */
+#else
 const size_t threads = 0;			    /* specify the num of threads used by TBB, when 0 TBB chooses automatic threads num  */
+#endif
+
 const size_t tbb_grainsize = 0;			/* 0 by auto partitioner of TBB or user specified tbb grainsize   */
 const size_t Avx_explicit = 0;			/* 0 to use compiler generated vectorization codes, 1 to use explicit intel intrinsic codes */
 
 /* dimension of vectors in model W and model H */
 const int64_t r_dim = 128;
 
-#define DEBUG_MF_SGD 0
-// #define DEBUG_MF_SGD_OUT 1
-#define DEBUG_MF_SGD_IN 2
 
 #ifdef DEBUG_MF_SGD
 
@@ -82,6 +89,13 @@ typedef float sgd_float;
 
 int main(int argc, char *argv[])
 {
+
+#ifdef DEBUG_MF_SGD
+
+	if (argc > 1)
+	  threads = atoi(argv[1]);
+
+#endif
 
 #ifdef DEBUG_MF_SGD_IN
 		

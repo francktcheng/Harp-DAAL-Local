@@ -41,8 +41,10 @@ using namespace daal;
 using namespace daal::algorithms;
 
 /* default parameters of SGD training */
-const double learningRate = 0.005;
-const double lambda = 0.002;
+// const double learningRate = 0.005;
+const double learningRate = 0.0001;
+// const double lambda = 0.002;
+const double lambda = 1;
 const size_t iteration = 10;		    /* num of iterations in SGD training */
 const size_t threads = 0;			    /* specify the num of threads used by TBB, when 0 TBB chooses automatic threads num  */
 const size_t tbb_grainsize = 0;			/* 0 by auto partitioner of TBB or user specified tbb grainsize   */
@@ -51,9 +53,28 @@ const size_t Avx_explicit = 0;			/* 0 to use compiler generated vectorization co
 /* dimension of vectors in model W and model H */
 const int64_t r_dim = 128;
 
+#define DEBUG_MF_SGD 0
+// #define DEBUG_MF_SGD_OUT 1
+#define DEBUG_MF_SGD_IN 2
+
+#ifdef DEBUG_MF_SGD
+
+struct DataSize
+{
+  int num_Train; 
+  int num_Test; 
+  int64_t row_num_w;  
+  int64_t col_num_h;  
+};
+
+#endif
+
 /* input dataset files in csv format */
-const string trainDataFile = "../data/batch/movielens-train.mm";
-const string testDataFile = "../data/batch/movielens-test.mm";
+// const string trainDataFile = "../data/batch/movielens-train.mm";
+// const string testDataFile = "../data/batch/movielens-test.mm";
+
+const string trainDataFile = "../data/batch/yahoomusic-train.mm";
+const string testDataFile = "../data/batch/yahoomusic-test.mm";
 
 /* choose the precision */
 typedef float sgd_float;
@@ -61,6 +82,45 @@ typedef float sgd_float;
 
 int main(int argc, char *argv[])
 {
+
+#ifdef DEBUG_MF_SGD_IN
+		
+	/* load binary data into array of structs */
+
+	/* read in dataset sizes */
+	DataSize data_size;
+
+	ifstream infile; 
+	infile.open("../data/batch/yahoomusic-size.dat", ios::binary | ios::in);
+	infile.read((char*)&data_size, sizeof(data_size));
+	infile.close();
+
+	/* check  */
+	printf("num_Train: %d\n", data_size.num_Train);
+	printf("num_Test: %d\n", data_size.num_Test);
+
+	const int num_Train = data_size.num_Train;
+	const int num_Test = data_size.num_Test;
+
+	int64_t row_num_w = data_size.row_num_w;
+	int64_t col_num_h = data_size.col_num_h;
+
+
+	services::SharedPtr<mf_sgd::VPoint<sgd_float> > points_Train(new mf_sgd::VPoint<sgd_float>[num_Train]);
+	services::SharedPtr<mf_sgd::VPoint<sgd_float> > points_Test(new mf_sgd::VPoint<sgd_float>[num_Test]);
+
+	infile.open("../data/batch/yahoomusic-train.dat", ios::binary | ios::in);
+	infile.read((char*)points_Train.get(), num_Train*sizeof(mf_sgd::VPoint<sgd_float>));
+	infile.close();
+	
+	infile.open("../data/batch/yahoomusic-test.dat", ios::binary | ios::in);
+	infile.read((char*)points_Test.get(), num_Test*sizeof(mf_sgd::VPoint<sgd_float>));
+	infile.close();
+
+	/* Create an algorithm to compute mf_sgd decomposition  */
+	mf_sgd::Batch<sgd_float, mf_sgd::defaultSGD> algorithm;
+
+#else
 
 	/* Create an algorithm to compute mf_sgd decomposition  */
 	mf_sgd::Batch<sgd_float, mf_sgd::defaultSGD> algorithm;
@@ -81,6 +141,34 @@ int main(int argc, char *argv[])
 
 	algorithm.input.freeData(map_train);
 	algorithm.input.freeData(map_test);
+
+#endif
+
+#ifdef DEBUG_MF_SGD_OUT
+
+	/* load points_Train and points_Test to binary files */
+	printf("Start loading converted dataset into binary files\n");
+
+	DataSize datasize;
+	datasize.num_Train = num_Train;
+	datasize.num_Test = num_Test;
+	datasize.row_num_w = row_num_w;
+	datasize.col_num_h = col_num_h;
+
+	std::ofstream outfile;
+	outfile.open("yahoomusic-size.dat", ios::binary | ios::out);
+	outfile.write((char*)&datasize, sizeof(datasize));
+	outfile.close();
+
+	outfile.open("yahoomusic-train.dat", ios::binary | ios::out);
+	outfile.write((char*)points_Train.get(), num_Train*sizeof(mf_sgd::VPoint<sgd_float>));
+	outfile.close();
+
+	outfile.open("yahoomusic-test.dat", ios::binary | ios::out);
+	outfile.write((char*)points_Test.get(), num_Test*sizeof(mf_sgd::VPoint<sgd_float>));
+	outfile.close();
+
+#endif
 
 	/* Create a new dictionary and fill it with the information about data */
 	const size_t field_v = 3; 
@@ -125,6 +213,7 @@ int main(int argc, char *argv[])
 	/* Print the results first 10 rows and 10 columns */
 	printNumericTable(res->get(mf_sgd::resWMat), "Model W Matrix:", 10, 10, 10);
 	printNumericTable(res->get(mf_sgd::resHMat), "Model H Matrix:", 10, 10, 10);
+
 
 	return 0;
 }

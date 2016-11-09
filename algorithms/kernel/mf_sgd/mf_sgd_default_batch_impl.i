@@ -166,6 +166,9 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(const NumericTable** Tr
     /* step is the stride of choosing tasks in a rotated way */
     const int step = dim_train - dim_ratio;
 
+    /* to use affinity_partitioner */
+    static affinity_partitioner ap;
+
     MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, dim_r, learningRate, lambda, mutex_w.get(), mutex_h.get(), Avx_explicit, step, dim_train);
 
     MFSGDTBB_TEST<interm, cpu> mfsgd_test(mtWDataPtr, mtHDataPtr, testWPos, testHPos, testV, dim_r, testRMSE.get(), mutex_w.get(), mutex_h.get(), Avx_explicit);
@@ -179,7 +182,11 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(const NumericTable** Tr
     else
     {
         /* use auto-partitioner by TBB */
-        parallel_for(blocked_range<int>(0, dim_test), mfsgd_test, auto_partitioner());
+        /* parallel_for(blocked_range<int>(0, dim_test), mfsgd_test, auto_partitioner()); */
+
+        /* use affinity-partitioner by TBB */
+        parallel_for(blocked_range<int>(0, dim_test), mfsgd_test, ap);
+
     }
 
     totalRMSE = 0;
@@ -206,9 +213,14 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(const NumericTable** Tr
 
         /* training MF-SGD */
         if (tbb_grainsize != 0)
+        {
             parallel_for(blocked_range<int>(0, dim_ratio, tbb_grainsize), mfsgd);
+        }
         else
-            parallel_for(blocked_range<int>(0, dim_ratio), mfsgd, auto_partitioner());
+        {
+            /* parallel_for(blocked_range<int>(0, dim_ratio), mfsgd, auto_partitioner()); */
+            parallel_for(blocked_range<int>(0, dim_ratio), mfsgd, ap);
+        }
 
         clock_gettime(CLOCK_MONOTONIC, &ts2);
 
@@ -219,9 +231,14 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(const NumericTable** Tr
 
         /* Test MF-SGD */
         if (tbb_grainsize != 0)
+        {
             parallel_for(blocked_range<int>(0, dim_test, tbb_grainsize), mfsgd_test);
+        }
         else
-            parallel_for(blocked_range<int>(0, dim_test), mfsgd_test, auto_partitioner());
+        {
+            /* parallel_for(blocked_range<int>(0, dim_test), mfsgd_test, auto_partitioner()); */
+            parallel_for(blocked_range<int>(0, dim_test), mfsgd_test, ap);
+        }
 
         totalRMSE = 0;
         for(int k=0;k<dim_test;k++)

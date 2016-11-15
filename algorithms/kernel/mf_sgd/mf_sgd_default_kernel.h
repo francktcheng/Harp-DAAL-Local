@@ -91,16 +91,19 @@ public:
     /**
      * @brief compute and update W, H model by Training data
      *
-     * @param[in] TrainWPos row id of training point in W model, stored in HomogenNumericTable 
-     * @param[in] TrainHPos col id of training point in H model, stored in HomogenNumericTable
-     * @param[in] TrainVal  value of training point, stored in HomogenNumericTable
+     * @param[in] WPos row id of point in W model, stored in HomogenNumericTable 
+     * @param[in] HPos col id of point in H model, stored in HomogenNumericTable
+     * @param[in] Val  value of point, stored in HomogenNumericTable
      * @param[in,out] r[] model W and H
      * @param[in] par
      */
-    void compute(const NumericTable** TrainWPos, const NumericTable** TrainHPos, const NumericTable** TrainVal, NumericTable *r[], const daal::algorithms::Parameter *par);
+    void compute(const NumericTable** WPos, const NumericTable** HPos, const NumericTable** Val, NumericTable *r[], const daal::algorithms::Parameter *par);
 
-    /* a multi-threading version of compute implemented by TBB */
-    void compute_thr(const NumericTable** TrainWPos, const NumericTable** TrainHPos, const NumericTable** TrainVal, NumericTable *r[], const daal::algorithms::Parameter *par);
+    /* a multi-threading version of training process implemented by TBB */
+    void compute_train(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter);
+
+    /* a multi-threading version of testing process implemented by TBB */
+    void compute_test(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, interm* mtRMSEPtr,const Parameter *parameter);
 
 };
 

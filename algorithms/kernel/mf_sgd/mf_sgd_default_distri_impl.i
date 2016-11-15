@@ -61,53 +61,31 @@ namespace internal
 {
     
 template <typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
-void MF_SGDDistriKernel<interm, method, cpu>::compute(const NumericTable** TrainWPos, 
-                                                      const NumericTable** TrainHPos, 
-                                                      const NumericTable** TrainVal, 
+void MF_SGDDistriKernel<interm, method, cpu>::compute(const NumericTable** WPos, 
+                                                      const NumericTable** HPos, 
+                                                      const NumericTable** Val, 
                                                       NumericTable *r[], const daal::algorithms::Parameter *par)
 {
-    MF_SGDDistriKernel<interm, method, cpu>::compute_thr(TrainWPos,TrainHPos,TrainVal, r, par);
-}
-
-template <typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
-void MF_SGDDistriKernel<interm, method, cpu>::compute_thr(const NumericTable** TrainWPos, 
-                                                          const NumericTable** TrainHPos, 
-                                                          const NumericTable** TrainVal, 
-                                                          NumericTable *r[], 
-                                                          const daal::algorithms::Parameter *par)
-{/*{{{*/
-
     /* retrieve members of parameter */
     const Parameter *parameter = static_cast<const Parameter *>(par);
-    const long dim_r = parameter->_Dim_r;
     const long dim_w = parameter->_Dim_w;
     const long dim_h = parameter->_Dim_h;
-    const double learningRate = parameter->_learningRate;
-    const double lambda = parameter->_lambda;
-    const int iteration = parameter->_iteration;
-    const int thread_num = parameter->_thread_num;
-    const int tbb_grainsize = parameter->_tbb_grainsize;
-    const int Avx_explicit = parameter->_Avx_explicit;
+    const int isTrain = parameter->_isTrain;
+    const int dim_set = Val[0]->getNumberOfRows();
 
-    const double ratio = parameter->_ratio;
-    const int itr = parameter->_itr;
-
-    const int dim_train = TrainVal[0]->getNumberOfRows();
-
-    /* ------------- Retrieve Training Data Set -------------*/
-
-    FeatureMicroTable<int, readOnly, cpu> workflowW_ptr(TrainWPos[0]);
-    FeatureMicroTable<int, readOnly, cpu> workflowH_ptr(TrainHPos[0]);
-    FeatureMicroTable<interm, readOnly, cpu> workflow_ptr(TrainVal[0]);
+    /* ------------- Retrieve Data Set -------------*/
+    FeatureMicroTable<int, readOnly, cpu> workflowW_ptr(WPos[0]);
+    FeatureMicroTable<int, readOnly, cpu> workflowH_ptr(HPos[0]);
+    FeatureMicroTable<interm, readOnly, cpu> workflow_ptr(Val[0]);
 
     int *workWPos = 0;
-    workflowW_ptr.getBlockOfColumnValues(0, 0, dim_train, &workWPos);
+    workflowW_ptr.getBlockOfColumnValues(0, 0, dim_set, &workWPos);
 
     int *workHPos = 0;
-    workflowH_ptr.getBlockOfColumnValues(0, 0, dim_train, &workHPos);
+    workflowH_ptr.getBlockOfColumnValues(0, 0, dim_set, &workHPos);
 
     interm *workV;
-    workflow_ptr.getBlockOfColumnValues(0, 0, dim_train, &workV);
+    workflow_ptr.getBlockOfColumnValues(0, 0, dim_set, &workV);
 
     /* ---------------- Retrieve Model W ---------------- */
     BlockMicroTable<interm, readWrite, cpu> mtWDataTable(r[0]);
@@ -120,6 +98,45 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_thr(const NumericTable** T
 
     interm* mtHDataPtr = 0;
     mtHDataTable.getBlockOfRows(0, dim_h, &mtHDataPtr);
+
+    if (isTrain == 1)
+    {
+        MF_SGDDistriKernel<interm, method, cpu>::compute_train(workWPos,workHPos,workV, dim_set, mtWDataPtr, mtHDataPtr, parameter); 
+    }
+    else
+    {
+        /* ---------------- Retrieve RMSE for Test dataset --------- */
+        interm* mtRMSEPtr = 0;
+        BlockMicroTable<interm, readWrite, cpu> mtRMSETable(r[2]);
+        mtRMSETable.getBlockOfRows(0, 1, &mtRMSEPtr);
+        MF_SGDDistriKernel<interm, method, cpu>::compute_test(workWPos,workHPos,workV, dim_set, mtWDataPtr,mtHDataPtr, mtRMSEPtr, parameter);
+    }
+
+}
+
+template <typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
+void MF_SGDDistriKernel<interm, method, cpu>::compute_train(int* workWPos, 
+                                                            int* workHPos, 
+                                                            interm* workV, 
+                                                            const int dim_set,
+                                                            interm* mtWDataPtr, 
+                                                            interm* mtHDataPtr, 
+                                                            const Parameter *parameter)
+{/*{{{*/
+
+    /* retrieve members of parameter */
+    const long dim_r = parameter->_Dim_r;
+    const long dim_w = parameter->_Dim_w;
+    const long dim_h = parameter->_Dim_h;
+    const double learningRate = parameter->_learningRate;
+    const double lambda = parameter->_lambda;
+    const int iteration = parameter->_iteration;
+    const int thread_num = parameter->_thread_num;
+    const int tbb_grainsize = parameter->_tbb_grainsize;
+    const int Avx_explicit = parameter->_Avx_explicit;
+
+    const double ratio = parameter->_ratio;
+    const int itr = parameter->_itr;
 
     /* create the mutex for WData and HData */
     services::SharedPtr<currentMutex_t> mutex_w(new currentMutex_t[dim_w]);
@@ -140,12 +157,12 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_thr(const NumericTable** T
     }
 
     /* if ratio != 1, dim_ratio is the ratio of computed tasks */
-    int dim_ratio = (int)(ratio*dim_train);
+    int dim_ratio = (int)(ratio*dim_set);
 
     /* step is the stride of choosing tasks in a rotated way */
-    const int step = dim_train - dim_ratio;
+    const int step = dim_set - dim_ratio;
 
-    MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, dim_r, learningRate, lambda, mutex_w.get(), mutex_h.get(), Avx_explicit, step, dim_train);
+    MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, dim_r, learningRate, lambda, mutex_w.get(), mutex_h.get(), Avx_explicit, step, dim_set);
     mfsgd.setItr(itr);
 
     struct timespec ts1;
@@ -174,6 +191,78 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_thr(const NumericTable** T
 
 }/*}}}*/
 
+template <typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
+void MF_SGDDistriKernel<interm, method, cpu>::compute_test(int* workWPos, 
+                                                            int* workHPos, 
+                                                            interm* workV, 
+                                                            const int dim_set,
+                                                            interm* mtWDataPtr, 
+                                                            interm* mtHDataPtr, 
+                                                            interm* mtRMSEPtr,
+                                                            const Parameter *parameter)
+{/*{{{*/
+
+    /* retrieve members of parameter */
+    const long dim_r = parameter->_Dim_r;
+    const long dim_w = parameter->_Dim_w;
+    const long dim_h = parameter->_Dim_h;
+    const int thread_num = parameter->_thread_num;
+    const int tbb_grainsize = parameter->_tbb_grainsize;
+    const int Avx_explicit = parameter->_Avx_explicit;
+
+    /* create the mutex for WData and HData */
+    services::SharedPtr<currentMutex_t> mutex_w(new currentMutex_t[dim_w]);
+    services::SharedPtr<currentMutex_t> mutex_h(new currentMutex_t[dim_h]);
+
+    /* RMSE value for test dataset */
+    services::SharedPtr<interm> testRMSE(new interm[dim_set]);
+
+    /* ------------------- Starting TBB based Training  -------------------*/
+    task_scheduler_init init(task_scheduler_init::deferred);
+
+    if (thread_num != 0)
+    {
+        /* use explicitly specified num of threads  */
+        init.initialize(thread_num);
+    }
+    else
+    {
+        /* use automatically generated threads by TBB  */
+        init.initialize();
+    }
+
+    MFSGDTBB_TEST<interm, cpu> mfsgd_test(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, dim_r, testRMSE.get(), mutex_w.get(), mutex_h.get(), Avx_explicit);
+
+    struct timespec ts1;
+	struct timespec ts2;
+    int64_t diff = 0;
+    double test_time = 0;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts1);
+
+    /* test dataset compute RMSE for MF-SGD */
+    if (tbb_grainsize != 0)
+        parallel_for(blocked_range<int>(0, dim_set, tbb_grainsize), mfsgd_test);
+    else
+        parallel_for(blocked_range<int>(0, dim_set), mfsgd_test, auto_partitioner());
+
+    clock_gettime(CLOCK_MONOTONIC, &ts2);
+    diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
+    test_time += (double)(diff)/1000000L;
+
+    init.terminate();
+
+    interm totalRMSE = 0;
+    interm* testRMSE_ptr = testRMSE.get();
+
+    for(int k=0;k<dim_set;k++)
+        totalRMSE += testRMSE_ptr[k];
+
+    mtRMSEPtr[0] = totalRMSE;
+
+    return;
+
+}/*}}}*/
 
 } // namespace daal::internal
 }

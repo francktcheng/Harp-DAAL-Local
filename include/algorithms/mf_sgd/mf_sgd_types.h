@@ -69,9 +69,9 @@ enum InputId
 {
     dataTrain = 0,		  /*!< Training Dataset */
 	dataTest = 1,	      /*!< Test Dataset */
-	wPos = 2,	          /*!< array of row position in model W of training dataset, used in distributed mode */
-	hPos = 3,	          /*!< array of col position in model H of training dataset, used in distributed mode */
-	val = 4				  /*!< array of val of training data, used in distributed mode */
+	wPos = 2,	          /*!< array of row position in model W of dataset, used in distributed mode */
+	hPos = 3,	          /*!< array of col position in model H of dataset, used in distributed mode */
+	val = 4				  /*!< array of val of dataset, used in distributed mode */
 };
 
 /**
@@ -91,7 +91,8 @@ enum ResultId
 enum DistributedPartialResultId
 {
     presWMat = 0,   /*!< Model W, used in distributed mode */
-    presHMat = 1    /*!< Model H, used in distributed mode*/
+    presHMat = 1,   /*!< Model H, used in distributed mode*/
+    presRMSE = 2    /*!< RMSE computed from test dataset */
 };
 
 /**
@@ -431,6 +432,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _itr = 0;
         _innerItr = 0;
         _innerNum = 0;
+        _isTrain = 1;
     }
 
     virtual ~Parameter() {}
@@ -505,6 +507,17 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _innerNum = innerNum;
     }
 
+    /**
+     * @brief set whether Train or Test tasks
+     * used in distributed mode
+     *
+     * @param isTrain
+     */
+    void setIsTrain(int isTrain)
+    {
+        _isTrain = isTrain;
+    }
+
     double		_learningRate;                    /* the rate of learning by SGD  */
     double		_lambda;                          /* the lambda parameter in standard SGD */
     double      _ratio;                           /* control the percentage of tasks to execute */
@@ -518,6 +531,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     size_t      _itr;                             /* id of training iteration, used in distributed mode */
     size_t      _innerItr;						  /* id of inner training iteration, used in distributed mode, e.g., model rotation  */
     size_t      _innerNum;						  /* total num of inner training iteration, used in distributed mode, e.g., model rotation */
+    int         _isTrain;                         /* used in distributed mode, 1 for training task, 0 for test task */
 
 };
 /** @} */

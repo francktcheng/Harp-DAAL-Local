@@ -36,7 +36,7 @@ namespace interface1
 {
 
 /** Default constructor */
-DistributedPartialResult::DistributedPartialResult() : daal::algorithms::PartialResult(2) {}
+DistributedPartialResult::DistributedPartialResult() : daal::algorithms::PartialResult(3) {}
 
 NumericTablePtr DistributedPartialResult::get(DistributedPartialResultId id) const
 {

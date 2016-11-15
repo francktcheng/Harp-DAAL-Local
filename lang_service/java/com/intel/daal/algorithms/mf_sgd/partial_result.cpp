@@ -28,6 +28,7 @@
 
 #define presWMatId com_intel_daal_algorithms_mf_sgd_PartialResultId_presWMatId
 #define presHMatId com_intel_daal_algorithms_mf_sgd_PartialResultId_presHMatId
+#define presRMSEId com_intel_daal_algorithms_mf_sgd_PartialResultId_presRMSEId
 
 USING_COMMON_NAMESPACES()
 using namespace daal::algorithms::mf_sgd;
@@ -58,6 +59,10 @@ JNIEXPORT jlong JNICALL Java_com_intel_daal_algorithms_mf_1sgd_PartialResult_cGe
     else if(id == presHMatId)
     {
         return jniArgument<mf_sgd::DistributedPartialResult>::get<mf_sgd::DistributedPartialResultId, NumericTable>(resAddr, mf_sgd::presHMat);
+    }
+    else if(id == presRMSEId)
+    {
+        return jniArgument<mf_sgd::DistributedPartialResult>::get<mf_sgd::DistributedPartialResultId, NumericTable>(resAddr, mf_sgd::presRMSE);
     }
 
     return (jlong)0;

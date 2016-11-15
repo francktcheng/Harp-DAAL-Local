@@ -66,20 +66,25 @@ void DistriContainer<step, interm, method, cpu>::compute()
     const NumericTable *a1 = static_cast<const NumericTable *>(input->get(hPos).get());
     const NumericTable *a2 = static_cast<const NumericTable *>(input->get(val).get());
 
-    const NumericTable **TrainWPos = &a0;
-    const NumericTable **TrainHPos = &a1;
-    const NumericTable **TrainVal = &a2;
+    const NumericTable **WPos = &a0;
+    const NumericTable **HPos = &a1;
+    const NumericTable **Val = &a2;
 
-    NumericTable *r[2];
+    daal::algorithms::Parameter *par = _par;
+    NumericTable *r[3];
 
     r[0] = static_cast<NumericTable *>(result->get(presWMat).get());
     r[1] = static_cast<NumericTable *>(result->get(presHMat).get());
 
-    daal::algorithms::Parameter *par = _par;
+    if ((static_cast<Parameter*>(_par))->_isTrain)
+        r[2] = NULL;
+    else
+        r[2] = static_cast<NumericTable *>(result->get(presRMSE).get());
+
     daal::services::Environment::env &env = *_env;
 
     /* invoke the MF_SGDBatchKernel */
-    __DAAL_CALL_KERNEL(env, internal::MF_SGDDistriKernel, __DAAL_KERNEL_ARGUMENTS(interm, method), compute, TrainWPos, TrainHPos, TrainVal, r, par);
+    __DAAL_CALL_KERNEL(env, internal::MF_SGDDistriKernel, __DAAL_KERNEL_ARGUMENTS(interm, method), compute, WPos, HPos, Val, r, par);
    
 }
 

@@ -73,6 +73,11 @@ JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cSetInne
 	((mf_sgd::Parameter*)parAddr)->_innerNum = innerNum;
 }
 
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cSetIsTrain
+(JNIEnv *env, jobject thisObj, jlong parAddr, jint isTrain)
+{
+	((mf_sgd::Parameter*)parAddr)->_isTrain = isTrain;
+}
 
 
 

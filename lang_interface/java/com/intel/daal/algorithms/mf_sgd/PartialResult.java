@@ -52,7 +52,9 @@ public class PartialResult extends com.intel.daal.algorithms.PartialResult {
      * @return      Result that corresponds to the given identifier
      */
     public NumericTable get(PartialResultId id) {
-        if (id != PartialResultId.presWMat && id != PartialResultId.presHMat) {
+        if (id != PartialResultId.presWMat 
+            && id != PartialResultId.presHMat 
+            && id != PartialResultId.presRMSE) {
             throw new IllegalArgumentException("id unsupported");
         }
         return new HomogenNumericTable(getContext(), cGetPartialResultTable(cObject, id.getValue()));
@@ -64,7 +66,9 @@ public class PartialResult extends com.intel.daal.algorithms.PartialResult {
      * @param value NumericTable to store result
      */
     public void set(PartialResultId id, NumericTable value) {
-        if (id != PartialResultId.presWMat && id != PartialResultId.presHMat) {
+        if (id != PartialResultId.presWMat 
+            && id != PartialResultId.presHMat
+            && id != PartialResultId.presRMSE) {
             throw new IllegalArgumentException("id unsupported");
         }
         cSetPartialResultTable(cObject, id.getValue(), value.getCObject());

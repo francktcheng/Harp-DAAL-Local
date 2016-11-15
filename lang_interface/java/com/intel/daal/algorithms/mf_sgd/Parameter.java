@@ -116,6 +116,18 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
         cSetInnerNum(this.cObject, innerNum);
     }
 
+    /**
+     * @brief set up the flag to train or test on dataset
+     * 1 for train and 0 for test
+     *
+     * @param isTrain
+     *
+     * @return 
+     */
+    public void setIsTrain(int isTrain) {
+        cSetIsTrain(this.cObject, isTrain);
+    }
+
     private native void cSetParameters(long parAddr, double learningRate, double lambda, long Dim_r, long Dim_w, long Dim_h, int iteration, int thread_num, int tbb_grainsize, 
 			int Avx_explicit );
 
@@ -126,5 +138,7 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
     private native void cSetInnerItr(long parAddr, int innerItr);
 
     private native void cSetInnerNum(long parAddr, int innerNum);
+
+    private native void cSetIsTrain(long parAddr, int isTrain);
 
 }

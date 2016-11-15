@@ -39,7 +39,10 @@ public final class PartialResultId {
 
     private static final int presWMatId = 0;
     private static final int presHMatId = 1;
+    private static final int presRMSEId = 2;
 
     public static final PartialResultId presWMat = new PartialResultId(presWMatId); /*!< model matrix W */
     public static final PartialResultId presHMat = new PartialResultId(presHMatId); /*!< model matrix H */
+    public static final PartialResultId presRMSE = new PartialResultId(presRMSEId); /*!< RMSE value after test */
+
 }

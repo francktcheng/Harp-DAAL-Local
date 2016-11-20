@@ -39,6 +39,7 @@
 #include "service_numeric_table.h"
 
 #include "threading.h"
+#include "tbb/tick_count.h"
 #include "task_scheduler_init.h"
 #include "blocked_range.h"
 #include "parallel_for.h"
@@ -154,8 +155,14 @@ void MFSGDTBB<interm, cpu>::operator()( const blocked_range<int>& range ) const
 
     int index;
 
+    tbb::tick_count timeStart = _timeStart;
+    double timeOut = _timeOut;
+
     for( int i=range.begin(); i!=range.end(); ++i )
     {
+        /* check whether time is out */
+        if ( (timeOut != 0) && ((tbb::tick_count::now() - timeStart).seconds() > timeOut)) 
+            return;
 
         /* index is ajusted according to the iteration id and ratio of  */
         /* computed tasks in each iteration */

@@ -32,6 +32,7 @@
 #include "kernel.h"
 
 #include "mf_sgd_batch.h"
+#include "tbb/tick_count.h"
 
 using namespace tbb;
 using namespace daal::data_management;
@@ -150,6 +151,10 @@ struct MFSGDTBB
 	 * @param itr
 	 */
     void setItr(int itr) { _itr = itr;}
+    
+    void setTimeStart(tbb::tick_count timeStart) {_timeStart = timeStart;}
+
+    void setTimeOut(double timeOut) {_timeOut = timeOut;}
 
     interm* _mtWDataTable;  /* model W */
     interm* _mtHDataTable;  /* model H */
@@ -167,6 +172,8 @@ struct MFSGDTBB
     int _step;              /* stride of tasks if only part of tasks are executed */
     int _dim_train;         /* total number of tasks */
     int _itr;               /* iteration id  */
+    tbb::tick_count _timeStart = tbb::tick_count::now();
+    double _timeOut = 0;
 
     currentMutex_t* _mutex_w;
     currentMutex_t* _mutex_h;

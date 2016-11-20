@@ -433,6 +433,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _innerItr = 0;
         _innerNum = 0;
         _isTrain = 1;
+        _timeout = 0;
     }
 
     virtual ~Parameter() {}
@@ -518,6 +519,16 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _isTrain = isTrain;
     }
 
+    /**
+     * @brief set up the timer in distributed mode
+     *
+     * @param timeout in seconds
+     */
+    void setTimer(double timeout)
+    {
+        _timeout = timeout;
+    }
+
     double		_learningRate;                    /* the rate of learning by SGD  */
     double		_lambda;                          /* the lambda parameter in standard SGD */
     double      _ratio;                           /* control the percentage of tasks to execute */
@@ -532,6 +543,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     size_t      _innerItr;						  /* id of inner training iteration, used in distributed mode, e.g., model rotation  */
     size_t      _innerNum;						  /* total num of inner training iteration, used in distributed mode, e.g., model rotation */
     int         _isTrain;                         /* used in distributed mode, 1 for training task, 0 for test task */
+    double      _timeout;                         /* timer to control the actual execution time for each threads */
 
 };
 /** @} */

@@ -38,6 +38,7 @@
 #include "service_numeric_table.h"
 
 #include "threading.h"
+#include "tbb/tick_count.h"
 #include "task_scheduler_init.h"
 #include "blocked_range.h"
 #include "parallel_for.h"
@@ -137,6 +138,7 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train(int* workWPos,
 
     const double ratio = parameter->_ratio;
     const int itr = parameter->_itr;
+    double timeout = parameter->_timeout;
 
     /* create the mutex for WData and HData */
     services::SharedPtr<currentMutex_t> mutex_w(new currentMutex_t[dim_w]);
@@ -164,6 +166,8 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train(int* workWPos,
 
     MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, dim_r, learningRate, lambda, mutex_w.get(), mutex_h.get(), Avx_explicit, step, dim_set);
     mfsgd.setItr(itr);
+    mfsgd.setTimeStart(tbb::tick_count::now());
+    mfsgd.setTimeOut(timeout);
 
     struct timespec ts1;
 	struct timespec ts2;

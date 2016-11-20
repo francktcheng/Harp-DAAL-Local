@@ -79,7 +79,11 @@ JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cSetIsTr
 	((mf_sgd::Parameter*)parAddr)->_isTrain = isTrain;
 }
 
-
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cSetTimer
+(JNIEnv *env, jobject thisObj, jlong parAddr, jdouble timeout)
+{
+	((mf_sgd::Parameter*)parAddr)->_timeout = timeout;
+}
 
 
 

@@ -128,6 +128,18 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
         cSetIsTrain(this.cObject, isTrain);
     }
 
+    /**
+     * @brief set up the timer (seconds) 
+     * for distributed mode
+     *
+     * @param timeout
+     *
+     * @return 
+     */
+    public void setTimer(double timeout) {
+        cSetTimer(this.cObject, timeout);
+    }
+
     private native void cSetParameters(long parAddr, double learningRate, double lambda, long Dim_r, long Dim_w, long Dim_h, int iteration, int thread_num, int tbb_grainsize, 
 			int Avx_explicit );
 
@@ -140,5 +152,7 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
     private native void cSetInnerNum(long parAddr, int innerNum);
 
     private native void cSetIsTrain(long parAddr, int isTrain);
+
+    private native void cSetTimer(long parAddr, double timeout);
 
 }

@@ -41,7 +41,7 @@ namespace mf_sgd
 
 namespace interface1
 {
-/** @defgroup mf_sgd_knl_snc Batch
+/** @defgroup mf_sgd_knl_snc Distri
 * @ingroup mf_sgd_without_pivoting
 * @{
 */

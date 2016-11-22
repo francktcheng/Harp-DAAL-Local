@@ -52,7 +52,8 @@ template void Input::convert_format<DAAL_FPTYPE>(std::unordered_map<int64_t, std
 						            mf_sgd::VPoint<DAAL_FPTYPE>* points_Train,  
 						            mf_sgd::VPoint<DAAL_FPTYPE>* points_Test, 
 						            int64_t &row_num_w, 
-						            int64_t &col_num_h);
+						            int64_t &col_num_h,
+                                    size_t &absent_test_num);
 
 template void Input::freeData<DAAL_FPTYPE>(std::unordered_map<int64_t, std::vector<mf_sgd::VPoint<DAAL_FPTYPE>*>*> &map);
 

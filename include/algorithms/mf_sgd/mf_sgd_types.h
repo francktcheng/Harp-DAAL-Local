@@ -206,6 +206,7 @@ public:
 	 * @param[in,out] points_Test allocated array of points that stores VPoints converted from loaded data
 	 * @param[out] row_num_w row num of W model for train data
 	 * @param[out] col_num_h col num of H model for train data 
+	 * @param[out] absent_num_test num of test points whose row or column are not included in Training dataset 
 	 */
 	template <typename algorithmFPType>
     void convert_format(std::unordered_map<int64_t, std::vector<mf_sgd::VPoint<algorithmFPType>*>*> &map_train,
@@ -215,7 +216,8 @@ public:
 						mf_sgd::VPoint<algorithmFPType>* points_Train,  
 						mf_sgd::VPoint<algorithmFPType>* points_Test, 
 						int64_t &row_num_w, 
-						int64_t &col_num_h);
+						int64_t &col_num_h,
+                        size_t &absent_num_test);
      /**
 	 * @brief Convert loaded data from CSV files into mf_sgd::VPoint format
 	 * implemented in mf_sgd_default_distri.h
@@ -434,6 +436,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _innerNum = 0;
         _isTrain = 1;
         _timeout = 0;
+        _absent_test_num = 0;
     }
 
     virtual ~Parameter() {}
@@ -529,6 +532,16 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _timeout = timeout;
     }
 
+    /**
+     * @brief set up the absent num of test points
+     *
+     * @param absent_test_num
+     */
+    void setAbsentTestNum(size_t absent_test_num)
+    {
+        _absent_test_num = absent_test_num;
+    }
+
     double		_learningRate;                    /* the rate of learning by SGD  */
     double		_lambda;                          /* the lambda parameter in standard SGD */
     double      _ratio;                           /* control the percentage of tasks to execute */
@@ -544,6 +557,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     size_t      _innerNum;						  /* total num of inner training iteration, used in distributed mode, e.g., model rotation */
     int         _isTrain;                         /* used in distributed mode, 1 for training task, 0 for test task */
     double      _timeout;                         /* timer to control the actual execution time for each threads */
+    size_t      _absent_test_num;                 /* num of test points whose row and col id not included in training dataset */
 
 };
 /** @} */

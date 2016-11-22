@@ -227,7 +227,7 @@ public final class Input extends com.intel.daal.algorithms.Input {
      * @param table_train
      * @param table_test
      *
-     * @return 
+     * @return para_out para_out[0] row num, para_out[1] col num, para_out[2] absent test num
      */
 	public int[] convert_format(VPoint[] points_Train, int num_Train, VPoint[] points_Test, int num_Test, ArrayList<VPoint>  table_train, ArrayList<VPoint> table_test)
 	{//{{{
@@ -242,7 +242,7 @@ public final class Input extends com.intel.daal.algorithms.Input {
 		int col_pos = 0;
 		int entry_itr = 0;
 
-		int[] row_col_num = new int[2];
+		int[] para_out = new int[3];
 
 		//loop over table_train 
 		for(int j=0;j<table_train.size();j++)
@@ -282,10 +282,13 @@ public final class Input extends com.intel.daal.algorithms.Input {
 
 		}
 
-		row_col_num[0] = row_pos_itr;
-		row_col_num[1] = col_pos_itr;
+		para_out[0] = row_pos_itr;
+		para_out[1] = col_pos_itr;
 
 		entry_itr = 0;
+
+        int is_absent = 0;
+        int absent_num = 0;
 
 		//loop over table_test 
 		for(int j=0;j<table_test.size();j++)
@@ -296,14 +299,26 @@ public final class Input extends com.intel.daal.algorithms.Input {
 			float value = table_test.get(j)._val;	
 
 			if (vMap_row_w.containsKey(wPos) == false)
+            {
 				row_pos = -1;
+                is_absent++;
+            }
 			else
 				row_pos = vMap_row_w.get(wPos).intValue();
 
 			if (vMap_col_h.containsKey(hPos) == false)
+            {
 				col_pos = -1;
+                is_absent++;
+            }
 			else
 				col_pos = vMap_col_h.get(hPos).intValue();
+
+            if (is_absent != 0)
+            {
+                is_absent = 0;
+                absent_num++;
+            }
 
 			points_Test[entry_itr]._wPos = row_pos;
 			points_Test[entry_itr]._hPos = col_pos;
@@ -313,7 +328,8 @@ public final class Input extends com.intel.daal.algorithms.Input {
 
 		}
 
-		return row_col_num;
+        para_out[2] = absent_num;
+		return para_out;
 
 	}//}}}
 

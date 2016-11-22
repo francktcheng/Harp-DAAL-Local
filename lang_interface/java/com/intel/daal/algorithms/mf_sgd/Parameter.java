@@ -140,6 +140,17 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
         cSetTimer(this.cObject, timeout);
     }
 
+    /**
+     * @brief set up the number of absent points in test dataset
+     *
+     * @param absentNum
+     *
+     * @return 
+     */
+    public void setAbsentTestNum(int absentNum) {
+        cSetAbsentTestNum(this.cObject, absentNum);
+    }
+
     private native void cSetParameters(long parAddr, double learningRate, double lambda, long Dim_r, long Dim_w, long Dim_h, int iteration, int thread_num, int tbb_grainsize, 
 			int Avx_explicit );
 
@@ -154,5 +165,7 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
     private native void cSetIsTrain(long parAddr, int isTrain);
 
     private native void cSetTimer(long parAddr, double timeout);
+
+    private native void cSetAbsentTestNum(long parAddr, int absentNum);
 
 }

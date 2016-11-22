@@ -84,12 +84,14 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(const NumericTable** Tr
     const int thread_num = parameter->_thread_num;
     const int tbb_grainsize = parameter->_tbb_grainsize;
     const int Avx_explicit = parameter->_Avx_explicit;
+    const size_t absent_test_num = parameter->_absent_test_num;
 
     const double ratio = parameter->_ratio;
     const int itr = parameter->_itr;
 
     const int dim_train = TrainSet[0]->getNumberOfRows();
     const int dim_test = TestSet[0]->getNumberOfRows();
+
 
     /*  Retrieve Training Data Set */
     FeatureMicroTable<int, readOnly, cpu> workflowW_ptr(TrainSet[0]);
@@ -195,7 +197,7 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(const NumericTable** Tr
     for(int k=0;k<dim_test;k++)
         totalRMSE += testRMSE_ptr[k];
 
-    totalRMSE = totalRMSE/dim_test;
+    totalRMSE = totalRMSE/(dim_test - absent_test_num);
 
     std::printf("RMSE before interation: %f\n", sqrt(totalRMSE));
     std::fflush(stdout);
@@ -244,7 +246,7 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr(const NumericTable** Tr
         for(int k=0;k<dim_test;k++)
             totalRMSE += testRMSE_ptr[k];
 
-        totalRMSE = totalRMSE/dim_test;
+        totalRMSE = totalRMSE/(dim_test - absent_test_num);
         std::printf("RMSE after interation %d: %f, train time: %f\n", j, sqrt(totalRMSE), static_cast<double>(diff/1000000L));
         std::fflush(stdout);
     }

@@ -219,7 +219,8 @@ void Input::convert_format(std::unordered_map<int64_t, std::vector<mf_sgd::VPoin
 						mf_sgd::VPoint<algorithmFPType>* points_Train,  
 						mf_sgd::VPoint<algorithmFPType>* points_Test, 
 						int64_t &row_num_w, 
-						int64_t &col_num_h)
+						int64_t &col_num_h,
+                        size_t &absent_num_test)
 {/*{{{*/
 
     std::unordered_map<int64_t, int64_t> vMap_row_w;
@@ -283,6 +284,7 @@ void Input::convert_format(std::unordered_map<int64_t, std::vector<mf_sgd::VPoin
 
     /* iteration over test data map */
     entry_itr = 0;
+    int is_absent = 0;
     for (it_map = map_test.begin(); it_map != map_test.end(); ++it_map) 
     {
         if (it_map->second->empty() == false)
@@ -297,6 +299,7 @@ void Input::convert_format(std::unordered_map<int64_t, std::vector<mf_sgd::VPoin
                 {
                     /* not found row id */
                     row_pos = -1;
+                    is_absent++;
                 }
                 else
                     row_pos = vMap_row_w[row_id];
@@ -305,9 +308,16 @@ void Input::convert_format(std::unordered_map<int64_t, std::vector<mf_sgd::VPoin
                 {
                     /* not found col id */
                     col_pos = -1;
+                    is_absent++;
                 }
                 else
                     col_pos = vMap_col_h[col_id];
+
+                if (is_absent != 0)
+                {
+                    is_absent = 0;
+                    absent_num_test++;
+                }
 
                 points_Test[entry_itr].wPos = row_pos;
                 points_Test[entry_itr].hPos = col_pos;

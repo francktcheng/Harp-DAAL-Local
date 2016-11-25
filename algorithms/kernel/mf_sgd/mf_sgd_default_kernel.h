@@ -71,9 +71,31 @@ public:
     void compute(const NumericTable** TrainSet, const NumericTable** TestSet,
                  NumericTable *r[], const daal::algorithms::Parameter *par);
 
+    /**
+     * @brief regroup the train dataset points by their row id
+     *
+     * @param trainWPos
+     * @param trainHPos
+     * @param trainV
+     * @param train_num
+     * @param parameter
+     */
+    void reorder(int* trainWPos, int* trainHPos, interm* trainV, const int train_num, const Parameter *parameter);
+
     /* a multi-threading version of compute implemented by TBB */
-    void compute_thr(const NumericTable** TrainSet,const NumericTable** TestSet,
-                 NumericTable *r[], const daal::algorithms::Parameter *par);
+    void compute_thr(int* trainWPos, int* trainHPos, interm* trainV, const int train_num,
+                     int* testWPos, int* testHPos, interm* testV, const int test_num,
+                     interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter);
+
+    /* a multi-threading version of compute implemented by TBB with reordered training dataset points */
+    void compute_thr_reordered(int* testWPos, int* testHPos, interm* testV, const int test_num,
+                               interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter);
+
+private:
+
+    services::SharedPtr<std::vector<int> > _trainWQueue;
+    services::SharedPtr<std::vector<int*> > _trainHQueue;
+    services::SharedPtr<std::vector<interm*> > _trainVQueue;
 
 };
 

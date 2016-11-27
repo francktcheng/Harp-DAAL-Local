@@ -71,9 +71,32 @@ public:
     void compute(const NumericTable** TrainSet, const NumericTable** TestSet,
                  NumericTable *r[], const daal::algorithms::Parameter *par);
 
+    /**
+     * @brief regroup the train dataset points by their row id
+     *
+     * @param trainWPos
+     * @param trainHPos
+     * @param trainV
+     * @param train_num
+     * @param parameter
+     */
+    void reorder(int* trainWPos, int* trainHPos, interm* trainV, const int train_num, const Parameter *parameter);
+
     /* a multi-threading version of compute implemented by TBB */
-    void compute_thr(const NumericTable** TrainSet,const NumericTable** TestSet,
-                 NumericTable *r[], const daal::algorithms::Parameter *par);
+    void compute_thr(int* trainWPos, int* trainHPos, interm* trainV, const int train_num,
+                     int* testWPos, int* testHPos, interm* testV, const int test_num,
+                     interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter);
+
+    /* a multi-threading version of compute implemented by TBB with reordered training dataset points */
+    void compute_thr_reordered(int* testWPos, int* testHPos, interm* testV, const int test_num,
+                               interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter);
+
+private:
+
+    services::SharedPtr<std::vector<int> > _trainWQueue;
+    services::SharedPtr<std::vector<int> > _trainLQueue;
+    services::SharedPtr<std::vector<int*> > _trainHQueue;
+    services::SharedPtr<std::vector<interm*> > _trainVQueue;
 
 };
 
@@ -174,6 +197,72 @@ struct MFSGDTBB
     int _itr;               /* iteration id  */
     tbb::tick_count _timeStart = tbb::tick_count::now();
     double _timeOut = 0;
+
+    currentMutex_t* _mutex_w;
+    currentMutex_t* _mutex_h;
+
+};
+
+template<typename interm, CpuType cpu>
+struct MFSGDTBBREORDER
+{
+   /* default constructor */ 
+    MFSGDTBBREORDER(
+            interm* mtWDataTable,
+            interm* mtHDataTable,
+            int* queueWPos,
+            int* queueLength,
+            int** queueHPos,
+            interm** queueVVal,
+            const long Dim,
+            const interm learningRate,
+            const interm lambda,
+            currentMutex_t* mutex_w,
+            currentMutex_t* mutex_h,
+            const int Avx_explicit
+            // const int step,
+            // const int dim_train
+            );
+
+	/**
+	 * @brief operator used by parallel_for template
+	 *
+	 * @param[in] range range of parallel block to execute by a thread
+	 */
+    void operator()( const blocked_range<int>& range ) const; 
+
+	
+	/**
+	 * @brief set up the id of iteration
+	 * used in distributed mode
+	 *
+	 * @param itr
+	 */
+    // void setItr(int itr) { _itr = itr;}
+    
+    // void setTimeStart(tbb::tick_count timeStart) {_timeStart = timeStart;}
+
+    // void setTimeOut(double timeOut) {_timeOut = timeOut;}
+
+    interm* _mtWDataTable;  /* model W */
+    interm* _mtHDataTable;  /* model H */
+
+    int* _queueWPos;        /* row id of W for each queue */
+    int* _queueLength;		/* num of cols for each row */
+    int** _queueHPos;       /* col ids of H for each queue */
+    interm** _queueVVal;    /* value of points for each queue */
+
+    long _Dim;              /* dimension of vector in model W and H */
+    interm _learningRate;
+    interm _lambda;
+
+    int _Avx_explicit;   /* 1 if use explicit avx intrincis 0 if use compiler vectorization */
+
+    // int _step;              /* stride of tasks if only part of tasks are executed */
+    // int _dim_train;         /* total number of tasks */
+    // int _itr;               /* iteration id  */
+    // tbb::tick_count _timeStart = tbb::tick_count::now();
+    // double _timeOut = 0;
 
     currentMutex_t* _mutex_w;
     currentMutex_t* _mutex_h;

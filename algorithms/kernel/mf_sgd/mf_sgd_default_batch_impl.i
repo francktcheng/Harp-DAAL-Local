@@ -120,17 +120,20 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute(const NumericTable** TrainS
     interm* mtHDataPtr = 0;
     mtHDataTable.getBlockOfRows(0, dim_h, &mtHDataPtr);
 
-    MF_SGDBatchKernel<interm, method, cpu>::reorder(workWPos, workHPos, workV, dim_train, parameter);
-
-    MF_SGDBatchKernel<interm, method, cpu>::compute_thr_reordered(testWPos, testHPos, testV, dim_test, mtWDataPtr, mtHDataPtr, parameter);
-    // MF_SGDBatchKernel<interm, method, cpu>::compute_thr(workWPos, workHPos, workV, dim_train, testWPos, testHPos, testV, dim_test, mtWDataPtr, mtHDataPtr, parameter);
+    if (parameter->_isReorder == 1 )
+    {
+        MF_SGDBatchKernel<interm, method, cpu>::reorder(workWPos, workHPos, workV, dim_train, parameter);
+        MF_SGDBatchKernel<interm, method, cpu>::compute_thr_reordered(testWPos, testHPos, testV, dim_test, mtWDataPtr, mtHDataPtr, parameter);
+    }
+    else
+        MF_SGDBatchKernel<interm, method, cpu>::compute_thr(workWPos, workHPos, workV, dim_train, testWPos, testHPos, testV, dim_test, mtWDataPtr, mtHDataPtr, parameter);
 
 }/*}}}*/
 
 template <typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
 void MF_SGDBatchKernel<interm, method, cpu>::reorder(int* trainWPos, int* trainHPos, interm* trainV, const int train_num, const Parameter *parameter)
 {
-    const int length = 100;
+    const int length = parameter->_reorder_length;
     const int64_t dim_w = parameter->_Dim_w;
  
     services::SharedPtr<std::vector<int>* > trainHPool(new std::vector<int>*[dim_w]);

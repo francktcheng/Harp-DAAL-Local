@@ -437,6 +437,8 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _isTrain = 1;
         _timeout = 0;
         _absent_test_num = 0;
+        _reorder_length = 0;
+        _isReorder = 0;
     }
 
     virtual ~Parameter() {}
@@ -542,6 +544,26 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _absent_test_num = absent_test_num;
     }
 
+    /**
+     * @brief set up the length of queue in reorder mode
+     *
+     * @param reorder_length
+     */
+    void setReOrderLength(int reorder_length)
+    {
+        _reorder_length = reorder_length;
+    }
+
+    /**
+     * @brief set up whether to use reorder data points or not
+     *
+     * @param isReorder
+     */
+    void setIsReorder(int isReorder)
+    {
+        _isReorder = isReorder;
+    }
+
     double		_learningRate;                    /* the rate of learning by SGD  */
     double		_lambda;                          /* the lambda parameter in standard SGD */
     double      _ratio;                           /* control the percentage of tasks to execute */
@@ -558,6 +580,8 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     int         _isTrain;                         /* used in distributed mode, 1 for training task, 0 for test task */
     double      _timeout;                         /* timer to control the actual execution time for each threads */
     size_t      _absent_test_num;                 /* num of test points whose row and col id not included in training dataset */
+    int         _reorder_length;                  /* length of queue in reorder mode */
+    int         _isReorder;                       /* 1 (true) if it uses reorder mode */
 
 };
 /** @} */

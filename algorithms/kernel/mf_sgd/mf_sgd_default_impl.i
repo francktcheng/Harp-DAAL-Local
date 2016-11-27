@@ -126,6 +126,41 @@ MFSGDTBB<interm, cpu>::MFSGDTBB(
 }/*}}}*/
 
 template<typename interm, CpuType cpu>
+MFSGDTBBREORDER<interm, cpu>::MFSGDTBBREORDER(
+            interm* mtWDataTable,
+            interm* mtHDataTable,
+            int* queueWPos,
+            int* queueLength,
+            int** queueHPos,
+            interm** queueVVal,
+            const long Dim,
+            const interm learningRate,
+            const interm lambda,
+            currentMutex_t* mutex_w,
+            currentMutex_t* mutex_h,
+            const int Avx_explicit
+)
+{/*{{{*/
+
+    _mtWDataTable = mtWDataTable;
+    _mtHDataTable = mtHDataTable;
+
+    _queueWPos = queueWPos;
+    _queueLength = queueLength;
+    _queueHPos = queueHPos;
+    _queueVVal = queueVVal;
+
+    _Dim = Dim;
+    _learningRate = learningRate;
+    _lambda = lambda;
+
+    _mutex_w = mutex_w;
+    _mutex_h = mutex_h;
+    _Avx_explicit = Avx_explicit;
+
+}/*}}}*/
+
+template<typename interm, CpuType cpu>
 void MFSGDTBB<interm, cpu>::operator()( const blocked_range<int>& range ) const 
 {/*{{{*/
 
@@ -179,6 +214,66 @@ void MFSGDTBB<interm, cpu>::operator()( const blocked_range<int>& range ) const
             updateMF_explicit<interm, cpu>(WMat, HMat, workV, index, Dim, learningRate, lambda);
         else
             updateMF<interm, cpu>(WMat, HMat, workV, index, Dim, learningRate, lambda);
+
+        //lock_w.release();
+        //lock_h.release();
+
+    }
+
+}/*}}}*/
+
+template<typename interm, CpuType cpu>
+void MFSGDTBBREORDER<interm, cpu>::operator()( const blocked_range<int>& range ) const 
+{/*{{{*/
+
+    interm *WMat = 0;
+    interm *HMat = 0;
+    interm* workV = 0;
+
+    interm Mult = 0;
+    interm Err = 0;
+    interm WMatVal = 0;
+    interm HMatVal = 0;
+
+    /* using local variables */
+    interm* mtWDataTable = _mtWDataTable;
+    interm* mtHDataTable = _mtHDataTable;
+
+    int* queueWPos = _queueWPos;
+    int* queueLength = _queueLength;
+    int** queueHPos = _queueHPos;
+    interm** queueVVal = _queueVVal;
+
+    long Dim = _Dim;
+    interm learningRate = _learningRate;
+    interm lambda = _lambda;
+
+    for( int i=range.begin(); i!=range.end(); ++i )
+    {
+
+        /* get the row_id for a single queue */
+        int row_id = queueWPos[i];
+        WMat = mtWDataTable + row_id*Dim;
+
+        int qLength = queueLength[i];
+        int* col_ids = queueHPos[i];
+        interm* vals = queueVVal[i];
+
+        for(int j= 0; j<qLength; j++)
+        {
+            HMat = mtHDataTable + col_ids[j]*Dim;
+            updateMF<interm, cpu>(WMat, HMat, vals, j, Dim, learningRate, lambda);
+        }
+
+        /* WMat = mtWDataTable + workWPos[index]*Dim; */
+        /* disable mutual lock to use the asynchronous model pattern */
+        //currentMutex_t::scoped_lock lock_w(_mutex_w[_workWPos[index]]);
+        //currentMutex_t::scoped_lock lock_h(_mutex_h[_workHPos[index]]);
+        
+        //if (_Avx_explicit == 1)
+         //   updateMF_explicit<interm, cpu>(WMat, HMat, workV, index, Dim, learningRate, lambda);
+        //else
+         //   updateMF<interm, cpu>(WMat, HMat, workV, index, Dim, learningRate, lambda);
 
         //lock_w.release();
         //lock_h.release();

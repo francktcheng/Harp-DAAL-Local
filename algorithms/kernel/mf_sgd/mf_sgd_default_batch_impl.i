@@ -121,14 +121,16 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute(const NumericTable** TrainS
     mtHDataTable.getBlockOfRows(0, dim_h, &mtHDataPtr);
 
     MF_SGDBatchKernel<interm, method, cpu>::reorder(workWPos, workHPos, workV, dim_train, parameter);
-    MF_SGDBatchKernel<interm, method, cpu>::compute_thr(workWPos, workHPos, workV, dim_train, testWPos, testHPos, testV, dim_test, mtWDataPtr, mtHDataPtr, parameter);
+
+    MF_SGDBatchKernel<interm, method, cpu>::compute_thr_reordered(testWPos, testHPos, testV, dim_test, mtWDataPtr, mtHDataPtr, parameter);
+    // MF_SGDBatchKernel<interm, method, cpu>::compute_thr(workWPos, workHPos, workV, dim_train, testWPos, testHPos, testV, dim_test, mtWDataPtr, mtHDataPtr, parameter);
 
 }/*}}}*/
 
 template <typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
 void MF_SGDBatchKernel<interm, method, cpu>::reorder(int* trainWPos, int* trainHPos, interm* trainV, const int train_num, const Parameter *parameter)
 {
-    const size_t length = 200;
+    const int length = 100;
     const int64_t dim_w = parameter->_Dim_w;
  
     services::SharedPtr<std::vector<int>* > trainHPool(new std::vector<int>*[dim_w]);
@@ -141,6 +143,7 @@ void MF_SGDBatchKernel<interm, method, cpu>::reorder(int* trainWPos, int* trainH
     }
 
     services::SharedPtr<std::vector<int> > trainWQueue(new std::vector<int>());
+    services::SharedPtr<std::vector<int> > trainLQueue(new std::vector<int>());
     services::SharedPtr<std::vector<int*> > trainHQueue(new std::vector<int*>());
     services::SharedPtr<std::vector<interm*> > trainVQueue(new std::vector<interm*>());
 
@@ -150,22 +153,28 @@ void MF_SGDBatchKernel<interm, method, cpu>::reorder(int* trainWPos, int* trainH
         int h_idx = trainHPos[i];
         interm v_val = trainV[i];
 
-        if (trainHPool.get()[w_idx]->size() > length)
+        if (trainHPool.get()[w_idx]->size() == length)
         {
             /* move vector to trainWQueue */
             int* trainHVec = &(*(trainHPool.get()[w_idx]))[0];
             interm* trainVVec = &(*(trainVPool.get()[w_idx]))[0];
 
             trainWQueue->push_back(w_idx);
+            trainLQueue->push_back(length);
             trainHQueue->push_back(trainHVec);
             trainVQueue->push_back(trainVVec);
 
             trainHPool.get()[w_idx] = new std::vector<int>();
             trainVPool.get()[w_idx] = new std::vector<interm>();
-            
+
+            /* add the new item */
+            trainHPool.get()[w_idx]->push_back(h_idx);
+            trainVPool.get()[w_idx]->push_back(v_val);
+
         }
         else
         {
+            /* add the new item */
             trainHPool.get()[w_idx]->push_back(h_idx);
             trainVPool.get()[w_idx]->push_back(v_val);
         }
@@ -179,6 +188,7 @@ void MF_SGDBatchKernel<interm, method, cpu>::reorder(int* trainWPos, int* trainH
         interm* trainVVec = &(*(trainVPool.get()[i]))[0];
 
         trainWQueue->push_back(i);
+        trainLQueue->push_back(trainHPool.get()[i]->size());
         trainHQueue->push_back(trainHVec);
         trainVQueue->push_back(trainVVec);
 
@@ -194,6 +204,7 @@ void MF_SGDBatchKernel<interm, method, cpu>::reorder(int* trainWPos, int* trainH
     std::fflush(stdout);
 
     _trainWQueue = trainWQueue;
+    _trainLQueue = trainLQueue;
     _trainHQueue = trainHQueue;
     _trainVQueue = trainVQueue;
 
@@ -223,8 +234,25 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr_reordered(int* testWPos
     /* get the reordered training data points */
     const int train_queue_size = _trainWQueue->size(); 
     int* train_queue_wPos = &(*(_trainWQueue.get()))[0];
+    int* train_queue_length = &(*(_trainLQueue.get()))[0];
     int** train_queue_hPos = &(*(_trainHQueue.get()))[0];
     interm** train_queue_vVal = &(*(_trainVQueue.get()))[0];
+
+    /* debug test the vals of reordered points */
+    // for(int j=train_queue_size-1;j>train_queue_size-5;j--)
+    // {
+    //
+    //     std::printf("Processing Row ID: %d\n", train_queue_wPos[j]);
+    //     std::fflush(stdout);
+    //
+    //     for(int k=0;k<train_queue_length[j];k++)
+    //     {
+    //         std::printf("Processing Row: %d, Col: %d, Val: %f\n", train_queue_wPos[j], (train_queue_hPos[j])[k], (train_queue_vVal[j])[k]);
+    //         std::fflush(stdout);
+    //     }
+    //
+    // }
+
 
     /* create the mutex for WData and HData */
     services::SharedPtr<currentMutex_t> mutex_w(new currentMutex_t[dim_w]);
@@ -259,6 +287,8 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr_reordered(int* testWPos
     static affinity_partitioner ap;
 
     // MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, dim_r, learningRate, lambda, mutex_w.get(), mutex_h.get(), Avx_explicit, step, dim_train);
+    MFSGDTBBREORDER<interm, cpu> mfsgd_reorder(mtWDataPtr, mtHDataPtr, train_queue_wPos, train_queue_length, train_queue_hPos,train_queue_vVal, 
+            dim_r, learningRate, lambda, mutex_w.get(), mutex_h.get(), Avx_explicit);
 
     MFSGDTBB_TEST<interm, cpu> mfsgd_test(mtWDataPtr, mtHDataPtr, testWPos, testHPos, testV, dim_r, testRMSE.get(), mutex_w.get(), mutex_h.get(), Avx_explicit);
 
@@ -304,11 +334,13 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_thr_reordered(int* testWPos
         if (tbb_grainsize != 0)
         {
             // parallel_for(blocked_range<int>(0, dim_ratio, tbb_grainsize), mfsgd);
+            parallel_for(blocked_range<int>(0, train_queue_size, tbb_grainsize), mfsgd_reorder);
         }
         else
         {
             /* parallel_for(blocked_range<int>(0, dim_ratio), mfsgd, auto_partitioner()); */
             // parallel_for(blocked_range<int>(0, dim_ratio), mfsgd, ap);
+            parallel_for(blocked_range<int>(0, train_queue_size), mfsgd_reorder, ap);
         }
 
         clock_gettime(CLOCK_MONOTONIC, &ts2);

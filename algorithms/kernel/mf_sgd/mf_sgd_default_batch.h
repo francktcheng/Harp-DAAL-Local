@@ -33,6 +33,8 @@
 
 #include "mf_sgd_types.h"
 #include "service_rng.h"
+#include <tbb/cache_aligned_allocator.h>
+using namespace tbb;
 
 namespace daal
 {
@@ -54,13 +56,14 @@ DAAL_EXPORT void Result::allocate(const daal::algorithms::Input *input, const da
     size_t Dim_h = par->_Dim_h;
 
     /* allocate NumericTable of model W and H */
-    allocateImpl<algorithmFPType>(Dim_r, Dim_w, Dim_h);
+    // allocateImpl<algorithmFPType>(Dim_r, Dim_w, Dim_h);
+    allocateImpl_cache_aligned<algorithmFPType>(Dim_r, Dim_w, Dim_h);
 
 }
 
 template <typename algorithmFPType>
 DAAL_EXPORT void Result::allocateImpl(size_t r, size_t w, size_t h)
-{
+{/*{{{*/
     /* allocate model W */
     if (r == 0 || w == 0)
     {
@@ -82,7 +85,54 @@ DAAL_EXPORT void Result::allocateImpl(size_t r, size_t w, size_t h)
         Argument::set(resHMat, data_management::SerializationIfacePtr(
                           new data_management::HomogenNumericTable<algorithmFPType>(r, h, data_management::NumericTable::doAllocate)));
     }
-}
+}/*}}}*/
+
+template <typename algorithmFPType>
+DAAL_EXPORT void Result::allocateImpl_cache_aligned(size_t r, size_t w, size_t h)
+{/*{{{*/
+
+    /* allocate model W */
+    if (r == 0 || w == 0)
+    {
+        Argument::set(resWMat, data_management::SerializationIfacePtr());
+    }
+    else
+    {
+        algorithmFPType* w_data = cache_aligned_allocator<algorithmFPType>().allocate(r*w);
+        Argument::set(resWMat, data_management::SerializationIfacePtr(
+                          new data_management::HomogenNumericTable<algorithmFPType>(w_data, r, w)));
+    }
+
+    /* allocate model H */
+    if (r == 0 || h == 0)
+    {
+        Argument::set(resHMat, data_management::SerializationIfacePtr());
+    }
+    else
+    {
+        algorithmFPType* h_data = cache_aligned_allocator<algorithmFPType>().allocate(r*h);
+        Argument::set(resHMat, data_management::SerializationIfacePtr(
+                          new data_management::HomogenNumericTable<algorithmFPType>(h_data, r, h)));
+    }
+
+}/*}}}*/
+
+template <typename algorithmFPType>
+DAAL_EXPORT void Result::freeImpl_cache_aligned(size_t r, size_t w, size_t h)
+{/*{{{*/
+
+        // algorithmFPType* w_data = cache_aligned_allocator<algorithmFPType>().allocate(r*w);
+        data_management::HomogenNumericTable<algorithmFPType>* wMat = (data_management::HomogenNumericTable<algorithmFPType>*)Argument::get(resWMat).get();
+        cache_aligned_allocator<algorithmFPType>().deallocate(wMat->getArray(), r*w);
+
+        data_management::HomogenNumericTable<algorithmFPType>* hMat = (data_management::HomogenNumericTable<algorithmFPType>*)Argument::get(resHMat).get();
+        cache_aligned_allocator<algorithmFPType>().deallocate(hMat->getArray(), r*h);
+
+        // algorithmFPType* h_data = cache_aligned_allocator<algorithmFPType>().allocate(r*h);
+        // Argument::set(resHMat, data_management::SerializationIfacePtr(
+                          // new data_management::HomogenNumericTable<algorithmFPType>(h_data, r, h)));
+
+}/*}}}*/
 
 template <typename algorithmFPType>
 void Input::generate_points(const int64_t num_Train,

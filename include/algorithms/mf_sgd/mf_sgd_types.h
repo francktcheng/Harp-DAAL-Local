@@ -305,6 +305,12 @@ public:
     template <typename algorithmFPType>
     DAAL_EXPORT void allocateImpl(size_t r, size_t w, size_t h);
 
+    template <typename algorithmFPType>
+    DAAL_EXPORT void allocateImpl_cache_aligned(size_t r, size_t w, size_t h);
+
+    template <typename algorithmFPType>
+    DAAL_EXPORT void freeImpl_cache_aligned(size_t r, size_t w, size_t h);
+
 	/**
 	 * @brief get a serialization tag for result
 	 *
@@ -456,7 +462,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 	 * @param tbb_grainsize
 	 * @param Avx_explicit
 	 */
-    void setParameter(double learningRate, double lambda, int64_t Dim_r, int64_t Dim_w, int64_t Dim_h, size_t iteration, size_t thread_num, size_t tbb_grainsize, size_t Avx_explicit)
+    void setParameter(double learningRate, double lambda, size_t Dim_r, size_t Dim_w, size_t Dim_h, size_t iteration, size_t thread_num, size_t tbb_grainsize, size_t Avx_explicit)
     {
 
         _learningRate = learningRate;
@@ -567,9 +573,9 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     double		_learningRate;                    /* the rate of learning by SGD  */
     double		_lambda;                          /* the lambda parameter in standard SGD */
     double      _ratio;                           /* control the percentage of tasks to execute */
-    int64_t     _Dim_r;                           /* the feature dimension of model W and H */
-    int64_t     _Dim_w;                           /* the row num of model W */
-    int64_t     _Dim_h;                           /* the column num of model H */
+    size_t      _Dim_r;                           /* the feature dimension of model W and H */
+    size_t      _Dim_w;                           /* the row num of model W */
+    size_t      _Dim_h;                           /* the column num of model H */
     size_t      _iteration;                       /* the iterations of SGD */
     size_t      _thread_num;                      /* specify the threads used by TBB */
     size_t      _tbb_grainsize;                   /* specify the grainsize for TBB parallel_for */

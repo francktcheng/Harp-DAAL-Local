@@ -34,6 +34,8 @@ namespace interface1
 
 template DAAL_EXPORT void Result::allocate<DAAL_FPTYPE>(const daal::algorithms::Input *input, const daal::algorithms::Parameter *parameter, const int method);
 template DAAL_EXPORT void Result::allocateImpl<DAAL_FPTYPE>(size_t r, size_t w, size_t h );
+template DAAL_EXPORT void Result::allocateImpl_cache_aligned<DAAL_FPTYPE>(size_t r, size_t w, size_t h );
+template DAAL_EXPORT void Result::freeImpl_cache_aligned<DAAL_FPTYPE>(size_t r, size_t w, size_t h );
 
 template void Input::generate_points<DAAL_FPTYPE>(const int64_t num_Train,
 						    const int64_t num_Test, 

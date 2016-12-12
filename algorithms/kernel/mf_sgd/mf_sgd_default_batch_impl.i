@@ -842,7 +842,7 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_openmp(int* workWPos, int* 
     const double learningRate = parameter->_learningRate;
     const double lambda = parameter->_lambda;
     const int iteration = parameter->_iteration;
-    const int thread_num = parameter->_thread_num;
+    int thread_num = parameter->_thread_num;
     const int tbb_grainsize = parameter->_tbb_grainsize;
     const int Avx_explicit = parameter->_Avx_explicit;
     const size_t absent_test_num = parameter->_absent_test_num;
@@ -860,6 +860,13 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_openmp(int* workWPos, int* 
 
     /* step is the stride of choosing tasks in a rotated way */
     const int step = dim_train - dim_ratio;
+
+    int num_thds_max = omp_get_max_threads();
+    std::printf("Max threads number: %d\n", num_thds_max);
+    std::fflush(stdout);
+
+    if (thread_num == 0)
+        thread_num = num_thds_max;
 
     /* Start of test process before first iteration of training */
 

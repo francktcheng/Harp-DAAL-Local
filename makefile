@@ -374,7 +374,8 @@ $(CORE.tmpdir_y)/$(core_y:%.$y=%_link.txt): $(CORE.objs_y) $(if $(OS_is_win),$(C
 $(WORKDIR.lib)/$(core_y):                   $(daaldep.ipp) $(daaldep.vml) $(daaldep.mkl) $(CORE.tmpdir_y)/$(core_y:%.$y=%_link.txt); $(LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 
 $(CORE.objs_a): $(CORE.tmpdir_a)/inc_a_folders.txt
-$(CORE.objs_a): COPT += $(-fPIC) $(-cxx11) $(-Zl) $(-DEBC)
+$(CORE.objs_a): COPT += $(-fPIC) $(-cxx11) $(-Zl) $(-DEBC) 
+$(CORE.objs_a): COPT += -openmp -D_OPENMP  
 $(CORE.objs_a): COPT += -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS
 $(CORE.objs_a): COPT += @$(CORE.tmpdir_a)/inc_a_folders.txt
 $(filter %threading.$o, $(CORE.objs_a)): COPT += -D__DO_TBB_LAYER__
@@ -382,11 +383,8 @@ $(call containing,_nrh, $(CORE.objs_a)): COPT += $(p4_OPT)   -DDAAL_CPU=sse2
 $(call containing,_mrm, $(CORE.objs_a)): COPT += $(mc_OPT)   -DDAAL_CPU=ssse3
 $(call containing,_neh, $(CORE.objs_a)): COPT += $(mc3_OPT)  -DDAAL_CPU=sse42
 $(call containing,_snb, $(CORE.objs_a)): COPT += $(avx_OPT)  -DDAAL_CPU=avx
-# $(call containing,_snb, $(CORE.objs_a)): COPT += -no-vec  -DDAAL_CPU=avx
 $(call containing,_hsw, $(CORE.objs_a)): COPT += $(avx2_OPT) -DDAAL_CPU=avx2
-# $(call containing,_hsw, $(CORE.objs_a)): COPT += -no-vec -DDAAL_CPU=avx2
 $(call containing,_knl, $(CORE.objs_a)): COPT += $(knl_OPT)  -DDAAL_CPU=avx512_mic
-# $(call containing,_knl, $(CORE.objs_a)): COPT += -no-vec -DDAAL_CPU=avx512_mic
 $(call containing,_skx, $(CORE.objs_a)): COPT += $(skx_OPT)  -DDAAL_CPU=avx512
 $(call containing,_flt, $(CORE.objs_a)): COPT += -DDAAL_FPTYPE=float
 $(call containing,_dbl, $(CORE.objs_a)): COPT += -DDAAL_FPTYPE=double

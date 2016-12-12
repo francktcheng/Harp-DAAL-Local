@@ -87,9 +87,20 @@ public:
                      int* testWPos, int* testHPos, interm* testV, const int test_num,
                      interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter);
 
+    /* a multi-threading version of compute implemented by OpenMP */
+    void compute_openmp(int* trainWPos, int* trainHPos, interm* trainV, const int train_num,
+                        int* testWPos, int* testHPos, interm* testV, const int test_num,
+                        interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter);
+
     /* a multi-threading version of compute implemented by TBB with reordered training dataset points */
     void compute_thr_reordered(int* testWPos, int* testHPos, interm* testV, const int test_num,
                                interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter);
+
+    /* a multi-threading version of compute implemented by OpenMP with reordered training dataset points */
+    void compute_openmp_reordered(int* testWPos, int* testHPos, interm* testV, const int test_num,
+                               interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter);
+
+    void free_reordered();
 
 private:
 

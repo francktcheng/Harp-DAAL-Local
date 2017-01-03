@@ -179,6 +179,8 @@ struct MFSGDTBB
 
     void setTimeOut(double timeOut) {_timeOut = timeOut;}
 
+    void setOrder(int* order) {_order = order;}
+
     interm* _mtWDataTable;  /* model W */
     interm* _mtHDataTable;  /* model H */
 
@@ -200,6 +202,7 @@ struct MFSGDTBB
 
     currentMutex_t* _mutex_w;
     currentMutex_t* _mutex_h;
+    int* _order = NULL;
 
 };
 

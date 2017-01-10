@@ -180,6 +180,8 @@ void MFSGDTBB<interm, cpu>::operator()( const blocked_range<int>& range ) const
     int* workHPos = _workHPos;
     interm* workV = _workV;
 
+    int* order = _order;
+
     long Dim = _Dim;
     interm learningRate = _learningRate;
     interm lambda = _lambda;
@@ -201,22 +203,25 @@ void MFSGDTBB<interm, cpu>::operator()( const blocked_range<int>& range ) const
 
         /* index is ajusted according to the iteration id and ratio of  */
         /* computed tasks in each iteration */
+        /* if (order == NULL) */
         index = (i + itr*step)%dim_train;
+        /* else */
+            /* index = order[(i + itr*step)%dim_train]; */
 
         WMat = mtWDataTable + workWPos[index]*Dim;
         HMat = mtHDataTable + workHPos[index]*Dim;
 
         /* disable mutual lock to use the asynchronous model pattern */
-        //currentMutex_t::scoped_lock lock_w(_mutex_w[_workWPos[index]]);
-        //currentMutex_t::scoped_lock lock_h(_mutex_h[_workHPos[index]]);
+        currentMutex_t::scoped_lock lock_w(_mutex_w[_workWPos[index]]);
+        currentMutex_t::scoped_lock lock_h(_mutex_h[_workHPos[index]]);
         
         if (_Avx_explicit == 1)
             updateMF_explicit<interm, cpu>(WMat, HMat, workV, index, Dim, learningRate, lambda);
         else
             updateMF<interm, cpu>(WMat, HMat, workV, index, Dim, learningRate, lambda);
 
-        //lock_w.release();
-        //lock_h.release();
+        lock_w.release();
+        lock_h.release();
 
     }
 

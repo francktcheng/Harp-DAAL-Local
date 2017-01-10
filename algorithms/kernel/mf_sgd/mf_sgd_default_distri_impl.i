@@ -29,6 +29,8 @@
 #include <algorithm>
 #include <cstdlib> 
 #include <iostream>
+#include <algorithm>
+#include <ctime>        
 
 #include "service_lapack.h"
 #include "service_memory.h"
@@ -164,10 +166,22 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train(int* workWPos,
     /* step is the stride of choosing tasks in a rotated way */
     const int step = dim_set - dim_ratio;
 
+    /* randomize the execution order */
+    services::SharedPtr<int> random_index(new int[dim_set]); 
+    int* random_index_ptr = random_index.get();
+    for(int j=0;j<dim_set;j++)
+        random_index_ptr[j] = j;
+
+    /* std::srand ( unsigned (std::time(0))); */
+    /* std::random_shuffle(random_index_ptr,random_index_ptr + dim_set - 1); */
+
     MFSGDTBB<interm, cpu> mfsgd(mtWDataPtr, mtHDataPtr, workWPos, workHPos, workV, dim_r, learningRate, lambda, mutex_w.get(), mutex_h.get(), Avx_explicit, step, dim_set);
     mfsgd.setItr(itr);
     mfsgd.setTimeStart(tbb::tick_count::now());
     mfsgd.setTimeOut(timeout);
+
+    /* test randomize order */
+    /* mfsgd.setOrder(random_index_ptr); */
 
     struct timespec ts1;
 	struct timespec ts2;

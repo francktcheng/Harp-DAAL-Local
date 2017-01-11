@@ -75,6 +75,7 @@ y      := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 -Q     := $(if $(OS_is_win),$(if $(COMPILER_is_vc),-,-Q),-)
 -cxx11 := $(if $(COMPILER_is_vc),,$(-Q)std=c++11)
 -fPIC  := $(if $(OS_is_win),,-fPIC)
+-DPIC  := $(if $(OS_is_win),,-DPIC)
 -Zl    := $(-Zl.$(COMPILER))
 -DEBC  := $(if $(REQDBG),$(-DEBC.$(COMPILER)))
 -DEBJ  := $(if $(REQDBG),-g,-g:none)
@@ -193,7 +194,8 @@ daaldep.lnx32e.mkl.seq := $(VMLDIR.libia)/$(plib)daal_mkl_sequential.$a
 daaldep.lnx32e.mkl := $(VMLDIR.libia)/$(plib)daal_vmlipp_core.$a
 daaldep.lnx32e.vml := 
 daaldep.lnx32e.ipp := 
-daaldep.lnx32e.rt  := -L$(TBBDIR.libia) -ltbb -ltbbmalloc -lpthread $(daaldep.lnx32e.rt.$(COMPILER))
+# daaldep.lnx32e.rt  := -L$(TBBDIR.libia) -ltbb -ltbbmalloc -lpthread $(daaldep.lnx32e.rt.$(COMPILER))
+daaldep.lnx32e.rt  := -L$(TBBDIR.libia) -ltbb -ltbbmalloc -liomp5 -lpthread $(daaldep.lnx32e.rt.$(COMPILER))
 
 daaldep.lnx32.mkl.thr := $(VMLDIR.libia)/$(plib)daal_mkl_thread.$a    
 daaldep.lnx32.mkl.seq := $(VMLDIR.libia)/$(plib)daal_mkl_sequential.$a
@@ -375,9 +377,9 @@ $(WORKDIR.lib)/$(core_y):                   $(daaldep.ipp) $(daaldep.vml) $(daal
 
 $(CORE.objs_a): $(CORE.tmpdir_a)/inc_a_folders.txt
 $(CORE.objs_a): COPT += $(-fPIC) $(-cxx11) $(-Zl) $(-DEBC) 
-$(CORE.objs_a): COPT += -qopenmp -D_OPENMP  
 $(CORE.objs_a): COPT += -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS
 $(CORE.objs_a): COPT += @$(CORE.tmpdir_a)/inc_a_folders.txt
+$(CORE.objs_a): COPT += -qopenmp -D_OPENMP  
 $(filter %threading.$o, $(CORE.objs_a)): COPT += -D__DO_TBB_LAYER__
 $(call containing,_nrh, $(CORE.objs_a)): COPT += $(p4_OPT)   -DDAAL_CPU=sse2
 $(call containing,_mrm, $(CORE.objs_a)): COPT += $(mc_OPT)   -DDAAL_CPU=ssse3
@@ -580,12 +582,16 @@ $(JNI.Jheaders): pkg.class = $(subst /,.,$(subst $(JNI.tmpdir)/,,./$(call patsub
 $(JNI.Jheaders): $(WORKDIR.lib)/$(daal_jar) | $$(@D)/.
 	javah -force -classpath $(JAVA.tmpdir) -o $@ $(pkg.class)
 
-$(WORKDIR.lib)/$(jni_so): LOPT += $(-fPIC)
+# add openmp opts
+$(WORKDIR.lib)/$(jni_so): LOPT += -qopenmp $(-DPIC) -D_OPENMP
+$(WORKDIR.lib)/$(jni_so): LOPT += $(-fPIC) 
 $(WORKDIR.lib)/$(jni_so): LOPT += $(daaldep.rt) $(daaldep.mkl.thr)
 $(JNI.tmpdir)/$(jni_so:%.$y=%_link.txt): $(JNI.objs) $(if $(OS_is_win),$(JNI.tmpdir)/dll.res,) $(WORKDIR.lib)/$(core_a) $(WORKDIR.lib)/$(thr_tbb_a) ; $(WRITE.PREREQS)
 $(WORKDIR.lib)/$(jni_so):                $(JNI.tmpdir)/$(jni_so:%.$y=%_link.txt); $(LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 
 $(JNI.objs): $(JNI.tmpdir)/inc_j_folders.txt
+# add openmp opts
+$(JNI.objs): COPT += -qopenmp $(-DPIC) -D_OPENMP 
 $(JNI.objs): COPT += $(-fPIC) $(-cxx11) $(-Zl) $(-DEBC) -DDAAL_NOTHROW_EXCEPTIONS
 $(JNI.objs): COPT += @$(JNI.tmpdir)/inc_j_folders.txt
 

@@ -141,6 +141,21 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
     }
 
     /**
+     * @brief set up the choice of re-order
+     * 1: TBB with re-order
+     * 2: OpenMP with re-order
+     * 3: OpenMP -no-re-order
+     * default: TBB -no-re-order
+     *
+     * @param isReorder
+     *
+     * @return 
+     */
+    public void setIsReorder(int isReorder) {
+        cSetIsReorder(this.cObject, isReorder);
+    }
+
+    /**
      * @brief set up the number of absent points in test dataset
      *
      * @param absentNum
@@ -165,6 +180,8 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
     private native void cSetIsTrain(long parAddr, int isTrain);
 
     private native void cSetTimer(long parAddr, double timeout);
+
+    private native void cSetIsReorder(long parAddr, int isReorder);
 
     private native void cSetAbsentTestNum(long parAddr, int absentNum);
 

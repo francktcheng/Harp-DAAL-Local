@@ -85,6 +85,12 @@ JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cSetTime
 	((mf_sgd::Parameter*)parAddr)->_timeout = timeout;
 }
 
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cSetIsReorder
+(JNIEnv *env, jobject thisObj, jlong parAddr, jint isReorder)
+{
+	((mf_sgd::Parameter*)parAddr)->_isReorder = isReorder;
+}
+
 JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cSetAbsentTestNum
 (JNIEnv *env, jobject thisObj, jlong parAddr, jint absentNum)
 {

@@ -137,8 +137,14 @@ public:
     /* a multi-threading version of training process implemented by TBB */
     void compute_train(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter);
 
+    /* a multi-threading version of training process implemented by OpenMP */
+    void compute_train_omp(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter);
+
     /* a multi-threading version of testing process implemented by TBB */
     void compute_test(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, interm* mtRMSEPtr,const Parameter *parameter);
+
+    /* a multi-threading version of testing process implemented by OpenMP */
+    void compute_test_omp(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, interm* mtRMSEPtr,const Parameter *parameter);
 
 };
 

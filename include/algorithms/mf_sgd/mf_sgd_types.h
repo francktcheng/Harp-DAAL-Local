@@ -562,7 +562,10 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 
     /**
      * @brief set up whether to use reorder data points or not
-     *
+     * 1: TBB with re-order
+     * 2: OpenMP with re-order
+     * 3: OpenMP -no-re-order
+     * default: TBB -no-re-order
      * @param isReorder
      */
     void setIsReorder(int isReorder)

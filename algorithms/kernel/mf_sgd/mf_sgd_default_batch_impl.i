@@ -32,6 +32,7 @@
 #include <iostream>
 #include <vector>
 #include <omp.h>
+#include <immintrin.h>
 
 #include "service_lapack.h"
 #include "service_memory.h"
@@ -569,6 +570,7 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_openmp_reordered(int* testW
             int* col_ids = queueHPos[k];
             interm* vals = queueVVal[k];
 
+            /* #pragma prefetch vals:1:2 */
             for(int q= 0; q<qLength; q++)
             {
 
@@ -961,14 +963,13 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_openmp(int* workWPos, int* 
 
         /* start of training process by OpenMP*/
         /* #pragma omp parallel for schedule(dynamic, 10000) num_threads(thread_num)  */
+
         #pragma omp parallel for schedule(guided) num_threads(thread_num) 
         for(int k=0;k<dim_ratio;k++)
         {
 
             interm *WMat = 0;
             interm *HMat = 0;
-            /* interm WMat[200]; */
-            /* interm HMat[200]; */
 
             interm Mult = 0;
             interm Err = 0;
@@ -976,7 +977,6 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_openmp(int* workWPos, int* 
             interm HMatVal = 0;
             int p = 0;
 
-            /* using local variables */
             interm* mtWDataLocal = mtWDataPtr;
             interm* mtHDataLocal = mtHDataPtr;
 
@@ -990,26 +990,43 @@ void MF_SGDBatchKernel<interm, method, cpu>::compute_openmp(int* workWPos, int* 
 
             WMat = mtWDataLocal + workWPosLocal[k]*Dim;
             HMat = mtHDataLocal + workHPosLocal[k]*Dim;
-            /* std::memcpy(WMat, mtWDataLocal + workWPosLocal[k]*Dim, Dim*sizeof(interm)); */
-            /* std::memcpy(HMat, mtHDataLocal + workHPosLocal[k]*Dim, Dim*sizeof(interm)); */
+
 
             for(p = 0; p<Dim; p++)
                 Mult += (WMat[p]*HMat[p]);
 
-            Err = workVLocal[k] - Mult;
+            /* for(p = 0; p<Dim; p++) */
+            /* { */
+            /*     Mult += (mtWDataLocal[workWPosLocal[k]*Dim + p]*mtHDataLocal[workHPosLocal[k]*Dim + p]); */
+            /* } */
 
+            Err = workVLocal[k] - Mult;
+            /* Err = workV[k] - Mult; */
+
+            /* #pragma prefetch WMat:1:2 */
+            /* #pragma prefetch HMat:1:2 */
             for(p = 0;p<Dim;p++)
             {
+                /* prefetching data by intrinsics */
+                /* _mm_prefetch((const char *)&WMat[p+2],_MM_HINT_T0); */
+                /* _mm_prefetch((const char *)&HMat[p+2],_MM_HINT_T0); */
+
                 WMatVal = WMat[p];
                 HMatVal = HMat[p];
+                /* WMatVal = mtWDataLocal[workWPosLocal[k]*Dim + p]; */
+                /* HMatVal = mtHDataLocal[workHPosLocal[k]*Dim + p]; */
 
                 WMat[p] = WMatVal + learningRateLocal*(Err*HMatVal - lambdaLocal*WMatVal);
                 HMat[p] = HMatVal + learningRateLocal*(Err*WMatVal - lambdaLocal*HMatVal);
+                /* mtWDataLocal[workWPosLocal[k]*Dim + p] = WMatVal + learningRateLocal*(Err*HMatVal - lambdaLocal*WMatVal); */
+                /* mtHDataLocal[workHPosLocal[k]*Dim + p] = HMatVal + learningRateLocal*(Err*WMatVal - lambdaLocal*HMatVal); */
+
+
+                /* WMat[p] = WMatVal + learningRateLocal*(Err*HMatVal - lambdaLocal*WMatVal); */
+                /* HMat[p] = HMatVal + learningRateLocal*(Err*WMatVal - lambdaLocal*HMatVal); */
 
             }
 
-            /* std::memcpy(mtWDataLocal + workWPosLocal[k]*Dim, WMat, Dim*sizeof(interm)); */
-            /* std::memcpy(mtHDataLocal + workHPosLocal[k]*Dim, HMat, Dim*sizeof(interm)); */
 
         }
 

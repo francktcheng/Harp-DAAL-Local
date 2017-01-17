@@ -85,6 +85,7 @@ DAAL_EXPORT void Result::allocateImpl(size_t r, size_t w, size_t h)
         Argument::set(resHMat, data_management::SerializationIfacePtr(
                           new data_management::HomogenNumericTable<algorithmFPType>(r, h, data_management::NumericTable::doAllocate)));
     }
+
 }/*}}}*/
 
 template <typename algorithmFPType>
@@ -99,6 +100,7 @@ DAAL_EXPORT void Result::allocateImpl_cache_aligned(size_t r, size_t w, size_t h
     else
     {
         algorithmFPType* w_data = cache_aligned_allocator<algorithmFPType>().allocate(r*w);
+        // algorithmFPType* w_data = (algorithmFPType*) _mm_malloc(r*w*sizeof(algorithmFPType), 64);
         Argument::set(resWMat, data_management::SerializationIfacePtr(
                           new data_management::HomogenNumericTable<algorithmFPType>(w_data, r, w)));
     }
@@ -111,6 +113,7 @@ DAAL_EXPORT void Result::allocateImpl_cache_aligned(size_t r, size_t w, size_t h
     else
     {
         algorithmFPType* h_data = cache_aligned_allocator<algorithmFPType>().allocate(r*h);
+        // algorithmFPType* h_data = (algorithmFPType*) _mm_malloc(r*h*sizeof(algorithmFPType), 64);
         Argument::set(resHMat, data_management::SerializationIfacePtr(
                           new data_management::HomogenNumericTable<algorithmFPType>(h_data, r, h)));
     }
@@ -121,16 +124,13 @@ template <typename algorithmFPType>
 DAAL_EXPORT void Result::freeImpl_cache_aligned(size_t r, size_t w, size_t h)
 {/*{{{*/
 
-        // algorithmFPType* w_data = cache_aligned_allocator<algorithmFPType>().allocate(r*w);
         data_management::HomogenNumericTable<algorithmFPType>* wMat = (data_management::HomogenNumericTable<algorithmFPType>*)Argument::get(resWMat).get();
         cache_aligned_allocator<algorithmFPType>().deallocate(wMat->getArray(), r*w);
+        // _mm_free(wMat->getArray());
 
         data_management::HomogenNumericTable<algorithmFPType>* hMat = (data_management::HomogenNumericTable<algorithmFPType>*)Argument::get(resHMat).get();
         cache_aligned_allocator<algorithmFPType>().deallocate(hMat->getArray(), r*h);
-
-        // algorithmFPType* h_data = cache_aligned_allocator<algorithmFPType>().allocate(r*h);
-        // Argument::set(resHMat, data_management::SerializationIfacePtr(
-                          // new data_management::HomogenNumericTable<algorithmFPType>(h_data, r, h)));
+        // _mm_free(hMat->getArray());
 
 }/*}}}*/
 

@@ -29,8 +29,11 @@
 #include <algorithm>
 #include <cstdlib> 
 #include <iostream>
+#include <cstdio> 
 #include <algorithm>
 #include <ctime>        
+#include <omp.h>
+#include <immintrin.h>
 
 #include "service_lapack.h"
 #include "service_memory.h"
@@ -68,7 +71,7 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute(const NumericTable** WPos,
                                                       const NumericTable** HPos, 
                                                       const NumericTable** Val, 
                                                       NumericTable *r[], const daal::algorithms::Parameter *par)
-{
+{/*{{{*/
     /* retrieve members of parameter */
     const Parameter *parameter = static_cast<const Parameter *>(par);
     const long dim_w = parameter->_Dim_w;
@@ -104,7 +107,8 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute(const NumericTable** WPos,
 
     if (isTrain == 1)
     {
-        MF_SGDDistriKernel<interm, method, cpu>::compute_train(workWPos,workHPos,workV, dim_set, mtWDataPtr, mtHDataPtr, parameter); 
+        /* MF_SGDDistriKernel<interm, method, cpu>::compute_train(workWPos,workHPos,workV, dim_set, mtWDataPtr, mtHDataPtr, parameter);  */
+        MF_SGDDistriKernel<interm, method, cpu>::compute_train_omp(workWPos,workHPos,workV, dim_set, mtWDataPtr, mtHDataPtr, parameter); 
     }
     else
     {
@@ -112,10 +116,11 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute(const NumericTable** WPos,
         interm* mtRMSEPtr = 0;
         BlockMicroTable<interm, readWrite, cpu> mtRMSETable(r[2]);
         mtRMSETable.getBlockOfRows(0, 1, &mtRMSEPtr);
-        MF_SGDDistriKernel<interm, method, cpu>::compute_test(workWPos,workHPos,workV, dim_set, mtWDataPtr,mtHDataPtr, mtRMSEPtr, parameter);
+        /* MF_SGDDistriKernel<interm, method, cpu>::compute_test(workWPos,workHPos,workV, dim_set, mtWDataPtr,mtHDataPtr, mtRMSEPtr, parameter); */
+        MF_SGDDistriKernel<interm, method, cpu>::compute_test_omp(workWPos,workHPos,workV, dim_set, mtWDataPtr,mtHDataPtr, mtRMSEPtr, parameter);
     }
 
-}
+}/*}}}*/
 
 template <typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
 void MF_SGDDistriKernel<interm, method, cpu>::compute_train(int* workWPos, 
@@ -167,10 +172,10 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train(int* workWPos,
     const int step = dim_set - dim_ratio;
 
     /* randomize the execution order */
-    services::SharedPtr<int> random_index(new int[dim_set]); 
-    int* random_index_ptr = random_index.get();
-    for(int j=0;j<dim_set;j++)
-        random_index_ptr[j] = j;
+    /* services::SharedPtr<int> random_index(new int[dim_set]);  */
+    /* int* random_index_ptr = random_index.get(); */
+    /* for(int j=0;j<dim_set;j++) */
+    /*     random_index_ptr[j] = j; */
 
     /* std::srand ( unsigned (std::time(0))); */
     /* std::random_shuffle(random_index_ptr,random_index_ptr + dim_set - 1); */
@@ -204,6 +209,132 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train(int* workWPos,
     init.terminate();
     std::printf("Training time this iteration: %f\n", train_time);
     std::fflush(stdout);
+
+    return;
+
+}/*}}}*/
+
+template <typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
+void MF_SGDDistriKernel<interm, method, cpu>::compute_train_omp(int* workWPos, 
+                                                                int* workHPos, 
+                                                                interm* workV, 
+                                                                const int dim_set,
+                                                                interm* mtWDataPtr, 
+                                                                interm* mtHDataPtr, 
+                                                                const Parameter *parameter)
+{/*{{{*/
+
+#ifdef _OPENMP
+
+    /* retrieve members of parameter */
+    const long dim_r = parameter->_Dim_r;
+    const long dim_w = parameter->_Dim_w;
+    const long dim_h = parameter->_Dim_h;
+    const double learningRate = parameter->_learningRate;
+    const double lambda = parameter->_lambda;
+    const int iteration = parameter->_iteration;
+    int thread_num = parameter->_thread_num;
+    const int tbb_grainsize = parameter->_tbb_grainsize;
+    const int Avx_explicit = parameter->_Avx_explicit;
+
+    const double ratio = parameter->_ratio;
+    const int itr = parameter->_itr;
+    double timeout = parameter->_timeout;
+
+    /* create the mutex for WData and HData */
+    /* services::SharedPtr<currentMutex_t> mutex_w(new currentMutex_t[dim_w]); */
+    /* services::SharedPtr<currentMutex_t> mutex_h(new currentMutex_t[dim_h]); */
+
+    /* omp_lock_t* mutex_w_ptr = mutex_w.get(); */
+    /* for(int j=0; j<dim_w;j++) */
+         /* omp_init_lock(&(mutex_w_ptr[j])); */
+
+    /* omp_lock_t* mutex_h_ptr = mutex_h.get(); */
+    /* for(int j=0; j<dim_h;j++) */
+         /* omp_init_lock(&(mutex_h_ptr[j])); */
+
+    /* ------------------- Starting OpenMP based Training  -------------------*/
+    int num_thds_max = omp_get_max_threads();
+    std::printf("Max threads number: %d\n", num_thds_max);
+    std::fflush(stdout);
+
+    if (thread_num == 0)
+        thread_num = num_thds_max;
+
+    /* if ratio != 1, dim_ratio is the ratio of computed tasks */
+    int dim_ratio = (int)(ratio*dim_set);
+
+    struct timespec ts1;
+	struct timespec ts2;
+    int64_t diff = 0;
+    double train_time = 0;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts1);
+
+    /* training MF-SGD */
+    #pragma omp parallel for schedule(guided) num_threads(thread_num) 
+    for(int k=0;k<dim_ratio;k++)
+    {
+
+        interm *WMat = 0;
+        interm *HMat = 0;
+
+        interm Mult = 0;
+        interm Err = 0;
+        interm WMatVal = 0;
+        interm HMatVal = 0;
+        int p = 0;
+
+        interm* mtWDataLocal = mtWDataPtr;
+        interm* mtHDataLocal = mtHDataPtr;
+
+        int* workWPosLocal = workWPos;
+        int* workHPosLocal = workHPos;
+        interm* workVLocal = workV;
+
+        long Dim = dim_r;
+        interm learningRateLocal = learningRate;
+        interm lambdaLocal = lambda;
+
+        WMat = mtWDataLocal + workWPosLocal[k]*Dim;
+        HMat = mtHDataLocal + workHPosLocal[k]*Dim;
+
+
+        for(p = 0; p<Dim; p++)
+            Mult += (WMat[p]*HMat[p]);
+
+
+        Err = workVLocal[k] - Mult;
+
+        for(p = 0;p<Dim;p++)
+        {
+
+            WMatVal = WMat[p];
+            HMatVal = HMat[p];
+
+            WMat[p] = WMatVal + learningRateLocal*(Err*HMatVal - lambdaLocal*WMatVal);
+            HMat[p] = HMatVal + learningRateLocal*(Err*WMatVal - lambdaLocal*HMatVal);
+
+        }
+
+
+    }
+
+    clock_gettime(CLOCK_MONOTONIC, &ts2);
+    /* get the training time for each iteration */
+    diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
+    train_time += (double)(diff)/1000000L;
+
+    /* init.terminate(); */
+    std::printf("Training time this iteration: %f\n", train_time);
+    std::fflush(stdout);
+
+#else
+
+    std::printf("Error: OpenMP module is not enabled\n");
+    std::fflush(stdout);
+
+#endif
 
     return;
 
@@ -277,6 +408,127 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test(int* workWPos,
         totalRMSE += testRMSE_ptr[k];
 
     mtRMSEPtr[0] = totalRMSE;
+
+    return;
+
+}/*}}}*/
+
+template <typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
+void MF_SGDDistriKernel<interm, method, cpu>::compute_test_omp(int* workWPos, 
+                                                               int* workHPos, 
+                                                               interm* workV, 
+                                                               const int dim_set,
+                                                               interm* mtWDataPtr, 
+                                                               interm* mtHDataPtr, 
+                                                               interm* mtRMSEPtr,
+                                                               const Parameter *parameter)
+{/*{{{*/
+
+#ifdef _OPENMP
+
+    /* retrieve members of parameter */
+    const long dim_r = parameter->_Dim_r;
+    const long dim_w = parameter->_Dim_w;
+    const long dim_h = parameter->_Dim_h;
+    int thread_num = parameter->_thread_num;
+    const int tbb_grainsize = parameter->_tbb_grainsize;
+    const int Avx_explicit = parameter->_Avx_explicit;
+
+    /* create the mutex for WData and HData */
+    services::SharedPtr<omp_lock_t> mutex_w(new omp_lock_t[dim_w]);
+    services::SharedPtr<omp_lock_t> mutex_h(new omp_lock_t[dim_h]);
+
+    /* RMSE value for test dataset */
+    services::SharedPtr<interm> testRMSE(new interm[dim_set]);
+
+    omp_lock_t* mutex_w_ptr = mutex_w.get();
+    for(int j=0; j<dim_w;j++)
+         omp_init_lock(&(mutex_w_ptr[j]));
+
+    omp_lock_t* mutex_h_ptr = mutex_h.get();
+    for(int j=0; j<dim_h;j++)
+         omp_init_lock(&(mutex_h_ptr[j]));
+
+    /* ------------------- Starting OpenMP based testing  -------------------*/
+    int num_thds_max = omp_get_max_threads();
+    std::printf("Max threads number: %d\n", num_thds_max);
+    std::fflush(stdout);
+
+    if (thread_num == 0)
+        thread_num = num_thds_max;
+
+    struct timespec ts1;
+	struct timespec ts2;
+    int64_t diff = 0;
+    double test_time = 0;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts1);
+
+    #pragma omp parallel for schedule(guided) num_threads(thread_num) 
+    for(int k = 0; k<dim_set; k++)
+    {
+
+        interm *WMat = 0;
+        interm *HMat = 0;
+
+        interm* mtWDataLocal = mtWDataPtr;
+        interm* mtHDataLocal = mtHDataPtr;
+
+        int* testWPosLocal = workWPos;
+        int* testHPosLocal = workHPos;
+
+        interm* testVLocal = workV;
+
+        long Dim = dim_r;
+        interm* testRMSELocal = testRMSE.get();
+
+        int p = 0;
+        interm Mult = 0;
+        interm Err = 0;
+
+        if (testWPosLocal[k] != -1 && testHPosLocal[k] != -1)
+        {
+
+            omp_set_lock(&(mutex_w_ptr[testWPosLocal[k]]));
+            omp_set_lock(&(mutex_h_ptr[testHPosLocal[k]]));
+
+            WMat = mtWDataLocal + testWPosLocal[k]*Dim;
+            HMat = mtHDataLocal + testHPosLocal[k]*Dim;
+
+            for(p = 0; p<Dim; p++)
+                Mult += (WMat[p]*HMat[p]);
+
+            Err = testVLocal[k] - Mult;
+
+            testRMSELocal[k] = Err*Err;
+
+            omp_unset_lock(&(mutex_w_ptr[testWPosLocal[k]]));
+            omp_unset_lock(&(mutex_h_ptr[testHPosLocal[k]]));
+
+        }
+        else
+            testRMSELocal[k] = 0;
+
+    }
+
+    clock_gettime(CLOCK_MONOTONIC, &ts2);
+    diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
+    test_time += (double)(diff)/1000000L;
+
+    interm totalRMSE = 0;
+    interm* testRMSE_ptr = testRMSE.get();
+
+    for(int k=0;k<dim_set;k++)
+        totalRMSE += testRMSE_ptr[k];
+
+    mtRMSEPtr[0] = totalRMSE;
+
+#else
+
+    std::printf("Error: OpenMP module is not enabled\n");
+    std::fflush(stdout);
+
+#endif
 
     return;
 

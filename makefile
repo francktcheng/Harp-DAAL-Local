@@ -195,7 +195,8 @@ daaldep.lnx32e.mkl := $(VMLDIR.libia)/$(plib)daal_vmlipp_core.$a
 daaldep.lnx32e.vml := 
 daaldep.lnx32e.ipp := 
 # daaldep.lnx32e.rt  := -L$(TBBDIR.libia) -ltbb -ltbbmalloc -lpthread $(daaldep.lnx32e.rt.$(COMPILER))
-daaldep.lnx32e.rt  := -L$(TBBDIR.libia) -ltbb -ltbbmalloc -liomp5 -lpthread $(daaldep.lnx32e.rt.$(COMPILER))
+# use openmp and memkind
+daaldep.lnx32e.rt  := -L$(TBBDIR.libia) -ltbb -ltbbmalloc -liomp5 -lmemkind -lpthread $(daaldep.lnx32e.rt.$(COMPILER))
 
 daaldep.lnx32.mkl.thr := $(VMLDIR.libia)/$(plib)daal_mkl_thread.$a    
 daaldep.lnx32.mkl.seq := $(VMLDIR.libia)/$(plib)daal_mkl_sequential.$a

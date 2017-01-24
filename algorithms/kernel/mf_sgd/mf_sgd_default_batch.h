@@ -34,6 +34,8 @@
 #include "mf_sgd_types.h"
 #include "service_rng.h"
 #include <tbb/cache_aligned_allocator.h>
+#include <hbwmalloc.h> /* use memkind lib for MCDRAM */
+
 using namespace tbb;
 
 namespace daal
@@ -47,7 +49,8 @@ namespace interface1
 
 template <typename algorithmFPType>
 DAAL_EXPORT void Result::allocate(const daal::algorithms::Input *input, const daal::algorithms::Parameter *parameter, const int method)
-{
+{/*{{{*/
+
     const Input *in = static_cast<const Input *>(input);
     const Parameter *par = static_cast<const Parameter *>(parameter);
     
@@ -56,14 +59,29 @@ DAAL_EXPORT void Result::allocate(const daal::algorithms::Input *input, const da
     size_t Dim_h = par->_Dim_h;
 
     /* allocate NumericTable of model W and H */
-    // allocateImpl<algorithmFPType>(Dim_r, Dim_w, Dim_h);
-    allocateImpl_cache_aligned<algorithmFPType>(Dim_r, Dim_w, Dim_h);
 
-}
+    if (hbw_check_available() == 0)
+        allocateImpl_hbw_mem<algorithmFPType>(Dim_r, Dim_w, Dim_h);
+    else
+        allocateImpl_cache_aligned<algorithmFPType>(Dim_r, Dim_w, Dim_h);
+
+}/*}}}*/
+
+template <typename algorithmFPType>
+DAAL_EXPORT void Result::free_mem(size_t r, size_t w, size_t h)
+{/*{{{*/
+
+    if (hbw_check_available() == 0)
+        freeImpl_hbw_mem<algorithmFPType>(r, w, h);
+    else
+        freeImpl_cache_aligned<algorithmFPType>(r, w, h);
+
+}/*}}}*/
 
 template <typename algorithmFPType>
 DAAL_EXPORT void Result::allocateImpl(size_t r, size_t w, size_t h)
 {/*{{{*/
+
     /* allocate model W */
     if (r == 0 || w == 0)
     {
@@ -71,8 +89,9 @@ DAAL_EXPORT void Result::allocateImpl(size_t r, size_t w, size_t h)
     }
     else
     {
+        algorithmFPType* w_data = (algorithmFPType*)malloc(sizeof(algorithmFPType)*r*w);
         Argument::set(resWMat, data_management::SerializationIfacePtr(
-                          new data_management::HomogenNumericTable<algorithmFPType>(r, w, data_management::NumericTable::doAllocate)));
+                          new data_management::HomogenNumericTable<algorithmFPType>(w_data, r, w)));
     }
 
     /* allocate model H */
@@ -82,10 +101,24 @@ DAAL_EXPORT void Result::allocateImpl(size_t r, size_t w, size_t h)
     }
     else
     {
+        algorithmFPType* h_data = (algorithmFPType*)malloc(sizeof(algorithmFPType)*r*h);
         Argument::set(resHMat, data_management::SerializationIfacePtr(
-                          new data_management::HomogenNumericTable<algorithmFPType>(r, h, data_management::NumericTable::doAllocate)));
+                          new data_management::HomogenNumericTable<algorithmFPType>(h_data, r, h)));
     }
 
+}/*}}}*/
+
+template <typename algorithmFPType>
+DAAL_EXPORT void Result::freeImpl(size_t r, size_t w, size_t h)
+{/*{{{*/
+
+        data_management::HomogenNumericTable<algorithmFPType>* wMat = (data_management::HomogenNumericTable<algorithmFPType>*)Argument::get(resWMat).get();
+        free(wMat->getArray());
+
+        data_management::HomogenNumericTable<algorithmFPType>* hMat = (data_management::HomogenNumericTable<algorithmFPType>*)Argument::get(resHMat).get();
+        free(hMat->getArray());
+
+>>>>>>> 6aead658e1a6fd466efe0d2cd935fb42bae4ac84
 }/*}}}*/
 
 template <typename algorithmFPType>
@@ -131,6 +164,53 @@ DAAL_EXPORT void Result::freeImpl_cache_aligned(size_t r, size_t w, size_t h)
         data_management::HomogenNumericTable<algorithmFPType>* hMat = (data_management::HomogenNumericTable<algorithmFPType>*)Argument::get(resHMat).get();
         cache_aligned_allocator<algorithmFPType>().deallocate(hMat->getArray(), r*h);
         // _mm_free(hMat->getArray());
+
+}/*}}}*/
+
+template <typename algorithmFPType>
+DAAL_EXPORT void Result::allocateImpl_hbw_mem(size_t r, size_t w, size_t h)
+{/*{{{*/
+
+    algorithmFPType* w_data;
+    algorithmFPType* h_data;
+
+    /* allocate model W */
+    if (r == 0 || w == 0)
+    {
+        Argument::set(resWMat, data_management::SerializationIfacePtr());
+    }
+    else
+    {
+        // algorithmFPType* w_data = (algorithmFPType*)hbw_malloc(sizeof(algorithmFPType)*r*w);
+        int ret = hbw_posix_memalign((void**)&w_data, 64, sizeof(algorithmFPType)*r*w); 
+        Argument::set(resWMat, data_management::SerializationIfacePtr(
+                          new data_management::HomogenNumericTable<algorithmFPType>(w_data, r, w)));
+    }
+
+    /* allocate model H */
+    if (r == 0 || h == 0)
+    {
+        Argument::set(resHMat, data_management::SerializationIfacePtr());
+    }
+    else
+    {
+        // algorithmFPType* h_data = (algorithmFPType*)hbw_malloc(sizeof(algorithmFPType)*r*h);
+        int ret = hbw_posix_memalign((void**)&h_data, 64, sizeof(algorithmFPType)*r*h); 
+        Argument::set(resHMat, data_management::SerializationIfacePtr(
+                          new data_management::HomogenNumericTable<algorithmFPType>(h_data, r, h)));
+    }
+
+}/*}}}*/
+
+template <typename algorithmFPType>
+DAAL_EXPORT void Result::freeImpl_hbw_mem(size_t r, size_t w, size_t h)
+{/*{{{*/
+
+        data_management::HomogenNumericTable<algorithmFPType>* wMat = (data_management::HomogenNumericTable<algorithmFPType>*)Argument::get(resWMat).get();
+        hbw_free(wMat->getArray());
+
+        data_management::HomogenNumericTable<algorithmFPType>* hMat = (data_management::HomogenNumericTable<algorithmFPType>*)Argument::get(resHMat).get();
+        hbw_free(hMat->getArray());
 
 }/*}}}*/
 

@@ -280,6 +280,9 @@ public:
     DAAL_EXPORT void allocate(const daal::algorithms::Input *input, const daal::algorithms::Parameter *parameter, const int method);
 
 
+    template <typename algorithmFPType>
+    DAAL_EXPORT void free_mem(size_t r, size_t w, size_t h);
+
     /**
     * Sets an input object for the mf_sgd decomposition algorithm
     * \param[in] id    Identifier of the result
@@ -306,10 +309,19 @@ public:
     DAAL_EXPORT void allocateImpl(size_t r, size_t w, size_t h);
 
     template <typename algorithmFPType>
+    DAAL_EXPORT void freeImpl(size_t r, size_t w, size_t h);
+
+    template <typename algorithmFPType>
     DAAL_EXPORT void allocateImpl_cache_aligned(size_t r, size_t w, size_t h);
 
     template <typename algorithmFPType>
     DAAL_EXPORT void freeImpl_cache_aligned(size_t r, size_t w, size_t h);
+
+    template <typename algorithmFPType>
+    DAAL_EXPORT void allocateImpl_hbw_mem(size_t r, size_t w, size_t h);
+
+    template <typename algorithmFPType>
+    DAAL_EXPORT void freeImpl_hbw_mem(size_t r, size_t w, size_t h);
 
 	/**
 	 * @brief get a serialization tag for result

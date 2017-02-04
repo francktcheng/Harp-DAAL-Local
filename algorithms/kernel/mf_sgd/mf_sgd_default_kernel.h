@@ -132,8 +132,11 @@ public:
      * @param[in,out] r[] model W and H
      * @param[in] par
      */
+    // void compute(const NumericTable** WPos, const NumericTable** HPos, const NumericTable** Val, NumericTable** WPosTest, NumericTable** HPosTest, NumericTable** ValTest, 
+    //         NumericTable *r[], const daal::algorithms::Parameter *par);
+
     void compute(const NumericTable** WPos, const NumericTable** HPos, const NumericTable** Val, NumericTable** WPosTest, NumericTable** HPosTest, NumericTable** ValTest, 
-            NumericTable *r[], const daal::algorithms::Parameter *par);
+            NumericTable *r[], const Parameter *par);
 
     /* a multi-threading version of training process implemented by TBB */
     void compute_train(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter);
@@ -141,11 +144,17 @@ public:
     /* a multi-threading version of training process implemented by OpenMP */
     void compute_train_omp(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter);
 
+    /* another multi-threading version of training process implemented by OpenMP */
+    void compute_train2_omp(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter);
+
     /* a multi-threading version of testing process implemented by TBB */
     void compute_test(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, interm* mtRMSEPtr,const Parameter *parameter);
 
     /* a multi-threading version of testing process implemented by OpenMP */
     void compute_test_omp(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, interm* mtRMSEPtr,const Parameter *parameter);
+
+    /* another multi-threading version of testing process implemented by OpenMP */
+    void compute_test2_omp(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, interm* mtRMSEPtr,const Parameter *parameter);
 
 };
 

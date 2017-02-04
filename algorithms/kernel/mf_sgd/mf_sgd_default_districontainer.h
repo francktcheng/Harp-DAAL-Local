@@ -46,6 +46,8 @@ namespace mf_sgd
 {
     
 
+typedef tbb::concurrent_hash_map<int, int> ConcurrentMap;
+
 /**
  *  @brief Initialize list of mf_sgd with implementations for supported architectures
  */
@@ -107,15 +109,14 @@ void DistriContainer<step, interm, method, cpu>::compute()
     if (par->_wMat_map == NULL && par->_sgd2 == 1)
     {
         //debug
-        std::printf("Start to create wMat hashmap\n");
-        std::fflush(stdout);
+        // std::printf("Start to create wMat hashmap\n");
+        // std::fflush(stdout);
 
 
-        typedef tbb::concurrent_hash_map<int, int> ConcurrentMap;
         //construct the wMat_hashtable
         int wMat_size = r[0]->getNumberOfRows();
 
-        interm* wMat_body = (interm*)malloc(dim_r*wMat_size*sizeof(interm));
+        interm* wMat_body = (interm*)calloc(dim_r*wMat_size, sizeof(interm));
 
         par->_wMat_map = new ConcurrentMap(wMat_size);
 
@@ -140,7 +141,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
             }
 
             //randomize the kth row in the memory space
-            rng1.uniform(dim_r, 0.0, scale, &wMat_body[k*dim_r]);
+            // rng1.uniform(dim_r, 0.0, scale, &wMat_body[k*dim_r]);
         }
 
 #else
@@ -155,7 +156,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
             }
 
             //randomize the kth row in the memory space
-            rng1.uniform(dim_r, 0.0, scale, &wMat_body[k*dim_r]);
+            // rng1.uniform(dim_r, 0.0, scale, &wMat_body[k*dim_r]);
         }
 
 #endif
@@ -167,6 +168,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
         //     std::fflush(stdout);
         // }
 
+        rng1.uniform(dim_r*wMat_size, 0.0, scale, wMat_body);
         result->set(presWData, data_management::NumericTablePtr(new HomogenNumericTable<interm>(wMat_body, dim_r, wMat_size)));
 
         //debug: check the concurrent hashmap
@@ -190,11 +192,71 @@ void DistriContainer<step, interm, method, cpu>::compute()
     // std::printf("Created W Matrix Row: %d, col: %d\n", (int)(r[2]->getNumberOfRows()), (int)(r[2]->getNumberOfColumns()));
     // std::fflush(stdout);
 
-    //initialize the hMat_hashtable for every iteration
-    //store the hMat_hashtable within par of mf_sgd
-    //
-    //
-    //
+    if (par->_sgd2 == 1)
+    {
+        //initialize the hMat_hashtable for every iteration
+        //store the hMat_hashtable within par of mf_sgd
+        int hMat_colNum = r[1]->getNumberOfColumns(); /* should be dim_r + 1, there is a sentinel to record the col id */
+        int hMat_rowNum = r[1]->getNumberOfRows();
+
+        daal::internal::BlockMicroTable<interm, readWrite, cpu> hMat_block(r[1]);
+        interm* hMat_block_ptr = 0;
+        hMat_block.getBlockOfRows(0, hMat_rowNum, &hMat_block_ptr);
+
+        if (par->_hMat_map != NULL)
+            par->_hMat_map->~ConcurrentMap();
+            // par->_hMat_map->clear();
+            
+        par->_hMat_map = new ConcurrentMap(hMat_rowNum);
+
+#ifdef _OPENMP
+
+        int thread_num = omp_get_max_threads();
+        #pragma omp parallel for schedule(guided) num_threads(thread_num) 
+        for(int k=0;k<hMat_rowNum;k++)
+        {
+            ConcurrentMap::accessor pos; 
+            int col_id = (int)(hMat_block_ptr[k*hMat_colNum]);
+
+            if(par->_hMat_map->insert(pos, col_id))
+            {
+                pos->second = k;
+            }
+
+        }
+
+#else
+
+        /* a serial version */
+        for(int k=0;k<hMat_rowNum;k++)
+        {
+            ConcurrentMap::accessor pos; 
+            int col_id = (int)(hMat_block_ptr[k*hMat_colNum]);
+
+            if(par->_hMat_map->insert(pos, col_id))
+            {
+                pos->second = k;
+            }
+
+        }
+
+#endif
+
+        //debug
+        //check the par->_hMat_map
+        // for(int k=0;k<10;k++)
+        // {
+        //     ConcurrentMap::accessor pos;
+        //     int col_id = (int)(hMat_block_ptr[k*hMat_colNum]);
+        //     if (par->_hMat_map->find(pos, col_id))
+        //     {
+        //         std::printf("Col Id: %d, Row Pos: %d\n", col_id, pos->second);
+        //         std::fflush(stdout);
+        //     }
+        //
+        // }
+
+    }
 
     if ((static_cast<Parameter*>(_par))->_isTrain)
         r[2] = NULL;
@@ -204,7 +266,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
     daal::services::Environment::env &env = *_env;
 
     /* invoke the MF_SGDBatchKernel */
-    __DAAL_CALL_KERNEL(env, internal::MF_SGDDistriKernel, __DAAL_KERNEL_ARGUMENTS(interm, method), compute, WPos, HPos, Val, WPosTest, HPosTest, ValTest, r, _par);
+    __DAAL_CALL_KERNEL(env, internal::MF_SGDDistriKernel, __DAAL_KERNEL_ARGUMENTS(interm, method), compute, WPos, HPos, Val, WPosTest, HPosTest, ValTest, r, par);
    
 }
 

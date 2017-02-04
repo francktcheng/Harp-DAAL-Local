@@ -23,14 +23,20 @@
 #include <cstdlib> 
 #include <ctime> 
 #include <iostream>
+#include <cstdio>
 #include <math.h>       
 #include <random>
 #include "numeric_table.h"
 #include "service_rng.h"
+#include "service_micro_table.h"
+#include "service_numeric_table.h"
 
+#include <omp.h>
 #include "mf_sgd_types.h"
 #include "mf_sgd_distri.h"
 #include "mf_sgd_default_kernel.h"
+
+using namespace tbb;
 
 namespace daal
 {
@@ -61,20 +67,134 @@ void DistriContainer<step, interm, method, cpu>::compute()
     // prepare the computation
     Input *input = static_cast<Input *>(_in);
     DistributedPartialResult *result = static_cast<DistributedPartialResult *>(_pres);
+    Parameter *par = static_cast<Parameter*>(_par);
 
+    /* retrieve the training and test datasets */
     const NumericTable *a0 = static_cast<const NumericTable *>(input->get(wPos).get());
     const NumericTable *a1 = static_cast<const NumericTable *>(input->get(hPos).get());
     const NumericTable *a2 = static_cast<const NumericTable *>(input->get(val).get());
+    
+    NumericTable *a3 = NULL;
+    NumericTable *a4 = NULL;
+    NumericTable *a5 = NULL;
+
+    if (par->_sgd2 == 1)
+    {
+        a3 = static_cast<NumericTable *>(input->get(wPosTest).get());
+        a4 = static_cast<NumericTable *>(input->get(hPosTest).get());
+        a5 = static_cast<NumericTable *>(input->get(valTest).get());
+    }
 
     const NumericTable **WPos = &a0;
     const NumericTable **HPos = &a1;
     const NumericTable **Val = &a2;
 
-    daal::algorithms::Parameter *par = _par;
-    NumericTable *r[3];
+    NumericTable **WPosTest = &a3;
+    NumericTable **HPosTest = &a4;
+    NumericTable **ValTest = &a5;
 
+    // daal::algorithms::Parameter *par = _par;
+    int dim_r = par->_Dim_r;
+
+    NumericTable *r[4];
     r[0] = static_cast<NumericTable *>(result->get(presWMat).get());
     r[1] = static_cast<NumericTable *>(result->get(presHMat).get());
+
+    
+    //initialize wMat_hashtable for the first iteration
+    //store the wMat_hashtable within par of mf_sgd
+    //regenerate the wMat numericTable 
+    if (par->_wMat_map == NULL && par->_sgd2 == 1)
+    {
+        //debug
+        std::printf("Start to create wMat hashmap\n");
+        std::fflush(stdout);
+
+
+        typedef tbb::concurrent_hash_map<int, int> ConcurrentMap;
+        //construct the wMat_hashtable
+        int wMat_size = r[0]->getNumberOfRows();
+
+        interm* wMat_body = (interm*)malloc(dim_r*wMat_size*sizeof(interm));
+
+        par->_wMat_map = new ConcurrentMap(wMat_size);
+
+        interm scale = 1.0/sqrt(static_cast<interm>(dim_r));
+
+        daal::internal::FeatureMicroTable<int, readWrite, cpu> wMat_index(r[0]);
+        int* wMat_index_ptr = 0;
+        wMat_index.getBlockOfColumnValues(0, 0, wMat_size, &wMat_index_ptr);
+
+        daal::internal::UniformRng<interm, daal::sse2> rng1(time(0));
+
+#ifdef _OPENMP
+
+        int thread_num = omp_get_max_threads();
+        #pragma omp parallel for schedule(guided) num_threads(thread_num) 
+        for(int k=0;k<wMat_size;k++)
+        {
+            ConcurrentMap::accessor pos; 
+            if(par->_wMat_map->insert(pos, wMat_index_ptr[k]))
+            {
+                pos->second = k;
+            }
+
+            //randomize the kth row in the memory space
+            rng1.uniform(dim_r, 0.0, scale, &wMat_body[k*dim_r]);
+        }
+
+#else
+
+        /* a serial version */
+        for(int k=0;k<wMat_size;k++)
+        {
+            ConcurrentMap::accessor pos; 
+            if(par->_wMat_map->insert(pos, wMat_index_ptr[k]))
+            {
+                pos->second = k;
+            }
+
+            //randomize the kth row in the memory space
+            rng1.uniform(dim_r, 0.0, scale, &wMat_body[k*dim_r]);
+        }
+
+#endif
+
+        //debug: check wMat_body random value
+        // for (int i = 0; i < 20 ; i++) 
+        // {
+        //     std::printf("wMat_body[%d]: %f\n", i, wMat_body[i]);
+        //     std::fflush(stdout);
+        // }
+
+        result->set(presWData, data_management::NumericTablePtr(new HomogenNumericTable<interm>(wMat_body, dim_r, wMat_size)));
+
+        //debug: check the concurrent hashmap
+        // for(int k=0;k<10;k++)
+        // {
+        //     ConcurrentMap::accessor pos;
+        //     if (par->_wMat_map->find(pos, wMat_index_ptr[k]))
+        //     {
+        //         std::printf("Row Id: %d, Row Pos: %d\n", wMat_index_ptr[k], pos->second);
+        //         std::fflush(stdout);
+        //     }
+        //
+        // }
+        
+
+    }
+
+    r[3] = static_cast<NumericTable *>(result->get(presWData).get());
+
+    //debug
+    // std::printf("Created W Matrix Row: %d, col: %d\n", (int)(r[2]->getNumberOfRows()), (int)(r[2]->getNumberOfColumns()));
+    // std::fflush(stdout);
+
+    //initialize the hMat_hashtable for every iteration
+    //store the hMat_hashtable within par of mf_sgd
+    //
+    //
+    //
 
     if ((static_cast<Parameter*>(_par))->_isTrain)
         r[2] = NULL;
@@ -84,7 +204,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
     daal::services::Environment::env &env = *_env;
 
     /* invoke the MF_SGDBatchKernel */
-    __DAAL_CALL_KERNEL(env, internal::MF_SGDDistriKernel, __DAAL_KERNEL_ARGUMENTS(interm, method), compute, WPos, HPos, Val, r, par);
+    __DAAL_CALL_KERNEL(env, internal::MF_SGDDistriKernel, __DAAL_KERNEL_ARGUMENTS(interm, method), compute, WPos, HPos, Val, WPosTest, HPosTest, ValTest, r, _par);
    
 }
 

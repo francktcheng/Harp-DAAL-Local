@@ -70,6 +70,9 @@ template <typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
 void MF_SGDDistriKernel<interm, method, cpu>::compute(const NumericTable** WPos, 
                                                       const NumericTable** HPos, 
                                                       const NumericTable** Val, 
+                                                      NumericTable** WPosTest,
+                                                      NumericTable** HPosTest, 
+                                                      NumericTable** ValTest, 
                                                       NumericTable *r[], const daal::algorithms::Parameter *par)
 {/*{{{*/
     /* retrieve members of parameter */
@@ -78,46 +81,56 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute(const NumericTable** WPos,
     const long dim_h = parameter->_Dim_h;
     const int isTrain = parameter->_isTrain;
     const int dim_set = Val[0]->getNumberOfRows();
+    const int isSGD2 = parameter->_sgd2;
 
-    /* ------------- Retrieve Data Set -------------*/
-    FeatureMicroTable<int, readOnly, cpu> workflowW_ptr(WPos[0]);
-    FeatureMicroTable<int, readOnly, cpu> workflowH_ptr(HPos[0]);
-    FeatureMicroTable<interm, readOnly, cpu> workflow_ptr(Val[0]);
-
-    int *workWPos = 0;
-    workflowW_ptr.getBlockOfColumnValues(0, 0, dim_set, &workWPos);
-
-    int *workHPos = 0;
-    workflowH_ptr.getBlockOfColumnValues(0, 0, dim_set, &workHPos);
-
-    interm *workV;
-    workflow_ptr.getBlockOfColumnValues(0, 0, dim_set, &workV);
-
-    /* ---------------- Retrieve Model W ---------------- */
-    BlockMicroTable<interm, readWrite, cpu> mtWDataTable(r[0]);
-
-    interm* mtWDataPtr = 0;
-    mtWDataTable.getBlockOfRows(0, dim_w, &mtWDataPtr);
-
-    /* ---------------- Retrieve Model H ---------------- */
-    BlockMicroTable<interm, readWrite, cpu> mtHDataTable(r[1]);
-
-    interm* mtHDataPtr = 0;
-    mtHDataTable.getBlockOfRows(0, dim_h, &mtHDataPtr);
-
-    if (isTrain == 1)
+    if (isSGD2 == 0)
     {
-        /* MF_SGDDistriKernel<interm, method, cpu>::compute_train(workWPos,workHPos,workV, dim_set, mtWDataPtr, mtHDataPtr, parameter);  */
-        MF_SGDDistriKernel<interm, method, cpu>::compute_train_omp(workWPos,workHPos,workV, dim_set, mtWDataPtr, mtHDataPtr, parameter); 
+        /* ------------- Retrieve Data Set -------------*/
+        FeatureMicroTable<int, readOnly, cpu> workflowW_ptr(WPos[0]);
+        FeatureMicroTable<int, readOnly, cpu> workflowH_ptr(HPos[0]);
+        FeatureMicroTable<interm, readOnly, cpu> workflow_ptr(Val[0]);
+
+        int *workWPos = 0;
+        workflowW_ptr.getBlockOfColumnValues(0, 0, dim_set, &workWPos);
+
+        int *workHPos = 0;
+        workflowH_ptr.getBlockOfColumnValues(0, 0, dim_set, &workHPos);
+
+        interm *workV;
+        workflow_ptr.getBlockOfColumnValues(0, 0, dim_set, &workV);
+
+        /* ---------------- Retrieve Model W ---------------- */
+        BlockMicroTable<interm, readWrite, cpu> mtWDataTable(r[0]);
+
+        interm* mtWDataPtr = 0;
+        mtWDataTable.getBlockOfRows(0, dim_w, &mtWDataPtr);
+
+        /* ---------------- Retrieve Model H ---------------- */
+        BlockMicroTable<interm, readWrite, cpu> mtHDataTable(r[1]);
+
+        interm* mtHDataPtr = 0;
+        mtHDataTable.getBlockOfRows(0, dim_h, &mtHDataPtr);
+
+        if (isTrain == 1)
+        {
+            /* MF_SGDDistriKernel<interm, method, cpu>::compute_train(workWPos,workHPos,workV, dim_set, mtWDataPtr, mtHDataPtr, parameter);  */
+            MF_SGDDistriKernel<interm, method, cpu>::compute_train_omp(workWPos,workHPos,workV, dim_set, mtWDataPtr, mtHDataPtr, parameter); 
+        }
+        else
+        {
+            /* ---------------- Retrieve RMSE for Test dataset --------- */
+            interm* mtRMSEPtr = 0;
+            BlockMicroTable<interm, readWrite, cpu> mtRMSETable(r[2]);
+            mtRMSETable.getBlockOfRows(0, 1, &mtRMSEPtr);
+            /* MF_SGDDistriKernel<interm, method, cpu>::compute_test(workWPos,workHPos,workV, dim_set, mtWDataPtr,mtHDataPtr, mtRMSEPtr, parameter); */
+            MF_SGDDistriKernel<interm, method, cpu>::compute_test_omp(workWPos,workHPos,workV, dim_set, mtWDataPtr,mtHDataPtr, mtRMSEPtr, parameter);
+        }
+
     }
     else
     {
-        /* ---------------- Retrieve RMSE for Test dataset --------- */
-        interm* mtRMSEPtr = 0;
-        BlockMicroTable<interm, readWrite, cpu> mtRMSETable(r[2]);
-        mtRMSETable.getBlockOfRows(0, 1, &mtRMSEPtr);
-        /* MF_SGDDistriKernel<interm, method, cpu>::compute_test(workWPos,workHPos,workV, dim_set, mtWDataPtr,mtHDataPtr, mtRMSEPtr, parameter); */
-        MF_SGDDistriKernel<interm, method, cpu>::compute_test_omp(workWPos,workHPos,workV, dim_set, mtWDataPtr,mtHDataPtr, mtRMSEPtr, parameter);
+
+
     }
 
 }/*}}}*/

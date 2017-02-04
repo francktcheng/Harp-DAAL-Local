@@ -36,7 +36,9 @@ namespace interface1
 {
 
 /** Default constructor */
-DistributedPartialResult::DistributedPartialResult() : daal::algorithms::PartialResult(3) {}
+DistributedPartialResult::DistributedPartialResult() : daal::algorithms::PartialResult(4) {}
+//three partial result ids
+//presWMat, presHMat, presRMSE
 
 NumericTablePtr DistributedPartialResult::get(DistributedPartialResultId id) const
 {

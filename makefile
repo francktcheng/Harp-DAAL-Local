@@ -196,7 +196,8 @@ daaldep.lnx32e.vml :=
 daaldep.lnx32e.ipp := 
 # daaldep.lnx32e.rt  := -L$(TBBDIR.libia) -ltbb -ltbbmalloc -lpthread $(daaldep.lnx32e.rt.$(COMPILER))
 # use openmp and memkind
-daaldep.lnx32e.rt  := -L$(TBBDIR.libia) -ltbb -ltbbmalloc -liomp5 -lmemkind -lpthread $(daaldep.lnx32e.rt.$(COMPILER))
+# daaldep.lnx32e.rt  := -L$(TBBDIR.libia) -ltbb -ltbbmalloc -liomp5 -L$(HOME)/local/memkind_build/lib -lmemkind -lpthread $(daaldep.lnx32e.rt.$(COMPILER))
+daaldep.lnx32e.rt  := -L$(TBBDIR.libia) -ltbb -ltbbmalloc -liomp5 -lpthread $(daaldep.lnx32e.rt.$(COMPILER))
 
 daaldep.lnx32.mkl.thr := $(VMLDIR.libia)/$(plib)daal_mkl_thread.$a    
 daaldep.lnx32.mkl.seq := $(VMLDIR.libia)/$(plib)daal_mkl_sequential.$a
@@ -380,7 +381,8 @@ $(CORE.objs_a): $(CORE.tmpdir_a)/inc_a_folders.txt
 $(CORE.objs_a): COPT += $(-fPIC) $(-cxx11) $(-Zl) $(-DEBC) 
 $(CORE.objs_a): COPT += -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS
 $(CORE.objs_a): COPT += @$(CORE.tmpdir_a)/inc_a_folders.txt
-$(CORE.objs_a): COPT += -qopenmp -D_OPENMP -ansi-alias -O3 
+$(CORE.objs_a): COPT += -qopenmp -D_OPENMP -ansi-alias -O3  #intel support openmp
+# $(CORE.objs_a): COPT += -fopenmp -D_OPENMP -fstrict-aliasing -O3  
 $(filter %threading.$o, $(CORE.objs_a)): COPT += -D__DO_TBB_LAYER__
 $(call containing,_nrh, $(CORE.objs_a)): COPT += $(p4_OPT)   -DDAAL_CPU=sse2
 $(call containing,_mrm, $(CORE.objs_a)): COPT += $(mc_OPT)   -DDAAL_CPU=ssse3
@@ -396,6 +398,8 @@ $(CORE.objs_y): $(CORE.tmpdir_y)/inc_y_folders.txt
 $(CORE.objs_y): COPT += $(-fPIC) $(-cxx11) $(-Zl) $(-DEBC)
 $(CORE.objs_y): COPT += -D__DAAL_IMPLEMENTATION -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS
 $(CORE.objs_y): COPT += @$(CORE.tmpdir_y)/inc_y_folders.txt
+$(CORE.objs_y): COPT += -qopenmp -D_OPENMP -ansi-alias -O3  #intel support openmp
+# $(CORE.objs_y): COPT += -fopenmp -D_OPENMP -fstrict-aliasing -O3  
 $(filter %threading.$o, $(CORE.objs_y)): COPT += -D__DO_TBB_LAYER__
 $(call containing,_nrh, $(CORE.objs_y)): COPT += $(p4_OPT)   -DDAAL_CPU=sse2
 $(call containing,_mrm, $(CORE.objs_y)): COPT += $(mc_OPT)   -DDAAL_CPU=ssse3
@@ -585,6 +589,7 @@ $(JNI.Jheaders): $(WORKDIR.lib)/$(daal_jar) | $$(@D)/.
 
 # add openmp opts
 $(WORKDIR.lib)/$(jni_so): LOPT += -qopenmp $(-DPIC) -D_OPENMP
+# $(WORKDIR.lib)/$(jni_so): LOPT += -fopenmp $(-DPIC) -D_OPENMP
 $(WORKDIR.lib)/$(jni_so): LOPT += $(-fPIC) 
 $(WORKDIR.lib)/$(jni_so): LOPT += $(daaldep.rt) $(daaldep.mkl.thr)
 $(JNI.tmpdir)/$(jni_so:%.$y=%_link.txt): $(JNI.objs) $(if $(OS_is_win),$(JNI.tmpdir)/dll.res,) $(WORKDIR.lib)/$(core_a) $(WORKDIR.lib)/$(thr_tbb_a) ; $(WRITE.PREREQS)
@@ -593,6 +598,7 @@ $(WORKDIR.lib)/$(jni_so):                $(JNI.tmpdir)/$(jni_so:%.$y=%_link.txt)
 $(JNI.objs): $(JNI.tmpdir)/inc_j_folders.txt
 # add openmp opts
 $(JNI.objs): COPT += -qopenmp $(-DPIC) -D_OPENMP 
+# $(JNI.objs): COPT += -fopenmp $(-DPIC) -D_OPENMP 
 $(JNI.objs): COPT += $(-fPIC) $(-cxx11) $(-Zl) $(-DEBC) -DDAAL_NOTHROW_EXCEPTIONS
 $(JNI.objs): COPT += @$(JNI.tmpdir)/inc_j_folders.txt
 

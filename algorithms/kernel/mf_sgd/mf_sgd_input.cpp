@@ -36,7 +36,7 @@ namespace mf_sgd
 namespace interface1
 {
 
-Input::Input() : daal::algorithms::Input(5) {}
+Input::Input() : daal::algorithms::Input(8) {}
 
 NumericTablePtr Input::get(InputId id) const
 {

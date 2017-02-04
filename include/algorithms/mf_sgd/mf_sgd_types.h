@@ -34,6 +34,8 @@
 #include "data_management/data/homogen_numeric_table.h"
 #include "services/daal_defines.h"
 
+#include "tbb/concurrent_hash_map.h"
+
 namespace daal
 {
 
@@ -71,7 +73,10 @@ enum InputId
 	dataTest = 1,	      /*!< Test Dataset */
 	wPos = 2,	          /*!< array of row position in model W of dataset, used in distributed mode */
 	hPos = 3,	          /*!< array of col position in model H of dataset, used in distributed mode */
-	val = 4				  /*!< array of val of dataset, used in distributed mode */
+	val = 4,				  /*!< array of val of dataset, used in distributed mode */
+    wPosTest = 5,
+    hPosTest = 6,
+    valTest = 7
 };
 
 /**
@@ -92,7 +97,8 @@ enum DistributedPartialResultId
 {
     presWMat = 0,   /*!< Model W, used in distributed mode */
     presHMat = 1,   /*!< Model H, used in distributed mode*/
-    presRMSE = 2    /*!< RMSE computed from test dataset */
+    presRMSE = 2,   /*!< RMSE computed from test dataset */
+    presWData = 3
 };
 
 /**
@@ -457,6 +463,9 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _absent_test_num = 0;
         _reorder_length = 0;
         _isReorder = 0;
+        _wMat_map = NULL;
+        _hMat_map = NULL;
+        _sgd2 = 0;
     }
 
     virtual ~Parameter() {}
@@ -476,7 +485,6 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 	 */
     void setParameter(double learningRate, double lambda, size_t Dim_r, size_t Dim_w, size_t Dim_h, size_t iteration, size_t thread_num, size_t tbb_grainsize, size_t Avx_explicit)
     {
-
         _learningRate = learningRate;
         _lambda = lambda;
         _Dim_r = Dim_r;
@@ -603,6 +611,9 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     size_t      _absent_test_num;                 /* num of test points whose row and col id not included in training dataset */
     int         _reorder_length;                  /* length of queue in reorder mode */
     int         _isReorder;                       /* 1 (true) if it uses reorder mode */
+    tbb::concurrent_hash_map<int,int>* _wMat_map;      /* concurrent hashmap for storing index of W Matrix */
+    tbb::concurrent_hash_map<int,int>* _hMat_map;      /* concurrent hashmap for storing index of H Matrix */
+    int         _sgd2;                            /* 0 default sgd method, 1 the second sgd method */
 
 };
 /** @} */

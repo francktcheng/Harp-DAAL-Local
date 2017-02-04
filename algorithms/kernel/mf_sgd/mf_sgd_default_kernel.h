@@ -132,7 +132,8 @@ public:
      * @param[in,out] r[] model W and H
      * @param[in] par
      */
-    void compute(const NumericTable** WPos, const NumericTable** HPos, const NumericTable** Val, NumericTable *r[], const daal::algorithms::Parameter *par);
+    void compute(const NumericTable** WPos, const NumericTable** HPos, const NumericTable** Val, NumericTable** WPosTest, NumericTable** HPosTest, NumericTable** ValTest, 
+            NumericTable *r[], const daal::algorithms::Parameter *par);
 
     /* a multi-threading version of training process implemented by TBB */
     void compute_train(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter);

@@ -112,7 +112,6 @@ void DistriContainer<step, interm, method, cpu>::compute()
         // std::printf("Start to create wMat hashmap\n");
         // std::fflush(stdout);
 
-
         //construct the wMat_hashtable
         int wMat_size = r[0]->getNumberOfRows();
 
@@ -126,7 +125,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
         int* wMat_index_ptr = 0;
         wMat_index.getBlockOfColumnValues(0, 0, wMat_size, &wMat_index_ptr);
 
-        daal::internal::UniformRng<interm, daal::sse2> rng1(time(0));
+        // daal::internal::UniformRng<interm, daal::sse2> rng1(time(0));
 
 #ifdef _OPENMP
 
@@ -140,13 +139,16 @@ void DistriContainer<step, interm, method, cpu>::compute()
                 pos->second = k;
             }
 
+            daal::internal::UniformRng<interm, daal::sse2> rng1(time(0));
             //randomize the kth row in the memory space
-            // rng1.uniform(dim_r, 0.0, scale, &wMat_body[k*dim_r]);
+            rng1.uniform(dim_r, 0.0, scale, &wMat_body[k*dim_r]);
         }
 
 #else
 
         /* a serial version */
+        daal::internal::UniformRng<interm, daal::sse2> rng1(time(0));
+
         for(int k=0;k<wMat_size;k++)
         {
             ConcurrentMap::accessor pos; 
@@ -156,7 +158,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
             }
 
             //randomize the kth row in the memory space
-            // rng1.uniform(dim_r, 0.0, scale, &wMat_body[k*dim_r]);
+            rng1.uniform(dim_r, 0.0, scale, &wMat_body[k*dim_r]);
         }
 
 #endif
@@ -168,7 +170,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
         //     std::fflush(stdout);
         // }
 
-        rng1.uniform(dim_r*wMat_size, 0.0, scale, wMat_body);
+        // rng1.uniform(dim_r*wMat_size, 0.0, scale, wMat_body);
         result->set(presWData, data_management::NumericTablePtr(new HomogenNumericTable<interm>(wMat_body, dim_r, wMat_size)));
 
         //debug: check the concurrent hashmap

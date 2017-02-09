@@ -28,6 +28,7 @@
 #include <math.h>       
 #include <algorithm>
 #include <cstdlib> 
+#include <vector>
 #include <iostream>
 #include <cstdio> 
 #include <algorithm>
@@ -59,6 +60,7 @@ using namespace daal::services::internal;
 
 typedef queuing_mutex currentMutex_t;
 typedef tbb::concurrent_hash_map<int, int> ConcurrentMap;
+typedef tbb::concurrent_hash_map<int, std::vector<int> > ConcurrentVectorMap;
 
 namespace daal
 {
@@ -71,14 +73,15 @@ namespace internal
     
 
 template <typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
-void MF_SGDDistriKernel<interm, method, cpu>::compute(const NumericTable** WPos, 
+void MF_SGDDistriKernel<interm, method, cpu>::compute(NumericTable** WPos, 
                                                       const NumericTable** HPos, 
                                                       const NumericTable** Val, 
                                                       NumericTable** WPosTest,
                                                       NumericTable** HPosTest, 
                                                       NumericTable** ValTest, 
-                                                      NumericTable *r[], const Parameter *parameter)
+                                                      NumericTable *r[], const Parameter *parameter, int* col_ids)
 {/*{{{*/
+
     /* retrieve members of parameter */
     /* const Parameter *parameter = static_cast<const Parameter *>(par); */
     long dim_w = parameter->_Dim_w;
@@ -167,7 +170,7 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute(const NumericTable** WPos,
         interm* mtHDataPtr = 0;
         mtHDataTable.getBlockOfRows(0, dim_h, &mtHDataPtr);
 
-        MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(workWPos,workHPos,workV, dim_set, mtWDataPtr, mtHDataPtr, parameter); 
+        MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(workWPos,workHPos,workV, dim_set, mtWDataPtr, mtHDataPtr, parameter, col_ids); 
 
     }
     else
@@ -440,7 +443,8 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
                                                                 const int dim_set,
                                                                 interm* mtWDataPtr, 
                                                                 interm* mtHDataPtr, 
-                                                                const Parameter *parameter)
+                                                                const Parameter *parameter,
+                                                                int* col_ids)
 {/*{{{*/
 
 #ifdef _OPENMP
@@ -479,70 +483,132 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
     clock_gettime(CLOCK_MONOTONIC, &ts1);
 
     /* shared vars */
-    ConcurrentMap* map_w = parameter->_wMat_map;
+    /* ConcurrentMap* map_w = parameter->_wMat_map; */
     ConcurrentMap* map_h = parameter->_hMat_map;
+    ConcurrentVectorMap* map_train = parameter->_train_map;
 
     /* training MF-SGD */
+    /* for(int k=0;k<dim_set;k++) */
+    //loop over col_ids 
     #pragma omp parallel for schedule(guided) num_threads(thread_num) 
-    for(int k=0;k<dim_set;k++)
+    for(int k=0;k<dim_h;k++)
     {
-
         
         int* workWPosLocal = workWPos; /* store the row ids  */
         int* workHPosLocal = workHPos; /* store the col ids */
         interm* workVLocal = workV; /*  */
 
-        
-        /* start of training process  */
-        int row_id = workWPosLocal[k];
-        int col_id = workHPosLocal[k];
+        interm *WMat = 0; 
+        interm *HMat = 0;
 
-        ConcurrentMap::accessor posW; 
+        interm Mult = 0;
+        interm Err = 0;
+        interm WMatVal = 0;
+        interm HMatVal = 0;
+        int p = 0;
+
+        interm* mtWDataLocal = mtWDataPtr;
+        interm* mtHDataLocal = mtHDataPtr + 1; // consider the sentinel element 
+
+        int stride_w = dim_r;
+        int stride_h = dim_r + 1; // h matrix has a sentinel as the first element of each row 
+
+        interm learningRateLocal = learningRate;
+        interm lambdaLocal = lambda;
+
+        int col_id = col_ids[k];
+        int col_pos = -1;
         ConcurrentMap::accessor posH; 
+        if (map_h->find(posH, col_id))
+            col_pos = posH->second;
 
-        if (map_h->find(posH, col_id) && map_w->find(posW, row_id) )
+        ConcurrentVectorMap::accessor pos_train; 
+        if (map_train->find(pos_train, col_id) && col_pos != -1)
         {
-            /* the data points need to be processed */
-            interm *WMat = 0;
-            interm *HMat = 0;
 
-            interm Mult = 0;
-            interm Err = 0;
-            interm WMatVal = 0;
-            interm HMatVal = 0;
-            int p = 0;
+            std::vector<int>* cols_ptr = &(pos_train->second);
 
-            interm* mtWDataLocal = mtWDataPtr;
-            interm* mtHDataLocal = mtHDataPtr + 1; /* consider the sentinel element */
-
-            int stride_w = dim_r;
-            int stride_h = dim_r + 1; /* h matrix has a sentinel as the first element of each row */
-
-            interm learningRateLocal = learningRate;
-            interm lambdaLocal = lambda;
-
-            int pos_h = posH->second;
-            int pos_w = posW->second;
-
-            WMat = mtWDataLocal + pos_w*stride_w;
-            HMat = mtHDataLocal + pos_h*stride_h;
-
-            for(p = 0; p<dim_r; p++)
-                Mult += (WMat[p]*HMat[p]);
-
-            Err = workVLocal[k] - Mult;
-
-            for(p = 0;p<dim_r;p++)
+            HMat = mtHDataLocal + col_pos*stride_h;
+            for(std::vector<int>::iterator it = cols_ptr->begin(); it != cols_ptr->end(); ++it) 
             {
-                WMatVal = WMat[p];
-                HMatVal = HMat[p];
+                int train_pos = (*it);
+                int row_pos = workWPosLocal[train_pos];
+                WMat = mtWDataLocal + row_pos*stride_w;
 
-                WMat[p] = WMatVal + learningRateLocal*(Err*HMatVal - lambdaLocal*WMatVal);
-                HMat[p] = HMatVal + learningRateLocal*(Err*WMatVal - lambdaLocal*HMatVal);
+                Mult = 0;
+                Err = 0;
+                for(p = 0; p<dim_r; p++)
+                    Mult += (WMat[p]*HMat[p]);
+
+                Err = workVLocal[train_pos] - Mult;
+
+                for(p = 0;p<dim_r;p++)
+                {
+                    WMatVal = WMat[p];
+                    HMatVal = HMat[p];
+
+                    WMat[p] = WMatVal + learningRateLocal*(Err*HMatVal - lambdaLocal*WMatVal);
+                    HMat[p] = HMatVal + learningRateLocal*(Err*WMatVal - lambdaLocal*HMatVal);
+
+                }
 
             }
 
         }
+
+        /* //std::vector<int>* cols_ptr  */
+        /* //start of training process  */
+        /* int row_id = workWPosLocal[k]; */
+        /* int col_id = workHPosLocal[k]; */
+        /*  */
+        /* //ConcurrentMap::accessor posW;  */
+        /* ConcurrentMap::accessor posH;  */
+        /*  */
+        /* //if (map_h->find(posH, col_id) && map_w->find(posW, row_id) ) */
+        /* if (map_h->find(posH, col_id) && row_id != -1 ) */
+        /* { */
+        /*     //the data points need to be processed */
+        /*     interm *WMat = 0; */
+        /*     interm *HMat = 0; */
+        /*  */
+        /*     interm Mult = 0; */
+        /*     interm Err = 0; */
+        /*     interm WMatVal = 0; */
+        /*     interm HMatVal = 0; */
+        /*     int p = 0; */
+        /*  */
+        /*     interm* mtWDataLocal = mtWDataPtr; */
+        /*     interm* mtHDataLocal = mtHDataPtr + 1; // consider the sentinel element  */
+        /*  */
+        /*     int stride_w = dim_r; */
+        /*     int stride_h = dim_r + 1; // h matrix has a sentinel as the first element of each row  */
+        /*  */
+        /*     interm learningRateLocal = learningRate; */
+        /*     interm lambdaLocal = lambda; */
+        /*  */
+        /*     int pos_h = posH->second; */
+        /*     //int pos_w = posW->second;  */
+        /*     int pos_w = row_id; */
+        /*  */
+        /*     WMat = mtWDataLocal + pos_w*stride_w; */
+        /*     HMat = mtHDataLocal + pos_h*stride_h; */
+        /*  */
+        /*     for(p = 0; p<dim_r; p++) */
+        /*         Mult += (WMat[p]*HMat[p]); */
+        /*  */
+        /*     Err = workVLocal[k] - Mult; */
+        /*  */
+        /*     for(p = 0;p<dim_r;p++) */
+        /*     { */
+        /*         WMatVal = WMat[p]; */
+        /*         HMatVal = HMat[p]; */
+        /*  */
+        /*         WMat[p] = WMatVal + learningRateLocal*(Err*HMatVal - lambdaLocal*WMatVal); */
+        /*         HMat[p] = HMatVal + learningRateLocal*(Err*WMatVal - lambdaLocal*HMatVal); */
+        /*  */
+        /*     } */
+        /*  */
+        /* } */
 
     }
 

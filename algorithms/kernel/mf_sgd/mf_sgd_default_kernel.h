@@ -135,8 +135,8 @@ public:
     // void compute(const NumericTable** WPos, const NumericTable** HPos, const NumericTable** Val, NumericTable** WPosTest, NumericTable** HPosTest, NumericTable** ValTest, 
     //         NumericTable *r[], const daal::algorithms::Parameter *par);
 
-    void compute(const NumericTable** WPos, const NumericTable** HPos, const NumericTable** Val, NumericTable** WPosTest, NumericTable** HPosTest, NumericTable** ValTest, 
-            NumericTable *r[], const Parameter *par);
+    void compute(NumericTable** WPos, const NumericTable** HPos, const NumericTable** Val, NumericTable** WPosTest, NumericTable** HPosTest, NumericTable** ValTest, 
+            NumericTable *r[], const Parameter *par, int* col_ids);
 
     /* a multi-threading version of training process implemented by TBB */
     void compute_train(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter);
@@ -145,7 +145,7 @@ public:
     void compute_train_omp(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter);
 
     /* another multi-threading version of training process implemented by OpenMP */
-    void compute_train2_omp(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter);
+    void compute_train2_omp(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter, int* col_ids);
 
     /* a multi-threading version of testing process implemented by TBB */
     void compute_test(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, interm* mtRMSEPtr,const Parameter *parameter);

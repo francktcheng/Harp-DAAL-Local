@@ -465,6 +465,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _isReorder = 0;
         _wMat_map = NULL;
         _hMat_map = NULL;
+        _train_map = NULL;
         _sgd2 = 0;
     }
 
@@ -613,6 +614,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     int         _isReorder;                       /* 1 (true) if it uses reorder mode */
     tbb::concurrent_hash_map<int,int>* _wMat_map;      /* concurrent hashmap for storing index of W Matrix */
     tbb::concurrent_hash_map<int,int>* _hMat_map;      /* concurrent hashmap for storing index of H Matrix */
+    tbb::concurrent_hash_map<int, std::vector<int> >* _train_map; /* hashmap to hold the training data indexed by col id */
     int         _sgd2;                            /* 0 default sgd method, 1 the second sgd method */
 
 };

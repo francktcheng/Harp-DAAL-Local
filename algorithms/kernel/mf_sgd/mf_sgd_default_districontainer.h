@@ -26,6 +26,7 @@
 #include <cstdio>
 #include <math.h>       
 #include <random>
+#include <vector>
 #include "numeric_table.h"
 #include "service_rng.h"
 #include "service_micro_table.h"
@@ -47,6 +48,7 @@ namespace mf_sgd
     
 
 typedef tbb::concurrent_hash_map<int, int> ConcurrentMap;
+typedef tbb::concurrent_hash_map<int, std::vector<int> > ConcurrentVectorMap;
 
 /**
  *  @brief Initialize list of mf_sgd with implementations for supported architectures
@@ -70,9 +72,10 @@ void DistriContainer<step, interm, method, cpu>::compute()
     Input *input = static_cast<Input *>(_in);
     DistributedPartialResult *result = static_cast<DistributedPartialResult *>(_pres);
     Parameter *par = static_cast<Parameter*>(_par);
+    int* col_ids = NULL;
 
     /* retrieve the training and test datasets */
-    const NumericTable *a0 = static_cast<const NumericTable *>(input->get(wPos).get());
+    NumericTable *a0 = static_cast<NumericTable *>(input->get(wPos).get());
     const NumericTable *a1 = static_cast<const NumericTable *>(input->get(hPos).get());
     const NumericTable *a2 = static_cast<const NumericTable *>(input->get(val).get());
     
@@ -87,7 +90,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
         a5 = static_cast<NumericTable *>(input->get(valTest).get());
     }
 
-    const NumericTable **WPos = &a0;
+    NumericTable **WPos = &a0;
     const NumericTable **HPos = &a1;
     const NumericTable **Val = &a2;
 
@@ -95,7 +98,6 @@ void DistriContainer<step, interm, method, cpu>::compute()
     NumericTable **HPosTest = &a4;
     NumericTable **ValTest = &a5;
 
-    // daal::algorithms::Parameter *par = _par;
     int dim_r = par->_Dim_r;
 
     NumericTable *r[4];
@@ -105,7 +107,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
     
     //initialize wMat_hashtable for the first iteration
     //store the wMat_hashtable within par of mf_sgd
-    //regenerate the wMat numericTable 
+    //regenerate the wMat numericTablj 
     if (par->_wMat_map == NULL && par->_sgd2 == 1)
     {
         //debug
@@ -124,7 +126,6 @@ void DistriContainer<step, interm, method, cpu>::compute()
         daal::internal::FeatureMicroTable<int, readWrite, cpu> wMat_index(r[0]);
         int* wMat_index_ptr = 0;
         wMat_index.getBlockOfColumnValues(0, 0, wMat_size, &wMat_index_ptr);
-
         // daal::internal::UniformRng<interm, daal::sse2> rng1(time(0));
 
 #ifdef _OPENMP
@@ -185,8 +186,76 @@ void DistriContainer<step, interm, method, cpu>::compute()
         //
         // }
         
+        
+    }
+
+    /* construct the hashmap to hold training point position indexed by col id */
+    if (par->_train_map == NULL && par->_sgd2 == 1)
+    {
+        par->_train_map = new ConcurrentVectorMap();
+
+        int train_size = a0->getNumberOfRows();
+        daal::internal::FeatureMicroTable<int, readWrite, cpu> train_wPos(a0);
+        daal::internal::FeatureMicroTable<int, readWrite, cpu> train_hPos(a1);
+
+        int* train_wPos_ptr = 0;
+        train_wPos.getBlockOfColumnValues(0, 0, train_size, &train_wPos_ptr);
+        int* train_hPos_ptr = 0;
+        train_hPos.getBlockOfColumnValues(0, 0, train_size, &train_hPos_ptr);
+
+#ifdef _OPENMP
+
+        int thread_num = omp_get_max_threads();
+        #pragma omp parallel for schedule(guided) num_threads(thread_num) 
+        for(int k=0;k<train_size;k++)
+        {
+            ConcurrentMap::accessor pos_w;
+            ConcurrentVectorMap::accessor pos_train;
+
+            /* replace row id by row position */
+            int row_id = train_wPos_ptr[k];
+            if (par->_wMat_map->find(pos_w, row_id))
+            {
+                train_wPos_ptr[k] = pos_w->second;
+            }
+            else
+                train_wPos_ptr[k] = -1;
+
+            /* construct the training data queue indexed by col id */
+            int col_id = train_hPos_ptr[k];
+            par->_train_map->insert(pos_train, col_id);
+            pos_train->second.push_back(k);
+
+        }
+
+#else
+
+        for(int k=0;k<train_size;k++)
+        {
+            ConcurrentMap::accessor pos_w;
+            ConcurrentMap::accessor pos_train;
+
+            /* replace row id by row position */
+            int row_id = train_wPos_ptr[k];
+            if (par->_wMat_map->find(pos_w, row_id))
+            {
+                train_wPos_ptr[k] = pos_w->second;
+            }
+            else
+                train_wPos_ptr[k] = -1;
+
+            /* construct the training data queue indexed by col id */
+            int col_id = train_hPos_ptr[k];
+            par->_train_map->insert(pos_train, col_id);
+            pos_train->second.push_back(k);
+
+        }
+
+#endif
+
 
     }
+
 
     r[3] = static_cast<NumericTable *>(result->get(presWData).get());
 
@@ -201,13 +270,14 @@ void DistriContainer<step, interm, method, cpu>::compute()
         int hMat_colNum = r[1]->getNumberOfColumns(); /* should be dim_r + 1, there is a sentinel to record the col id */
         int hMat_rowNum = r[1]->getNumberOfRows();
 
+        col_ids = (int*)calloc(hMat_rowNum, sizeof(int));
+
         daal::internal::BlockMicroTable<interm, readWrite, cpu> hMat_block(r[1]);
         interm* hMat_block_ptr = 0;
         hMat_block.getBlockOfRows(0, hMat_rowNum, &hMat_block_ptr);
 
         if (par->_hMat_map != NULL)
             par->_hMat_map->~ConcurrentMap();
-            // par->_hMat_map->clear();
             
         par->_hMat_map = new ConcurrentMap(hMat_rowNum);
 
@@ -219,6 +289,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
         {
             ConcurrentMap::accessor pos; 
             int col_id = (int)(hMat_block_ptr[k*hMat_colNum]);
+            col_ids[k] = col_id;
 
             if(par->_hMat_map->insert(pos, col_id))
             {
@@ -268,7 +339,10 @@ void DistriContainer<step, interm, method, cpu>::compute()
     daal::services::Environment::env &env = *_env;
 
     /* invoke the MF_SGDBatchKernel */
-    __DAAL_CALL_KERNEL(env, internal::MF_SGDDistriKernel, __DAAL_KERNEL_ARGUMENTS(interm, method), compute, WPos, HPos, Val, WPosTest, HPosTest, ValTest, r, par);
+    __DAAL_CALL_KERNEL(env, internal::MF_SGDDistriKernel, __DAAL_KERNEL_ARGUMENTS(interm, method), compute, WPos, HPos, Val, WPosTest, HPosTest, ValTest, r, par, col_ids);
+
+    if (col_ids != NULL)
+        free(col_ids);
    
 }
 

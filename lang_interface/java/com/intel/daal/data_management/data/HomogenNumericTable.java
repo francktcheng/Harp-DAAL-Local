@@ -303,6 +303,10 @@ public class HomogenNumericTable extends NumericTable {
         return ((HomogenNumericTableImpl)tableImpl).getBlockOfRows(vectorIndex, vectorNum, buf);
     }
 
+    public void getBlockOfRowsByte(long vectorIndex, long vectorNum, double[] data) {
+         ((HomogenNumericTableImpl)tableImpl).getBlockOfRowsByte(vectorIndex, vectorNum, data);
+    }
+
     /** @copydoc NumericTable::getBlockOfRows(long,long,FloatBuffer) */
     @Override
     public FloatBuffer getBlockOfRows(long vectorIndex, long vectorNum, FloatBuffer buf) {
@@ -343,6 +347,10 @@ public class HomogenNumericTable extends NumericTable {
     @Override
     public void releaseBlockOfRows(long vectorIndex, long vectorNum, DoubleBuffer buf) {
         ((HomogenNumericTableImpl)tableImpl).releaseBlockOfRows(vectorIndex, vectorNum, buf);
+    }
+
+    public void releaseBlockOfRowsByte(long vectorIndex, long vectorNum, double[] data) {
+        ((HomogenNumericTableImpl)tableImpl).releaseBlockOfRowsByte(vectorIndex, vectorNum, data);
     }
 
     /** @copydoc NumericTable::releaseBlockOfRows(long,long,IntBuffer) */

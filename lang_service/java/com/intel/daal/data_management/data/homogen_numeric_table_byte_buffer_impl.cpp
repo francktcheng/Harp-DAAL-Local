@@ -16,6 +16,7 @@
 *******************************************************************************/
 
 #include <jni.h>
+#include <cstring>
 
 #include "JHomogenNumericTableByteBufferImpl.h"
 #include "numeric_table.h"
@@ -249,17 +250,33 @@ JNIEXPORT void JNICALL Java_com_intel_daal_data_1management_data_HomogenNumericT
 
     double *src = (double *)(env->GetDirectBufferAddress(byteBuffer));
 
-    for(size_t i = 0; i < vectorNum * nCols; i++)
-    {
-        data[i] = src[i];
-    }
+    // for(size_t i = 0; i < vectorNum * nCols; i++)
+    // {
+    //     data[i] = src[i];
+    // }
+    std::memcpy(data, src, vectorNum*nCols*sizeof(double));
 
     if(nt->getErrors()->size() > 0)
     {
         env->ThrowNew(env->FindClass("java/lang/Exception"), nt->getErrors()->getDescription());
     }
 
-    nt->releaseBlockOfRows(block);
+    // nt->releaseBlockOfRows(block);
+}
+
+//langshi added
+JNIEXPORT jlong JNICALL Java_com_intel_daal_data_1management_data_HomogenNumericTableByteBufferImpl_getNumericTableAddr
+(JNIEnv *env, jobject thisObj, jlong numTableAddr, jlong vectorIndex, jlong vectorNum)
+{
+
+    NumericTable *nt = static_cast<NumericTable *>(((SerializationIfacePtr *)numTableAddr)->get());
+    BlockDescriptor<double> block;
+
+    size_t nCols = nt->getNumberOfColumns();
+    nt->getBlockOfRows(vectorIndex, vectorNum, writeOnly, block);
+    double *data = block.getBlockPtr();
+
+    return reinterpret_cast<jlong>(&(data[0]));
 }
 
 /*
@@ -309,17 +326,18 @@ JNIEXPORT jobject JNICALL Java_com_intel_daal_data_1management_data_HomogenNumer
 
     double *dst = (double *)(env->GetDirectBufferAddress(byteBuffer));
 
-    for(size_t i = 0; i < vectorNum * nCols; i++)
-    {
-        dst[i] = data[i];
-    }
+    // for(size_t i = 0; i < vectorNum * nCols; i++)
+    // {
+    //     dst[i] = data[i];
+    // }
+    std::memcpy(dst, data, vectorNum*nCols*sizeof(double));
 
     if(nt->getErrors()->size() > 0)
     {
         env->ThrowNew(env->FindClass("java/lang/Exception"), nt->getErrors()->getDescription());
     }
 
-    nt->releaseBlockOfRows(block);
+    // nt->releaseBlockOfRows(block);
     return byteBuffer;
 }
 

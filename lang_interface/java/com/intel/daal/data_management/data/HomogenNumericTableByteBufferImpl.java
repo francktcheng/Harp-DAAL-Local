@@ -23,6 +23,9 @@ import java.nio.DoubleBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.LongBuffer;
+//langshi added
+import sun.misc.Unsafe;
+import java.lang.reflect.Field;
 
 import com.intel.daal.services.DaalContext;
 
@@ -167,6 +170,25 @@ class HomogenNumericTableByteBufferImpl extends HomogenNumericTableImpl {
         return byteBuf.asDoubleBuffer();
     }
 
+    @Override
+    public void getBlockOfRowsByte(long vectorIndex, long vectorNum, double[] data) {
+        checkCObject();
+
+        long nColumns = getNumberOfColumns();
+        long bufferSize = vectorNum * nColumns;
+
+        // Gets data from C++ NumericTable object
+        if (bufferSize * 8 > maxBufferSize) {
+            throw new IllegalArgumentException("size of the block of rows cannot exceed 2 gigabytes");
+        }
+
+        ByteBuffer byteBuf = ByteBuffer.allocateDirect((int)(bufferSize * 8) /* sizeof(double) */);
+        byteBuf.order(ByteOrder.LITTLE_ENDIAN);
+        byteBuf = getDoubleBlockBuffer(getCObject(), vectorIndex, vectorNum, byteBuf);
+        byteBuf.asDoubleBuffer().get(data);
+        // return byteBuf.asDoubleBuffer();
+    }
+
     /** @copydoc NumericTable::getBlockOfRows(long,long,FloatBuffer) */
     @Override
     public FloatBuffer getBlockOfRows(long vectorIndex, long vectorNum, FloatBuffer buf) {
@@ -272,6 +294,31 @@ class HomogenNumericTableByteBufferImpl extends HomogenNumericTableImpl {
         double[] data = new double[buf.capacity()];
         buf.position(0);
         buf.get(data);
+        // Gets data from C++ NumericTable object
+        ByteBuffer byteBuf = ByteBuffer.allocateDirect((int)(bufferSize * 8) /* sizeof(double) */);
+        byteBuf.order(ByteOrder.LITTLE_ENDIAN);
+        byteBuf.asDoubleBuffer().put(data);
+        releaseDoubleBlockBuffer(getCObject(), vectorIndex, vectorNum, byteBuf);
+    }
+    
+    @Override
+    public void releaseBlockOfRowsByte(long vectorIndex, long vectorNum, double[] data) {
+        checkCObject();
+
+        long nColumns = getNumberOfColumns();
+        long bufferSize = vectorNum * nColumns;
+
+        if (bufferSize * 8 > maxBufferSize) {
+            throw new IllegalArgumentException("size of the block of rows cannot exceed 2 gigabytes");
+        }
+
+        // long daal_table_addr = (long)getNumericTableAddr(getCObject(), vectorIndex, vectorNum);
+        // this.getUnsafe().copyMemory(data, 0, null, daal_table_addr, bufferSize*8);
+
+        // double[] data = new double[buf.capacity()];
+        // buf.position(0);
+        // buf.get(data);
+
         // Gets data from C++ NumericTable object
         ByteBuffer byteBuf = ByteBuffer.allocateDirect((int)(bufferSize * 8) /* sizeof(double) */);
         byteBuf.order(ByteOrder.LITTLE_ENDIAN);
@@ -614,6 +661,24 @@ class HomogenNumericTableByteBufferImpl extends HomogenNumericTableImpl {
         dataAllocatedInJava = false;
     }
 
+    //langshi added
+    private static Unsafe getUnsafe() {
+
+        try {
+
+            Field f = Unsafe.class.getDeclaredField("theUnsafe");
+
+            f.setAccessible(true);
+
+            return (Unsafe)f.get(null);
+
+        } catch (Exception e)
+        {
+            return null;
+        }
+
+    }
+
     /* Creates C++ HomogenNumericTable object */
     private native long dInit(long nColumns);
     private native long sInit(long nColumns);
@@ -642,6 +707,9 @@ class HomogenNumericTableByteBufferImpl extends HomogenNumericTableImpl {
     private native void releaseDoubleBlockBuffer(long cObject, long vectorIndex, long vectorNum, ByteBuffer buffer);
     private native void releaseFloatBlockBuffer(long cObject, long vectorIndex, long vectorNum, ByteBuffer buffer);
     private native void releaseIntBlockBuffer(long cObject, long vectorIndex, long vectorNum, ByteBuffer buffer);
+
+    //langshi added
+    private native long getNumericTableAddr(long cObject, long vectorIndex, long vectorNum);
 
     private native void assignLong(long cObject, long constValue);
     private native void assignInt(long cObject, int constValue);

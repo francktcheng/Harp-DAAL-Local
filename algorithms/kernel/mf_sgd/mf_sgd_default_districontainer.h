@@ -186,7 +186,6 @@ void DistriContainer<step, interm, method, cpu>::compute()
         //
         // }
         
-        
     }
 
     /* construct the hashmap to hold training point position indexed by col id */
@@ -314,20 +313,6 @@ void DistriContainer<step, interm, method, cpu>::compute()
         }
 
 #endif
-
-        //debug
-        //check the par->_hMat_map
-        // for(int k=0;k<10;k++)
-        // {
-        //     ConcurrentMap::accessor pos;
-        //     int col_id = (int)(hMat_block_ptr[k*hMat_colNum]);
-        //     if (par->_hMat_map->find(pos, col_id))
-        //     {
-        //         std::printf("Col Id: %d, Row Pos: %d\n", col_id, pos->second);
-        //         std::fflush(stdout);
-        //     }
-        //
-        // }
 
     }
 

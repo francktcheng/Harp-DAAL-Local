@@ -97,9 +97,20 @@ JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cSetAbse
 	((mf_sgd::Parameter*)parAddr)->_absent_test_num = absentNum;
 }
 
+JNIEXPORT jint JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cGetAbsentTestNum
+(JNIEnv *env, jobject thisObj, jlong parAddr)
+{
+	return (jint)(((mf_sgd::Parameter*)parAddr)->_absent_test_num);
+}
+
 JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cSetIsSGD2
 (JNIEnv *env, jobject thisObj, jlong parAddr, jint isSGD2)
 {
 	((mf_sgd::Parameter*)parAddr)->_sgd2 = isSGD2;
 }
 
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cFreeData
+(JNIEnv *env, jobject thisObj, jlong parAddr)
+{
+	((mf_sgd::Parameter*)parAddr)->freeData();
+}

@@ -69,4 +69,9 @@ abstract class HomogenNumericTableImpl extends NumericTableImpl {
     abstract public long getLong(long row, long column);
 
     abstract public int getInt(long row, long column);
+
+    abstract public void releaseBlockOfRowsByte(long vectorIndex, long vectorNum, double[] data); 
+
+    abstract public void getBlockOfRowsByte(long vectorIndex, long vectorNum, double[] data); 
+
 }

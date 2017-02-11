@@ -594,6 +594,22 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _isReorder = isReorder;
     }
 
+    /**
+     * @brief free up the user allocated memory
+     */
+    void freeData()
+    {
+        if (_wMat_map != NULL)
+            delete _wMat_map;
+
+        if (_hMat_map != NULL)
+            delete _hMat_map;
+
+        if (_train_map != NULL)
+            delete _train_map;
+
+    }
+
     double		_learningRate;                    /* the rate of learning by SGD  */
     double		_lambda;                          /* the lambda parameter in standard SGD */
     double      _ratio;                           /* control the percentage of tasks to execute */

@@ -79,7 +79,7 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute(NumericTable** WPos,
                                                       NumericTable** WPosTest,
                                                       NumericTable** HPosTest, 
                                                       NumericTable** ValTest, 
-                                                      NumericTable *r[], const Parameter *parameter, int* col_ids)
+                                                      NumericTable *r[], Parameter *parameter, int* col_ids)
 {/*{{{*/
 
     /* retrieve members of parameter */
@@ -487,64 +487,78 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
     ConcurrentMap* map_h = parameter->_hMat_map;
     ConcurrentVectorMap* map_train = parameter->_train_map;
 
-    /* training MF-SGD */
-    /* for(int k=0;k<dim_set;k++) */
-    /* std::vector<int>* task_queue = new std::vector<int>(); */
-    long total_tasks_num = 0;
-    //loop over col_ids to get the total number of tasks
+    //store the col pos of each sub-task queue
+    std::vector<int>* task_queue_colPos = new std::vector<int>();
+
+    //store the size of each sub-task queue
+    std::vector<int>* task_queue_size = new std::vector<int>();
+
+    //store the pointer to each sub-task queue
+    std::vector<int*>* task_queue_ids = new std::vector<int*>();
+
+    const int tasks_queue_len = 50;
+
     for(int k=0;k<dim_h;k++)
     {
         int col_id = col_ids[k];
-        ConcurrentVectorMap::accessor pos_train; 
-        if (map_train->find(pos_train, col_id))
-        {
-            total_tasks_num += pos_train->second.size();
-        }
-    }
-
-    int* total_tasks = (int*)calloc(total_tasks_num, sizeof(int));
-    int* total_tasks_colPos = (int*)calloc(total_tasks_num, sizeof(int));
-
-    //loop over col_ids to copy the tasks ids
-    int copy_pos = 0;
-    for(int k=0;k<dim_h;k++)
-    {
-        int col_id = col_ids[k];
-        int seg_size = 0;
         int col_pos = -1;
+        ConcurrentMap::accessor pos_h; 
+        if (map_h->find(pos_h, col_id))
+            col_pos = pos_h->second;
+        else
+            break;
+
         ConcurrentVectorMap::accessor pos_train; 
+        std::vector<int>* sub_tasks_ptr = NULL;
         if (map_train->find(pos_train, col_id))
         {
-            seg_size = (int)pos_train->second.size();
-            memcpy(&total_tasks[copy_pos], &(pos_train->second)[0], seg_size*sizeof(int));
-            
-            ConcurrentMap::accessor pos_h;
-            if (map_h->find(pos_h, col_id))
+             sub_tasks_ptr = &(pos_train->second);
+        }
+
+        if (sub_tasks_ptr != NULL)
+        {
+            int tasks_size = (int)sub_tasks_ptr->size();
+            int itr = 0; 
+
+            while (((itr+1)*tasks_queue_len) <= tasks_size)
             {
-                col_pos = pos_h->second;
+                task_queue_colPos->push_back(col_pos);
+                task_queue_size->push_back(tasks_queue_len);
+                task_queue_ids->push_back(&(*sub_tasks_ptr)[itr*tasks_queue_len]);
+                itr++;
             }
 
-            for(int l=0;l<seg_size;l++)
-                total_tasks_colPos[copy_pos+l] = col_pos;
-     
-            copy_pos += seg_size;
+            //add the last sub task queue
+            int residue = tasks_size - itr*tasks_queue_len;
+            if (residue > 0)
+            {
+                task_queue_colPos->push_back(col_pos);
+                task_queue_size->push_back(residue);
+                task_queue_ids->push_back(&(*sub_tasks_ptr)[itr*tasks_queue_len]);
+            }
         }
 
     }
 
-    std::printf("Training Points Number: %ld\n", total_tasks_num);
+    int task_queues_num = (int)task_queue_ids->size();
+    int* queue_cols_ptr = &(*task_queue_colPos)[0];
+    int* queue_size_ptr = &(*task_queue_size)[0];
+    int** queue_ids_ptr = &(*task_queue_ids)[0];
+
+    std::printf("Col num: %ld, Tasks num: %d\n", dim_h, task_queues_num);
     std::fflush(stdout);
 
     #pragma omp parallel for schedule(guided) num_threads(thread_num) 
-    for(int k=0;k<total_tasks_num;k++)
+    for(int k=0;k<task_queues_num;k++)
     {
-
         int* workWPosLocal = workWPos; 
         int* workHPosLocal = workHPos; 
         interm* workVLocal = workV; 
 
         interm *WMat = 0; 
-        interm *HMat = 0;
+        /* interm *HMat = 0; */
+        /* interm WMat[dim_r]; */
+        interm HMat[dim_r];
 
         interm Mult = 0;
         interm Err = 0;
@@ -561,33 +575,152 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
         interm learningRateLocal = learningRate;
         interm lambdaLocal = lambda;
 
-        int task_id = total_tasks[k];
-        
-        int col_pos = total_tasks_colPos[k];
+        int col_pos = queue_cols_ptr[k];
+        int squeue_size = queue_size_ptr[k];
+        int* ids_ptr = queue_ids_ptr[k];
 
-        int row_pos = workWPosLocal[task_id];
-        WMat = mtWDataLocal + row_pos*stride_w;
-        HMat = mtHDataLocal + col_pos*stride_h;
+        /* HMat = mtHDataLocal + col_pos*stride_h; */
 
-        for(p = 0; p<dim_r; p++)
-            Mult += (WMat[p]*HMat[p]);
+        //data copy 
+        memcpy(HMat, mtHDataLocal+col_pos*stride_h, dim_r*sizeof(interm));
 
-        Err = workVLocal[task_id] - Mult;
-
-        for(p = 0;p<dim_r;p++)
+        /* #pragma omp parallel for schedule(guided) num_threads(thread_num)  */
+        for(int j=0;j<squeue_size;j++)
         {
-            WMatVal = WMat[p];
-            HMatVal = HMat[p];
+            int data_id = ids_ptr[j];
+            int row_pos = workWPosLocal[data_id];
+            Mult = 0;
+            Err = 0;
 
-            WMat[p] = WMatVal + learningRateLocal*(Err*HMatVal - lambdaLocal*WMatVal);
-            HMat[p] = HMatVal + learningRateLocal*(Err*WMatVal - lambdaLocal*HMatVal);
+            WMat = mtWDataLocal + row_pos*stride_w;
+
+            for(p = 0; p<dim_r; p++)
+                Mult += (WMat[p]*HMat[p]);
+
+            Err = workVLocal[data_id] - Mult;
+
+            for(p = 0;p<dim_r;p++)
+            {
+                WMatVal = WMat[p];
+                HMatVal = HMat[p];
+
+                WMat[p] = WMatVal + learningRateLocal*(Err*HMatVal - lambdaLocal*WMatVal);
+                HMat[p] = HMatVal + learningRateLocal*(Err*WMatVal - lambdaLocal*HMatVal);
+
+            }
 
         }
 
+        memcpy(mtHDataLocal+col_pos*stride_h, HMat, dim_r*sizeof(interm));
+
     }
 
-    free(total_tasks);
-    free(total_tasks_colPos);
+
+    delete task_queue_colPos;
+    delete task_queue_size;
+    delete task_queue_ids;
+
+    /* training MF-SGD */
+    /* for(int k=0;k<dim_set;k++) */
+    /* std::vector<int>* task_queue = new std::vector<int>(); */
+    /* long total_tasks_num = 0; */
+    /* //loop over col_ids to get the total number of tasks */
+    /* for(int k=0;k<dim_h;k++) */
+    /* { */
+    /*     int col_id = col_ids[k]; */
+    /*     ConcurrentVectorMap::accessor pos_train;  */
+    /*     if (map_train->find(pos_train, col_id)) */
+    /*     { */
+    /*         total_tasks_num += pos_train->second.size(); */
+    /*     } */
+    /* } */
+    /*  */
+    /* int* total_tasks = (int*)calloc(total_tasks_num, sizeof(int)); */
+    /* int* total_tasks_colPos = (int*)calloc(total_tasks_num, sizeof(int)); */
+    /*  */
+    /* //loop over col_ids to copy the tasks ids */
+    /* int copy_pos = 0; */
+    /* for(int k=0;k<dim_h;k++) */
+    /* { */
+    /*     int col_id = col_ids[k]; */
+    /*     int seg_size = 0; */
+    /*     int col_pos = -1; */
+    /*     ConcurrentVectorMap::accessor pos_train;  */
+    /*     if (map_train->find(pos_train, col_id)) */
+    /*     { */
+    /*         seg_size = (int)pos_train->second.size(); */
+    /*         memcpy(&total_tasks[copy_pos], &(pos_train->second)[0], seg_size*sizeof(int)); */
+    /*          */
+    /*         ConcurrentMap::accessor pos_h; */
+    /*         if (map_h->find(pos_h, col_id)) */
+    /*         { */
+    /*             col_pos = pos_h->second; */
+    /*         } */
+    /*  */
+    /*         for(int l=0;l<seg_size;l++) */
+    /*             total_tasks_colPos[copy_pos+l] = col_pos; */
+    /*   */
+    /*         copy_pos += seg_size; */
+    /*     } */
+    /*  */
+    /* } */
+
+    /* std::printf("Training Points Number: %ld\n", total_tasks_num); */
+    /* std::fflush(stdout); */
+
+    /* #pragma omp parallel for schedule(guided) num_threads(thread_num)  */
+    /* for(int k=0;k<total_tasks_num;k++) */
+    /* { */
+    /*  */
+    /*     int* workWPosLocal = workWPos;  */
+    /*     int* workHPosLocal = workHPos;  */
+    /*     interm* workVLocal = workV;  */
+    /*  */
+    /*     interm *WMat = 0;  */
+    /*     interm *HMat = 0; */
+    /*  */
+    /*     interm Mult = 0; */
+    /*     interm Err = 0; */
+    /*     interm WMatVal = 0; */
+    /*     interm HMatVal = 0; */
+    /*     int p = 0; */
+    /*  */
+    /*     interm* mtWDataLocal = mtWDataPtr; */
+    /*     interm* mtHDataLocal = mtHDataPtr + 1; // consider the sentinel element  */
+    /*  */
+    /*     int stride_w = dim_r; */
+    /*     int stride_h = dim_r + 1; // h matrix has a sentinel as the first element of each row  */
+    /*  */
+    /*     interm learningRateLocal = learningRate; */
+    /*     interm lambdaLocal = lambda; */
+    /*  */
+    /*     int task_id = total_tasks[k]; */
+    /*      */
+    /*     int col_pos = total_tasks_colPos[k]; */
+    /*  */
+    /*     int row_pos = workWPosLocal[task_id]; */
+    /*     WMat = mtWDataLocal + row_pos*stride_w; */
+    /*     HMat = mtHDataLocal + col_pos*stride_h; */
+    /*  */
+    /*     for(p = 0; p<dim_r; p++) */
+    /*         Mult += (WMat[p]*HMat[p]); */
+    /*  */
+    /*     Err = workVLocal[task_id] - Mult; */
+    /*  */
+    /*     for(p = 0;p<dim_r;p++) */
+    /*     { */
+    /*         WMatVal = WMat[p]; */
+    /*         HMatVal = HMat[p]; */
+    /*  */
+    /*         WMat[p] = WMatVal + learningRateLocal*(Err*HMatVal - lambdaLocal*WMatVal); */
+    /*         HMat[p] = HMatVal + learningRateLocal*(Err*WMatVal - lambdaLocal*HMatVal); */
+    /*  */
+    /*     } */
+    /*  */
+    /* } */
+
+    /* free(total_tasks); */
+    /* free(total_tasks_colPos); */
 
     /* #pragma omp parallel for schedule(guided) num_threads(thread_num)  */
     /* for(int k=0;k<dim_h;k++) */
@@ -879,7 +1012,7 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
                                                                interm* mtWDataPtr, 
                                                                interm* mtHDataPtr, 
                                                                interm* mtRMSEPtr,
-                                                               const Parameter *parameter)
+                                                               Parameter *parameter)
 {/*{{{*/
 
 #ifdef _OPENMP
@@ -926,6 +1059,8 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
     ConcurrentMap* map_h = parameter->_hMat_map;
 
     clock_gettime(CLOCK_MONOTONIC, &ts1);
+
+    int numTestV = 0;
 
     #pragma omp parallel for schedule(guided) num_threads(thread_num) 
     for(int k = 0; k<dim_set; k++)
@@ -981,8 +1116,11 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
             omp_unset_lock(&(mutex_w_ptr[pos_w]));
             omp_unset_lock(&(mutex_h_ptr[pos_h]));
 
+            #pragma omp atomic
+            numTestV++;
 
         }
+            
                 
     }
 
@@ -997,6 +1135,8 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
         totalRMSE += testRMSELocal[k];
 
     mtRMSEPtr[0] = totalRMSE;
+
+    parameter->setAbsentTestNum(numTestV);
 
     std::printf("local RMSE value: %f\n", totalRMSE);
     std::fflush(stdout);

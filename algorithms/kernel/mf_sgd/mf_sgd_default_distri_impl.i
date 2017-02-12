@@ -212,7 +212,7 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute(NumericTable** WPos,
         BlockMicroTable<interm, readWrite, cpu> mtRMSETable(r[2]);
         mtRMSETable.getBlockOfRows(0, 1, &mtRMSEPtr);
 
-        MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(workWPos,workHPos,workV, dim_set, mtWDataPtr,mtHDataPtr, mtRMSEPtr, parameter);
+        MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(workWPos,workHPos,workV, dim_set, mtWDataPtr,mtHDataPtr, mtRMSEPtr, parameter, col_ids);
 
     }
 
@@ -1012,7 +1012,9 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
                                                                interm* mtWDataPtr, 
                                                                interm* mtHDataPtr, 
                                                                interm* mtRMSEPtr,
-                                                               Parameter *parameter)
+                                                               Parameter *parameter,
+                                                               int* col_ids)
+
 {/*{{{*/
 
 #ifdef _OPENMP
@@ -1030,8 +1032,8 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
     services::SharedPtr<omp_lock_t> mutex_h(new omp_lock_t[dim_h]);
 
     /* RMSE value for test dataset */
-    services::SharedPtr<interm> testRMSE(new interm[dim_set]);
-    interm* testRMSELocal = testRMSE.get();
+    /* services::SharedPtr<interm> testRMSE(new interm[dim_set]); */
+    /* interm* testRMSELocal = testRMSE.get(); */
 
     omp_lock_t* mutex_w_ptr = mutex_w.get();
     for(int j=0; j<dim_w;j++)
@@ -1054,91 +1056,157 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
     int64_t diff = 0;
     double test_time = 0;
 
-    /* shared vars */
-    ConcurrentMap* map_w = parameter->_wMat_map;
-    ConcurrentMap* map_h = parameter->_hMat_map;
-
     clock_gettime(CLOCK_MONOTONIC, &ts1);
 
+    /* shared vars */
+    /* ConcurrentMap* map_w = parameter->_wMat_map; */
+    ConcurrentMap* map_h = parameter->_hMat_map;
+    ConcurrentVectorMap* map_test = parameter->_test_map;
+
+    //store the col pos of each sub-task queue
+    std::vector<int>* task_queue_colPos = new std::vector<int>();
+
+    //store the size of each sub-task queue
+    std::vector<int>* task_queue_size = new std::vector<int>();
+
+    //store the pointer to each sub-task queue
+    std::vector<int*>* task_queue_ids = new std::vector<int*>();
+    
+    const int tasks_queue_len = 20;
+
+    for(int k=0;k<dim_h;k++)
+    {
+        int col_id = col_ids[k];
+        int col_pos = -1;
+        ConcurrentMap::accessor pos_h; 
+        if (map_h->find(pos_h, col_id))
+            col_pos = pos_h->second;
+        else
+            continue;
+
+        ConcurrentVectorMap::accessor pos_test; 
+        std::vector<int>* sub_tasks_ptr = NULL;
+        if (map_test->find(pos_test, col_id))
+        {
+             sub_tasks_ptr = &(pos_test->second);
+        }
+
+        if (sub_tasks_ptr != NULL)
+        {
+            int tasks_size = (int)sub_tasks_ptr->size();
+            int itr = 0; 
+
+            while (((itr+1)*tasks_queue_len) <= tasks_size)
+            {
+                task_queue_colPos->push_back(col_pos);
+                task_queue_size->push_back(tasks_queue_len);
+                task_queue_ids->push_back(&(*sub_tasks_ptr)[itr*tasks_queue_len]);
+                itr++;
+            }
+
+            //add the last sub task queue
+            int residue = tasks_size - itr*tasks_queue_len;
+            if (residue > 0)
+            {
+                task_queue_colPos->push_back(col_pos);
+                task_queue_size->push_back(residue);
+                task_queue_ids->push_back(&(*sub_tasks_ptr)[itr*tasks_queue_len]);
+            }
+        }
+
+    }
+
+    int task_queues_num = (int)task_queue_ids->size();
+    int* queue_cols_ptr = &(*task_queue_colPos)[0];
+    int* queue_size_ptr = &(*task_queue_size)[0];
+    int** queue_ids_ptr = &(*task_queue_ids)[0];
+
+    std::printf("Col num: %ld, Test Tasks num: %d\n", dim_h, task_queues_num);
+    std::fflush(stdout);
+
+    //RMSE value from computed points
+    interm totalRMSE = 0;
+    
+    //the effective computed num of test V points
     int numTestV = 0;
 
     #pragma omp parallel for schedule(guided) num_threads(thread_num) 
-    for(int k = 0; k<dim_set; k++)
+    for(int k=0;k<task_queues_num;k++)
     {
+        int* workWPosLocal = workWPos; 
+        int* workHPosLocal = workHPos; 
+        interm* workVLocal = workV; 
 
-        int* testWPosLocal = workWPos; /* store the row ids  */
-        int* testHPosLocal = workHPos; /* store the col ids */
-        interm* testVLocal = workV; /*  */
+        interm *WMat = 0; 
+        interm HMat[dim_r];
 
-        /* start of training process  */
-        int row_id = testWPosLocal[k];
-        int col_id = testHPosLocal[k];
+        interm Mult = 0;
+        interm Err = 0;
+        interm WMatVal = 0;
+        interm HMatVal = 0;
+        int p = 0;
 
-        ConcurrentMap::accessor posW; 
-        ConcurrentMap::accessor posH; 
+        interm* mtWDataLocal = mtWDataPtr;
+        interm* mtHDataLocal = mtHDataPtr + 1; // consider the sentinel element 
 
-        testRMSELocal[k] = 0;
+        int stride_w = dim_r;
+        int stride_h = dim_r + 1; // h matrix has a sentinel as the first element of each row 
 
-        if (map_h->find(posH, col_id) && map_w->find(posW, row_id) )
+        int col_pos = queue_cols_ptr[k];
+        int squeue_size = queue_size_ptr[k];
+        int* ids_ptr = queue_ids_ptr[k];
+
+
+        omp_set_lock(&(mutex_h_ptr[col_pos]));
+
+        //---------- copy hmat data ---------------
+        memcpy(HMat, mtHDataLocal+col_pos*stride_h, dim_r*sizeof(interm));
+
+        omp_unset_lock(&(mutex_h_ptr[col_pos]));
+
+        for(int j=0;j<squeue_size;j++)
         {
-            /* the data points need to be processed */
-            interm *WMat = 0;
-            interm *HMat = 0;
+            int data_id = ids_ptr[j];
+            int row_pos = workWPosLocal[data_id];
+            if (row_pos < 0)
+                continue;
 
-            interm Mult = 0;
-            interm Err = 0;
-            /* interm WMatVal = 0; */
-            /* interm HMatVal = 0; */
-            int p = 0;
+            Mult = 0;
 
-            interm* mtWDataLocal = mtWDataPtr;
-            interm* mtHDataLocal = mtHDataPtr + 1; /* consider the sentinel element */
-
-            int stride_w = dim_r;
-            int stride_h = dim_r + 1; /* h matrix has a sentinel as the first element of each row */
-
-            int pos_h = posH->second;
-            int pos_w = posW->second;
-
-            omp_set_lock(&(mutex_w_ptr[pos_w]));
-            omp_set_lock(&(mutex_h_ptr[pos_h]));
-
-            WMat = mtWDataLocal + pos_w*stride_w;
-            HMat = mtHDataLocal + pos_h*stride_h;
+            omp_set_lock(&(mutex_w_ptr[row_pos]));
+            WMat = mtWDataLocal + row_pos*stride_w;
 
             for(p = 0; p<dim_r; p++)
                 Mult += (WMat[p]*HMat[p]);
 
-            Err = testVLocal[k] - Mult;
+            omp_unset_lock(&(mutex_w_ptr[row_pos]));
 
-            testRMSELocal[k] = Err*Err;
+            Err = workVLocal[data_id] - Mult;
 
-            omp_unset_lock(&(mutex_w_ptr[pos_w]));
-            omp_unset_lock(&(mutex_h_ptr[pos_h]));
+            #pragma omp atomic
+            totalRMSE += (Err*Err);
 
             #pragma omp atomic
             numTestV++;
 
         }
-            
-                
+
+
     }
+
+    delete task_queue_colPos;
+    delete task_queue_size;
+    delete task_queue_ids;
 
     clock_gettime(CLOCK_MONOTONIC, &ts2);
     diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
     test_time += (double)(diff)/1000000L;
 
-    interm totalRMSE = 0;
-    /* interm* testRMSE_ptr = testRMSE.get(); */
-
-    for(int k=0;k<dim_set;k++)
-        totalRMSE += testRMSELocal[k];
-
     mtRMSEPtr[0] = totalRMSE;
 
-    parameter->setAbsentTestNum(numTestV);
+    parameter->setTestV(numTestV);
 
-    std::printf("local RMSE value: %f\n", totalRMSE);
+    std::printf("local RMSE value: %f, test time: %f\n", totalRMSE, test_time);
     std::fflush(stdout);
 
 #else

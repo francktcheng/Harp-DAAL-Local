@@ -154,7 +154,7 @@ public:
     void compute_test_omp(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, interm* mtRMSEPtr,const Parameter *parameter);
 
     /* another multi-threading version of testing process implemented by OpenMP */
-    void compute_test2_omp(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, interm* mtRMSEPtr, Parameter *parameter);
+    void compute_test2_omp(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, interm* mtRMSEPtr, Parameter *parameter, int* col_ids);
 
 };
 

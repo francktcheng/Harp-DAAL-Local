@@ -466,7 +466,9 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _wMat_map = NULL;
         _hMat_map = NULL;
         _train_map = NULL;
+        _test_map = NULL;
         _sgd2 = 0;
+        _testV=0;
     }
 
     virtual ~Parameter() {}
@@ -571,6 +573,11 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _absent_test_num = absent_test_num;
     }
 
+    void setTestV(size_t testV)
+    {
+        _testV = testV;
+    }
+
     /**
      * @brief set up the length of queue in reorder mode
      *
@@ -608,6 +615,9 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         if (_train_map != NULL)
             delete _train_map;
 
+        if (_test_map != NULL)
+            delete _test_map;
+
     }
 
     double		_learningRate;                    /* the rate of learning by SGD  */
@@ -631,7 +641,9 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     tbb::concurrent_hash_map<int,int>* _wMat_map;      /* concurrent hashmap for storing index of W Matrix */
     tbb::concurrent_hash_map<int,int>* _hMat_map;      /* concurrent hashmap for storing index of H Matrix */
     tbb::concurrent_hash_map<int, std::vector<int> >* _train_map; /* hashmap to hold the training data indexed by col id */
+    tbb::concurrent_hash_map<int, std::vector<int> >* _test_map; /* hashmap to hold the training data indexed by col id */
     int         _sgd2;                            /* 0 default sgd method, 1 the second sgd method */
+    size_t      _testV;                           /* the actual computed data points from test dataset */
 
 };
 /** @} */

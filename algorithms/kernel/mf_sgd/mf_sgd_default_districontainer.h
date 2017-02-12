@@ -110,10 +110,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
     //regenerate the wMat numericTablj 
     if (par->_wMat_map == NULL && par->_sgd2 == 1)
     {
-        //debug
-        // std::printf("Start to create wMat hashmap\n");
-        // std::fflush(stdout);
-
+        
         //construct the wMat_hashtable
         int wMat_size = r[0]->getNumberOfRows();
 
@@ -126,7 +123,6 @@ void DistriContainer<step, interm, method, cpu>::compute()
         daal::internal::FeatureMicroTable<int, readWrite, cpu> wMat_index(r[0]);
         int* wMat_index_ptr = 0;
         wMat_index.getBlockOfColumnValues(0, 0, wMat_size, &wMat_index_ptr);
-        // daal::internal::UniformRng<interm, daal::sse2> rng1(time(0));
 
 #ifdef _OPENMP
 
@@ -141,7 +137,6 @@ void DistriContainer<step, interm, method, cpu>::compute()
             }
 
             daal::internal::UniformRng<interm, daal::sse2> rng1(time(0));
-            //randomize the kth row in the memory space
             rng1.uniform(dim_r, 0.0, scale, &wMat_body[k*dim_r]);
         }
 
@@ -255,6 +250,72 @@ void DistriContainer<step, interm, method, cpu>::compute()
 
     }
 
+    if (par->_test_map == NULL && par->_sgd2 == 1 )
+    {
+        par->_test_map = new ConcurrentVectorMap();
+
+        int test_size = a3->getNumberOfRows();
+        daal::internal::FeatureMicroTable<int, readWrite, cpu> test_wPos(a3);
+        daal::internal::FeatureMicroTable<int, readWrite, cpu> test_hPos(a4);
+
+        int* test_wPos_ptr = 0;
+        test_wPos.getBlockOfColumnValues(0, 0, test_size, &test_wPos_ptr);
+        int* test_hPos_ptr = 0;
+        test_hPos.getBlockOfColumnValues(0, 0, test_size, &test_hPos_ptr);
+
+#ifdef _OPENMP
+
+        int thread_num = omp_get_max_threads();
+        #pragma omp parallel for schedule(guided) num_threads(thread_num) 
+        for(int k=0;k<test_size;k++)
+        {
+            ConcurrentMap::accessor pos_w;
+            ConcurrentVectorMap::accessor pos_test;
+
+            /* replace row id by row position */
+            int row_id = test_wPos_ptr[k];
+            if (par->_wMat_map->find(pos_w, row_id))
+            {
+                test_wPos_ptr[k] = pos_w->second;
+            }
+            else
+                test_wPos_ptr[k] = -1;
+
+            /* construct the test data queue indexed by col id */
+            int col_id = test_hPos_ptr[k];
+            par->_test_map->insert(pos_test, col_id);
+            pos_test->second.push_back(k);
+
+        }
+
+#else
+
+        for(int k=0;k<test_size;k++)
+        {
+            ConcurrentMap::accessor pos_w;
+            ConcurrentVectorMap::accessor pos_test;
+
+            /* replace row id by row position */
+            int row_id = test_wPos_ptr[k];
+            if (par->_wMat_map->find(pos_w, row_id))
+            {
+                test_wPos_ptr[k] = pos_w->second;
+            }
+            else
+                test_wPos_ptr[k] = -1;
+
+            /* construct the test data queue indexed by col id */
+            int col_id = test_hPos_ptr[k];
+            par->_test_map->insert(pos_test, col_id);
+            pos_test->second.push_back(k);
+
+        }
+        
+
+#endif
+
+
+    }
 
     r[3] = static_cast<NumericTable *>(result->get(presWData).get());
 

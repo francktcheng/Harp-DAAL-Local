@@ -166,8 +166,18 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
         cSetAbsentTestNum(this.cObject, absentNum);
     }
 
+    public void setTestV(int testV) {
+
+        cSetTestV(this.cObject, testV);
+    }
+
     public int GetAbsentTestNum() {
         return cGetAbsentTestNum(this.cObject);
+    }
+
+    public int GetTestV() {
+
+        return cGetTestV(this.cObject);
     }
 
     public void setIsSGD2(int isSGD2) {
@@ -198,6 +208,10 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
     private native void cSetAbsentTestNum(long parAddr, int absentNum);
 
     private native int cGetAbsentTestNum(long parAddr);
+
+    private native void cSetTestV(long parAddr, int testV);
+
+    private native int cGetTestV(long parAddr);
 
     private native void cSetIsSGD2(long parAddr, int isSGD2);
 

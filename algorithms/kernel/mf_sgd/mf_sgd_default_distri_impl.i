@@ -508,7 +508,7 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
         if (map_h->find(pos_h, col_id))
             col_pos = pos_h->second;
         else
-            break;
+            continue;
 
         ConcurrentVectorMap::accessor pos_train; 
         std::vector<int>* sub_tasks_ptr = NULL;

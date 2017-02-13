@@ -387,8 +387,16 @@ void DistriContainer<step, interm, method, cpu>::compute()
     /* invoke the MF_SGDBatchKernel */
     __DAAL_CALL_KERNEL(env, internal::MF_SGDDistriKernel, __DAAL_KERNEL_ARGUMENTS(interm, method), compute, WPos, HPos, Val, WPosTest, HPosTest, ValTest, r, par, col_ids);
 
+    //clean up the memory space per iteration
     if (col_ids != NULL)
         free(col_ids);
+
+    if (par->_hMat_map != NULL)
+    {
+        delete par->_hMat_map;
+        par->_hMat_map = NULL;
+
+    }
    
 }
 

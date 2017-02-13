@@ -73,6 +73,13 @@ namespace mf_sgd
 namespace internal
 {
     
+struct omp_task
+{
+    int _col_pos;
+    int _len;
+    int* _task_ids;
+    omp_task(int col_pos, int len, int* task_ids): _col_pos(col_pos), _len(len), _task_ids(task_ids){}
+};
 
 template <typename interm, daal::algorithms::mf_sgd::Method method, CpuType cpu>
 void MF_SGDDistriKernel<interm, method, cpu>::compute(NumericTable** WPos, 
@@ -490,13 +497,14 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
     ConcurrentVectorMap* map_train = parameter->_train_map;
 
     //store the col pos of each sub-task queue
-    std::vector<int>* task_queue_colPos = new std::vector<int>();
+    /* std::vector<int>* task_queue_colPos = new std::vector<int>(); */
 
     //store the size of each sub-task queue
-    std::vector<int>* task_queue_size = new std::vector<int>();
+    /* std::vector<int>* task_queue_size = new std::vector<int>(); */
 
     //store the pointer to each sub-task queue
-    std::vector<int*>* task_queue_ids = new std::vector<int*>();
+    /* std::vector<int*>* task_queue_ids = new std::vector<int*>(); */
+    std::vector<omp_task*>* task_queue = new std::vector<omp_task*>();
 
     const int tasks_queue_len = 50;
 
@@ -524,9 +532,10 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
 
             while (((itr+1)*tasks_queue_len) <= tasks_size)
             {
-                task_queue_colPos->push_back(col_pos);
-                task_queue_size->push_back(tasks_queue_len);
-                task_queue_ids->push_back(&(*sub_tasks_ptr)[itr*tasks_queue_len]);
+                task_queue->push_back(new omp_task(col_pos, tasks_queue_len, &(*sub_tasks_ptr)[itr*tasks_queue_len]));
+                //task_queue_colPos->push_back(col_pos);
+                //task_queue_size->push_back(tasks_queue_len);
+                //task_queue_ids->push_back(&(*sub_tasks_ptr)[itr*tasks_queue_len]);
                 itr++;
             }
 
@@ -534,18 +543,25 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
             int residue = tasks_size - itr*tasks_queue_len;
             if (residue > 0)
             {
-                task_queue_colPos->push_back(col_pos);
-                task_queue_size->push_back(residue);
-                task_queue_ids->push_back(&(*sub_tasks_ptr)[itr*tasks_queue_len]);
+                task_queue->push_back(new omp_task(col_pos, residue, &(*sub_tasks_ptr)[itr*tasks_queue_len]));
+                //task_queue_colPos->push_back(col_pos);
+                //task_queue_size->push_back(residue);
+                //task_queue_ids->push_back(&(*sub_tasks_ptr)[itr*tasks_queue_len]);
             }
         }
 
     }
 
-    int task_queues_num = (int)task_queue_ids->size();
-    int* queue_cols_ptr = &(*task_queue_colPos)[0];
-    int* queue_size_ptr = &(*task_queue_size)[0];
-    int** queue_ids_ptr = &(*task_queue_ids)[0];
+    //int task_queues_num = (int)task_queue_ids->size();
+    //int* queue_cols_ptr = &(*task_queue_colPos)[0];
+    //int* queue_size_ptr = &(*task_queue_size)[0];
+    //int** queue_ids_ptr = &(*task_queue_ids)[0];
+
+    //shuffle the tasks
+    //std::random_shuffle(task_queue->begin(), task_queue->end());
+
+    int task_queues_num = (int)task_queue->size();
+    omp_task** task_queue_array = &(*task_queue)[0]; 
 
     std::printf("Col num: %ld, Tasks num: %d\n", dim_h, task_queues_num);
     std::fflush(stdout);
@@ -558,8 +574,6 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
         interm* workVLocal = workV; 
 
         interm *WMat = 0; 
-        /* interm *HMat = 0; */
-        /* interm WMat[dim_r]; */
         interm HMat[dim_r];
 
         interm Mult = 0;
@@ -577,16 +591,18 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
         interm learningRateLocal = learningRate;
         interm lambdaLocal = lambda;
 
-        int col_pos = queue_cols_ptr[k];
-        int squeue_size = queue_size_ptr[k];
-        int* ids_ptr = queue_ids_ptr[k];
+        omp_task* elem = task_queue_array[k];
+        //int col_pos = queue_cols_ptr[k];
+        //int squeue_size = queue_size_ptr[k];
+        //int* ids_ptr = queue_ids_ptr[k];
+        int col_pos = elem->_col_pos;
+        int squeue_size = elem->_len;
+        int* ids_ptr = elem->_task_ids;
 
         /* HMat = mtHDataLocal + col_pos*stride_h; */
-
         //data copy 
         memcpy(HMat, mtHDataLocal+col_pos*stride_h, dim_r*sizeof(interm));
 
-        /* #pragma omp parallel for schedule(guided) num_threads(thread_num)  */
         for(int j=0;j<squeue_size;j++)
         {
             int data_id = ids_ptr[j];
@@ -614,13 +630,15 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
         }
 
         memcpy(mtHDataLocal+col_pos*stride_h, HMat, dim_r*sizeof(interm));
+        delete elem;
 
     }
 
 
-    delete task_queue_colPos;
-    delete task_queue_size;
-    delete task_queue_ids;
+    //delete task_queue_colPos;
+    //delete task_queue_size;
+    //delete task_queue_ids;
+    delete task_queue;
 
     /* training MF-SGD */
     /* for(int k=0;k<dim_set;k++) */

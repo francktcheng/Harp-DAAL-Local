@@ -508,6 +508,13 @@ void computeRMSE_explicit(interm *WMat,interm *HMat, interm* testV, interm* test
 
 }/*}}}*/
 
+/* omp_task::omp_task(int col_pos, int len, int* task_ids) */
+/* { */
+/*     _col_pos = col_pos; */
+/*     _len = len; */
+/*     _task_ids = task_ids; */
+/* } */
+
 /* AVX optimization via template specialization (Intel compiler only) */
 #if defined (__INTEL_COMPILER) && defined(__linux__) && defined(__x86_64__) && ( __CPUID__(DAAL_CPU) == __avx__ )
     #include "mf_sgd_default_impl_avx.i"

@@ -46,6 +46,7 @@
 #include "data_management/data/data_utils.h"
 #include "data_management/data/homogen_tensor.h"
 #include "data_management/data/homogen_numeric_table.h"
+#include "data_management/data/homogen_bm_numeric_table.h"
 #include "data_management/data/merged_numeric_table.h"
 #include "data_management/data/matrix.h"
 #include "data_management/data/numeric_table.h"

@@ -1,4 +1,4 @@
-/* file: HomogenNumericTableByteBufferImpl.java */
+/* file: HomogenBMNumericTableByteBufferImpl.java */
 /*******************************************************************************
 * Copyright 2014-2016 Intel Corporation
 *
@@ -27,11 +27,11 @@ import java.nio.LongBuffer;
 import com.intel.daal.services.DaalContext;
 
 /**
- * <a name="DAAL-CLASS-DATA__HOMOGENNUMERICTABLEBYTEBUFFERIMPL__HOMOGENNUMERICTABLEBYTEBUFFERIMPL"></a>
- * @brief A derivative class of the HomogenNumericTableImpl class, that provides implementation
+ * <a name="DAAL-CLASS-DATA__HomogenBMNumericTableByteBufferImpl__HomogenBMNumericTableByteBufferImpl"></a>
+ * @brief A derivative class of the HomogenBMNumericTableImpl class, that provides implementation
  *        of a homogen numeric table with data stored in a native C++ numeric table
  */
-class HomogenNumericTableByteBufferImpl extends HomogenNumericTableImpl {
+class HomogenBMNumericTableByteBufferImpl extends HomogenBMNumericTableImpl {
 
     private static final long maxBufferSize = 2147483647;
 
@@ -41,7 +41,7 @@ class HomogenNumericTableByteBufferImpl extends HomogenNumericTableImpl {
     }
 
     /** @copydoc HomogenNumericTable::HomogenNumericTable(DaalContext,long) */
-    public HomogenNumericTableByteBufferImpl(DaalContext context, long cTable) {
+    public HomogenBMNumericTableByteBufferImpl(DaalContext context, long cTable) {
         super(context);
         cObject = cTable;
         int indexType = getIndexType(cTable);
@@ -63,62 +63,62 @@ class HomogenNumericTableByteBufferImpl extends HomogenNumericTableImpl {
     }
 
     /** @copydoc HomogenNumericTable::HomogenNumericTable(DaalContext,Class<? extends Number>,long) */
-    public HomogenNumericTableByteBufferImpl(DaalContext context, Class<? extends Number> cls, long nColumns) {
+    public HomogenBMNumericTableByteBufferImpl(DaalContext context, Class<? extends Number> cls, long nColumns) {
         super(context);
-        initHomogenNumericTable(context, cls, nColumns, 0, NumericTable.AllocationFlag.NotAllocate);
+        initHomogenBMNumericTable(context, cls, nColumns, 0, NumericTable.AllocationFlag.NotAllocate);
     }
 
     /** @copydoc HomogenNumericTable::HomogenNumericTable(DaalContext,Class<? extends Number>,long,long,NumericTable.AllocationFlag) */
-    public HomogenNumericTableByteBufferImpl(DaalContext context, Class<? extends Number> cls, long nColumns, long nRows,
+    public HomogenBMNumericTableByteBufferImpl(DaalContext context, Class<? extends Number> cls, long nColumns, long nRows,
             NumericTable.AllocationFlag allocFlag) {
         super(context);
-        initHomogenNumericTable(context, cls, nColumns, nRows, allocFlag);
+        initHomogenBMNumericTable(context, cls, nColumns, nRows, allocFlag);
     }
 
     /** @copydoc HomogenNumericTable::HomogenNumericTable(DaalContext,Class<? extends Number>,long,long,NumericTable.AllocationFlag,double) */
-    public HomogenNumericTableByteBufferImpl(DaalContext context, Class<? extends Number> cls, long nColumns, long nRows,
+    public HomogenBMNumericTableByteBufferImpl(DaalContext context, Class<? extends Number> cls, long nColumns, long nRows,
             NumericTable.AllocationFlag allocFlag, double constValue) {
         super(context);
-        initHomogenNumericTable(context, cls, nColumns, nRows, allocFlag);
+        initHomogenBMNumericTable(context, cls, nColumns, nRows, allocFlag);
         if (allocFlag.ordinal() == NumericTable.AllocationFlag.DoAllocate.ordinal()) {
             assign(constValue);
         }
     }
 
     /** @copydoc HomogenNumericTable::HomogenNumericTable(DaalContext,Class<? extends Number>,long,long,NumericTable.AllocationFlag,float) */
-    public HomogenNumericTableByteBufferImpl(DaalContext context, Class<? extends Number> cls, long nColumns, long nRows,
+    public HomogenBMNumericTableByteBufferImpl(DaalContext context, Class<? extends Number> cls, long nColumns, long nRows,
             NumericTable.AllocationFlag allocFlag, float constValue) {
         super(context);
-        initHomogenNumericTable(context, cls, nColumns, nRows, allocFlag);
+        initHomogenBMNumericTable(context, cls, nColumns, nRows, allocFlag);
         if (allocFlag.ordinal() == NumericTable.AllocationFlag.DoAllocate.ordinal()) {
             assign(constValue);
         }
     }
 
     /** @copydoc HomogenNumericTable::HomogenNumericTable(DaalContext,Class<? extends Number>,long,long,NumericTable.AllocationFlag,long) */
-    public HomogenNumericTableByteBufferImpl(DaalContext context, Class<? extends Number> cls, long nColumns, long nRows,
+    public HomogenBMNumericTableByteBufferImpl(DaalContext context, Class<? extends Number> cls, long nColumns, long nRows,
             NumericTable.AllocationFlag allocFlag, long constValue) {
         super(context);
-        initHomogenNumericTable(context, cls, nColumns, nRows, allocFlag);
+        initHomogenBMNumericTable(context, cls, nColumns, nRows, allocFlag);
         if (allocFlag.ordinal() == NumericTable.AllocationFlag.DoAllocate.ordinal()) {
             assign(constValue);
         }
     }
 
     /** @copydoc HomogenNumericTable::HomogenNumericTable(DaalContext,Class<? extends Number>,long,long,NumericTable.AllocationFlag,int) */
-    public HomogenNumericTableByteBufferImpl(DaalContext context, Class<? extends Number> cls, long nColumns, long nRows,
+    public HomogenBMNumericTableByteBufferImpl(DaalContext context, Class<? extends Number> cls, long nColumns, long nRows,
             NumericTable.AllocationFlag allocFlag, int constValue) {
         super(context);
-        initHomogenNumericTable(context, cls, nColumns, nRows, allocFlag);
+        initHomogenBMNumericTable(context, cls, nColumns, nRows, allocFlag);
         if (allocFlag.ordinal() == NumericTable.AllocationFlag.DoAllocate.ordinal()) {
             assign(constValue);
         }
     }
 
     /** @copydoc HomogenNumericTable::HomogenNumericTable(DaalContext,Class<? extends Number>,DataDictionary) */
-    public HomogenNumericTableByteBufferImpl(DaalContext context, Class<? extends Number> cls, DataDictionary dict) {
+    public HomogenBMNumericTableByteBufferImpl(DaalContext context, Class<? extends Number> cls, DataDictionary dict) {
         super(context);
-        initHomogenNumericTable(context, cls, dict);
+        initHomogenBMNumericTable(context, cls, dict);
     }
 
     /** @copydoc HomogenNumericTable::assign(long) */
@@ -183,8 +183,10 @@ class HomogenNumericTableByteBufferImpl extends HomogenNumericTableImpl {
         byteBuf.order(ByteOrder.LITTLE_ENDIAN);
         byteBuf = getDoubleBlockBuffer(getCObject(), vectorIndex, vectorNum, byteBuf);
         byteBuf.asDoubleBuffer().get(data);
-        // return byteBuf.asDoubleBuffer();
+
     }
+
+    
 
     /** @copydoc NumericTable::getBlockOfRows(long,long,FloatBuffer) */
     @Override
@@ -202,6 +204,24 @@ class HomogenNumericTableByteBufferImpl extends HomogenNumericTableImpl {
         byteBuf.order(ByteOrder.LITTLE_ENDIAN);
         byteBuf = getFloatBlockBuffer(getCObject(), vectorIndex, vectorNum, byteBuf);
         return byteBuf.asFloatBuffer();
+    }
+
+    @Override
+    public void getBlockOfRowsByte(long vectorIndex, long vectorNum, float[] data) {
+        checkCObject();
+
+        long nColumns = getNumberOfColumns();
+        long bufferSize = vectorNum * nColumns;
+
+        // Gets data from C++ NumericTable object
+        if (bufferSize * 4 > maxBufferSize) {
+            throw new IllegalArgumentException("size of the block of rows cannot exceed 2 gigabytes");
+        }
+
+        ByteBuffer byteBuf = ByteBuffer.allocateDirect((int)(bufferSize * 4) /* sizeof(float) */);
+        byteBuf.order(ByteOrder.LITTLE_ENDIAN);
+        byteBuf = getFloatBlockBuffer(getCObject(), vectorIndex, vectorNum, byteBuf);
+        byteBuf.asFloatBuffer().get(data);
     }
 
     /** @copydoc NumericTable::getBlockOfRows(long,long,IntBuffer) */
@@ -222,6 +242,24 @@ class HomogenNumericTableByteBufferImpl extends HomogenNumericTableImpl {
         return byteBuf.asIntBuffer();
     }
 
+    @Override
+    public void getBlockOfRowsByte(long vectorIndex, long vectorNum, int[] data) {
+        checkCObject();
+
+        long nColumns = getNumberOfColumns();
+        long bufferSize = vectorNum * nColumns;
+
+        // Gets data from C++ NumericTable object
+        if (bufferSize * 4 > maxBufferSize) {
+            throw new IllegalArgumentException("size of the block of rows cannot exceed 2 gigabytes");
+        }
+
+        ByteBuffer byteBuf = ByteBuffer.allocateDirect((int)(bufferSize * 4) /* sizeof(int) */);
+        byteBuf.order(ByteOrder.LITTLE_ENDIAN);
+        byteBuf = getIntBlockBuffer(getCObject(), vectorIndex, vectorNum, byteBuf);
+        byteBuf.asIntBuffer().get(data);
+    }
+
     /** @copydoc NumericTable::getBlockOfColumnValues(long,long,long,DoubleBuffer) */
     @Override
     public DoubleBuffer getBlockOfColumnValues(long featureIndex, long vectorIndex, long vectorNum, DoubleBuffer buf) {
@@ -238,6 +276,24 @@ class HomogenNumericTableByteBufferImpl extends HomogenNumericTableImpl {
         byteBuf.order(ByteOrder.LITTLE_ENDIAN);
         byteBuf = getDoubleColumnBuffer(getCObject(), featureIndex, vectorIndex, vectorNum, byteBuf);
         return byteBuf.asDoubleBuffer();
+    }
+
+    /** @copydoc NumericTable::getBlockOfColumnValues(long,long,long,DoubleBuffer) */
+    @Override
+    public void getBlockOfColumnValuesByte(long featureIndex, long vectorIndex, long vectorNum, double[] data) {
+        checkCObject();
+
+        long nColumns = getNumberOfColumns();
+        long bufferSize = vectorNum;
+
+        // Gets data from C++ NumericTable object
+        if (bufferSize * 8 > maxBufferSize) {
+            throw new IllegalArgumentException("size of the block of column values cannot exceed 2 gigabytes");
+        }
+        ByteBuffer byteBuf = ByteBuffer.allocateDirect((int)(bufferSize * 8) /* sizeof(double) */);
+        byteBuf.order(ByteOrder.LITTLE_ENDIAN);
+        byteBuf = getDoubleColumnBuffer(getCObject(), featureIndex, vectorIndex, vectorNum, byteBuf);
+        byteBuf.asDoubleBuffer().get(data);
     }
 
     /** @copydoc NumericTable::getBlockOfColumnValues(long,long,long,FloatBuffer) */
@@ -258,6 +314,23 @@ class HomogenNumericTableByteBufferImpl extends HomogenNumericTableImpl {
         return byteBuf.asFloatBuffer();
     }
 
+    @Override
+    public void getBlockOfColumnValuesByte(long featureIndex, long vectorIndex, long vectorNum, float[] data) {
+        checkCObject();
+
+        long nColumns = getNumberOfColumns();
+        long bufferSize = vectorNum;
+
+        // Gets data from C++ NumericTable object
+        if (bufferSize * 4 > maxBufferSize) {
+            throw new IllegalArgumentException("size of the block of column values cannot exceed 2 gigabytes");
+        }
+        ByteBuffer byteBuf = ByteBuffer.allocateDirect((int)(bufferSize * 4) /* sizeof(float) */);
+        byteBuf.order(ByteOrder.LITTLE_ENDIAN);
+        byteBuf = getFloatColumnBuffer(getCObject(), featureIndex, vectorIndex, vectorNum, byteBuf);
+        byteBuf.asFloatBuffer().get(data);
+    }
+
     /** @copydoc NumericTable::getBlockOfColumnValues(long,long,long,IntBuffer) */
     @Override
     public IntBuffer getBlockOfColumnValues(long featureIndex, long vectorIndex, long vectorNum, IntBuffer buf) {
@@ -274,6 +347,24 @@ class HomogenNumericTableByteBufferImpl extends HomogenNumericTableImpl {
         byteBuf.order(ByteOrder.LITTLE_ENDIAN);
         byteBuf = getIntColumnBuffer(getCObject(), featureIndex, vectorIndex, vectorNum, byteBuf);
         return byteBuf.asIntBuffer();
+    }
+
+    @Override
+    public void getBlockOfColumnValuesByte(long featureIndex, long vectorIndex, long vectorNum, int[] data) {
+        checkCObject();
+
+        long nColumns = getNumberOfColumns();
+        long bufferSize = vectorNum;
+
+        // Gets data from C++ NumericTable object
+        if (bufferSize * 4 > maxBufferSize) {
+            throw new IllegalArgumentException("size of the block of column values cannot exceed 2 gigabytes");
+        }
+        ByteBuffer byteBuf = ByteBuffer.allocateDirect((int)(bufferSize * 4) /* sizeof(float) */);
+        byteBuf.order(ByteOrder.LITTLE_ENDIAN);
+        byteBuf = getIntColumnBuffer(getCObject(), featureIndex, vectorIndex, vectorNum, byteBuf);
+        byteBuf.asIntBuffer().get(data);
+
     }
 
     /** @copydoc NumericTable::releaseBlockOfRows(long,long,DoubleBuffer) */
@@ -309,10 +400,6 @@ class HomogenNumericTableByteBufferImpl extends HomogenNumericTableImpl {
             throw new IllegalArgumentException("size of the block of rows cannot exceed 2 gigabytes");
         }
 
-        // double[] data = new double[buf.capacity()];
-        // buf.position(0);
-        // buf.get(data);
-
         // Gets data from C++ NumericTable object
         ByteBuffer byteBuf = ByteBuffer.allocateDirect((int)(bufferSize * 8) /* sizeof(double) */);
         byteBuf.order(ByteOrder.LITTLE_ENDIAN);
@@ -342,6 +429,24 @@ class HomogenNumericTableByteBufferImpl extends HomogenNumericTableImpl {
         releaseFloatBlockBuffer(getCObject(), vectorIndex, vectorNum, byteBuf);
     }
 
+    @Override
+    public void releaseBlockOfRowsByte(long vectorIndex, long vectorNum, float[] data) {
+        checkCObject();
+
+        long nColumns = getNumberOfColumns();
+        long bufferSize = vectorNum * nColumns;
+
+        if (bufferSize * 4 > maxBufferSize) {
+            throw new IllegalArgumentException("size of the block of rows cannot exceed 2 gigabytes");
+        }
+
+        // Gets data from C++ NumericTable object
+        ByteBuffer byteBuf = ByteBuffer.allocateDirect((int)(bufferSize*4) /* sizeof(float) */);
+        byteBuf.order(ByteOrder.LITTLE_ENDIAN);
+        byteBuf.asFloatBuffer().put(data);
+        releaseFloatBlockBuffer(getCObject(), vectorIndex, vectorNum, byteBuf);
+    }
+
     /** @copydoc NumericTable::releaseBlockOfRows(long,long,IntBuffer) */
     @Override
     public void releaseBlockOfRows(long vectorIndex, long vectorNum, IntBuffer buf) {
@@ -364,6 +469,24 @@ class HomogenNumericTableByteBufferImpl extends HomogenNumericTableImpl {
         releaseIntBlockBuffer(getCObject(), vectorIndex, vectorNum, byteBuf);
     }
 
+    @Override
+    public void releaseBlockOfRowsByte(long vectorIndex, long vectorNum, int[] data) {
+        checkCObject();
+
+        long nColumns = getNumberOfColumns();
+        long bufferSize = vectorNum * nColumns;
+
+        if (bufferSize * 4 > maxBufferSize) {
+            throw new IllegalArgumentException("size of the block of rows cannot exceed 2 gigabytes");
+        }
+
+        // Gets data from C++ NumericTable object
+        ByteBuffer byteBuf = ByteBuffer.allocateDirect((int)(bufferSize*4) /* sizeof(int) */);
+        byteBuf.order(ByteOrder.LITTLE_ENDIAN);
+        byteBuf.asIntBuffer().put(data);
+        releaseIntBlockBuffer(getCObject(), vectorIndex, vectorNum, byteBuf);
+    }
+
     /** @copydoc NumericTable::releaseBlockOfColumnValues(long,long,long,DoubleBuffer) */
     @Override
     public void releaseBlockOfColumnValues(long featureIndex, long vectorIndex, long vectorNum, DoubleBuffer buf) {
@@ -378,6 +501,26 @@ class HomogenNumericTableByteBufferImpl extends HomogenNumericTableImpl {
         double[] data = new double[buf.capacity()];
         buf.position(0);
         buf.get(data);
+        // Gets data from C++ NumericTable object
+        ByteBuffer byteBuf = ByteBuffer.allocateDirect((int)(bufferSize * 8) /* sizeof(double) */);
+        byteBuf.order(ByteOrder.LITTLE_ENDIAN);
+        byteBuf.asDoubleBuffer().put(data);
+        releaseDoubleColumnBuffer(getCObject(), featureIndex, vectorIndex, vectorNum, byteBuf);
+    }
+
+    @Override
+    public void releaseBlockOfColumnValuesByte(long featureIndex, long vectorIndex, long vectorNum, double[] data) {
+        checkCObject();
+
+        long bufferSize = vectorNum;
+
+        if (bufferSize * 8 > maxBufferSize) {
+            throw new IllegalArgumentException("size of the block of column values cannot exceed 2 gigabytes");
+        }
+
+        // double[] data = new double[buf.capacity()];
+        // buf.position(0);
+        // buf.get(data);
         // Gets data from C++ NumericTable object
         ByteBuffer byteBuf = ByteBuffer.allocateDirect((int)(bufferSize * 8) /* sizeof(double) */);
         byteBuf.order(ByteOrder.LITTLE_ENDIAN);
@@ -406,6 +549,23 @@ class HomogenNumericTableByteBufferImpl extends HomogenNumericTableImpl {
         releaseFloatColumnBuffer(getCObject(), featureIndex, vectorIndex, vectorNum, byteBuf);
     }
 
+    @Override
+    public void releaseBlockOfColumnValuesByte(long featureIndex, long vectorIndex, long vectorNum, float[] data) {
+        checkCObject();
+
+        long bufferSize = vectorNum;
+
+        if (bufferSize * 4 > maxBufferSize) {
+            throw new IllegalArgumentException("size of the block of column values cannot exceed 2 gigabytes");
+        }
+
+        // Gets data from C++ NumericTable object
+        ByteBuffer byteBuf = ByteBuffer.allocateDirect((int)(bufferSize * 4) /* sizeof(float) */);
+        byteBuf.order(ByteOrder.LITTLE_ENDIAN);
+        byteBuf.asFloatBuffer().put(data);
+        releaseFloatColumnBuffer(getCObject(), featureIndex, vectorIndex, vectorNum, byteBuf);
+    }
+
     /** @copydoc NumericTable::releaseBlockOfColumnValues(long,long,long,IntBuffer) */
     @Override
     public void releaseBlockOfColumnValues(long featureIndex, long vectorIndex, long vectorNum, IntBuffer buf) {
@@ -420,6 +580,23 @@ class HomogenNumericTableByteBufferImpl extends HomogenNumericTableImpl {
         int[] data = new int[buf.capacity()];
         buf.position(0);
         buf.get(data);
+        // Gets data from C++ NumericTable object
+        ByteBuffer byteBuf = ByteBuffer.allocateDirect((int)(bufferSize * 4) /* sizeof(int) */);
+        byteBuf.order(ByteOrder.LITTLE_ENDIAN);
+        byteBuf.asIntBuffer().put(data);
+        releaseIntColumnBuffer(getCObject(), featureIndex, vectorIndex, vectorNum, byteBuf);
+    }
+
+    @Override
+    public void releaseBlockOfColumnValuesByte(long featureIndex, long vectorIndex, long vectorNum, int[] data) {
+        checkCObject();
+
+        long bufferSize = vectorNum;
+
+        if (bufferSize * 4 > maxBufferSize) {
+            throw new IllegalArgumentException("size of the block of column values cannot exceed 2 gigabytes");
+        }
+
         // Gets data from C++ NumericTable object
         ByteBuffer byteBuf = ByteBuffer.allocateDirect((int)(bufferSize * 4) /* sizeof(int) */);
         byteBuf.order(ByteOrder.LITTLE_ENDIAN);
@@ -621,7 +798,7 @@ class HomogenNumericTableByteBufferImpl extends HomogenNumericTableImpl {
         cFreeDataMemory();
     }
 
-    private void initHomogenNumericTable(DaalContext context, Class<? extends Number> cls, long nColumns, long nRows,
+    private void initHomogenBMNumericTable(DaalContext context, Class<? extends Number> cls, long nColumns, long nRows,
             NumericTable.AllocationFlag allocFlag) {
         if (cls == Double.class) {
             cObject = dInit(nColumns);
@@ -648,7 +825,7 @@ class HomogenNumericTableByteBufferImpl extends HomogenNumericTableImpl {
         }
     }
 
-    private void initHomogenNumericTable(DaalContext context, Class<? extends Number> cls, DataDictionary dict) {
+    private void initHomogenBMNumericTable(DaalContext context, Class<? extends Number> cls, DataDictionary dict) {
         this.dict = dict;
         cObject = dictInit(dict.getCObject());
         type = cls;

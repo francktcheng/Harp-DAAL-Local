@@ -1,4 +1,4 @@
-/* file: HomogenNumericTable.java */
+/* file: HomogenBMNumericTable.java */
 /*******************************************************************************
 * Copyright 2014-2016 Intel Corporation
 *
@@ -27,13 +27,13 @@ import java.nio.LongBuffer;
 import com.intel.daal.services.DaalContext;
 
 /**
- * <a name="DAAL-CLASS-DATA_MANAGEMENT__DATA__HOMOGENNUMERICTABLE"></a>
+ * <a name="DAAL-CLASS-DATA_MANAGEMENT__DATA__HomogenBMNumericTable"></a>
  * @brief A derivative class of the NumericTable class, that provides methods to
  *        access the data that is stored as a contiguous array of homogeneous
  *        feature vectors. Table rows contain feature vectors, and columns
  *        contain values of individual features.
  */
-public class HomogenNumericTable extends NumericTable {
+public class HomogenBMNumericTable extends NumericTable {
 
     /** @private */
     static {
@@ -46,7 +46,7 @@ public class HomogenNumericTable extends NumericTable {
      * @param context   Context to manage created homogeneous numeric table
      * @param impl      Implementation of homogeneous numeric table
      */
-    public HomogenNumericTable(DaalContext context, HomogenNumericTableImpl impl) {
+    public HomogenBMNumericTable(DaalContext context, HomogenBMNumericTableImpl impl) {
         super(context);
         tableImpl = impl;
     }
@@ -59,7 +59,7 @@ public class HomogenNumericTable extends NumericTable {
      * @param nFeatures Number of features in numeric table
      * @param nVectors  Number of feature vectors in numeric table
      */
-    public HomogenNumericTable(DaalContext context, double[] data, long nFeatures, long nVectors) {
+    public HomogenBMNumericTable(DaalContext context, double[] data, long nFeatures, long nVectors) {
         super(context);
         tableImpl = new HomogenNumericTableArrayImpl(context, data, nFeatures, nVectors);
     }
@@ -72,7 +72,7 @@ public class HomogenNumericTable extends NumericTable {
      * @param nFeatures Number of features in numeric table
      * @param nVectors  Number of feature vectors in numeric table
      */
-    public HomogenNumericTable(DaalContext context, float[] data, long nFeatures, long nVectors) {
+    public HomogenBMNumericTable(DaalContext context, float[] data, long nFeatures, long nVectors) {
         super(context);
         tableImpl = new HomogenNumericTableArrayImpl(context, data, nFeatures, nVectors);
     }
@@ -85,7 +85,7 @@ public class HomogenNumericTable extends NumericTable {
      * @param nFeatures Number of features in numeric table
      * @param nVectors  Number of feature vectors in numeric table
      */
-    public HomogenNumericTable(DaalContext context, long[] data, long nFeatures, long nVectors) {
+    public HomogenBMNumericTable(DaalContext context, long[] data, long nFeatures, long nVectors) {
         super(context);
         tableImpl = new HomogenNumericTableArrayImpl(context, data, nFeatures, nVectors);
     }
@@ -98,7 +98,7 @@ public class HomogenNumericTable extends NumericTable {
      * @param nFeatures Number of features in numeric table
      * @param nVectors  Number of feature vectors in numeric table
      */
-    public HomogenNumericTable(DaalContext context, int[] data, long nFeatures, long nVectors) {
+    public HomogenBMNumericTable(DaalContext context, int[] data, long nFeatures, long nVectors) {
         super(context);
         tableImpl = new HomogenNumericTableArrayImpl(context, data, nFeatures, nVectors);
     }
@@ -112,7 +112,7 @@ public class HomogenNumericTable extends NumericTable {
      * @param nVectors   Number of feature vectors in numeric table
      * @param constValue Constant to initialize entries of the homogeneous numeric table
      */
-    public HomogenNumericTable(DaalContext context, double[] data, long nFeatures, long nVectors, double constValue) {
+    public HomogenBMNumericTable(DaalContext context, double[] data, long nFeatures, long nVectors, double constValue) {
         super(context);
         tableImpl = new HomogenNumericTableArrayImpl(context, data, nFeatures, nVectors, constValue);
     }
@@ -126,7 +126,7 @@ public class HomogenNumericTable extends NumericTable {
      * @param nVectors   Number of feature vectors in numeric table
      * @param constValue Constant to initialize entries of the homogeneous numeric table
      */
-    public HomogenNumericTable(DaalContext context, float[] data, long nFeatures, long nVectors, float constValue) {
+    public HomogenBMNumericTable(DaalContext context, float[] data, long nFeatures, long nVectors, float constValue) {
         super(context);
         tableImpl = new HomogenNumericTableArrayImpl(context, data, nFeatures, nVectors, constValue);
     }
@@ -140,7 +140,7 @@ public class HomogenNumericTable extends NumericTable {
      * @param nVectors   Number of feature vectors in numeric table
      * @param constValue Constant to initialize entries of the homogeneous numeric table
      */
-    public HomogenNumericTable(DaalContext context, long[] data, long nFeatures, long nVectors, long constValue) {
+    public HomogenBMNumericTable(DaalContext context, long[] data, long nFeatures, long nVectors, long constValue) {
         super(context);
         tableImpl = new HomogenNumericTableArrayImpl(context, data, nFeatures, nVectors, constValue);
     }
@@ -154,7 +154,7 @@ public class HomogenNumericTable extends NumericTable {
      * @param nVectors   Number of feature vectors in numeric table
      * @param constValue Constant to initialize entries of the homogeneous numeric table
      */
-    public HomogenNumericTable(DaalContext context, int[] data, long nFeatures, long nVectors, int constValue) {
+    public HomogenBMNumericTable(DaalContext context, int[] data, long nFeatures, long nVectors, int constValue) {
         super(context);
         tableImpl = new HomogenNumericTableArrayImpl(context, data, nFeatures, nVectors, constValue);
     }
@@ -165,9 +165,9 @@ public class HomogenNumericTable extends NumericTable {
      * @param context   Context to manage created homogeneous numeric table
      * @param cTable    Pointer to C++ numeric table
      */
-    public HomogenNumericTable(DaalContext context, long cTable) {
+    public HomogenBMNumericTable(DaalContext context, long cTable) {
         super(context);
-        tableImpl = new HomogenNumericTableByteBufferImpl(context, cTable);
+        tableImpl = new HomogenBMNumericTableByteBufferImpl(context, cTable);
     }
 
     /**
@@ -177,9 +177,9 @@ public class HomogenNumericTable extends NumericTable {
      * @param cls                     Numeric type of values in the table
      * @param nColumns                Number of columns in the table
      */
-    public HomogenNumericTable(DaalContext context, Class<? extends Number> cls, long nColumns) {
+    public HomogenBMNumericTable(DaalContext context, Class<? extends Number> cls, long nColumns) {
         super(context);
-        tableImpl = new HomogenNumericTableByteBufferImpl(context, cls, nColumns);
+        tableImpl = new HomogenBMNumericTableByteBufferImpl(context, cls, nColumns);
     }
 
     /**
@@ -191,10 +191,10 @@ public class HomogenNumericTable extends NumericTable {
      * @param nRows                   Number of rows in the table
      * @param allocFlag               Flag that controls internal memory allocation for data in the numeric table
      */
-    public HomogenNumericTable(DaalContext context, Class<? extends Number> cls, long nColumns, long nRows,
+    public HomogenBMNumericTable(DaalContext context, Class<? extends Number> cls, long nColumns, long nRows,
             AllocationFlag allocFlag) {
         super(context);
-        tableImpl = new HomogenNumericTableByteBufferImpl(context, cls, nColumns, nRows, allocFlag);
+        tableImpl = new HomogenBMNumericTableByteBufferImpl(context, cls, nColumns, nRows, allocFlag);
     }
 
     /**
@@ -207,10 +207,10 @@ public class HomogenNumericTable extends NumericTable {
      * @param allocFlag               Flag that controls internal memory allocation for data in the numeric table
      * @param constValue              Constant to initialize entries of the homogeneous numeric table
      */
-    public HomogenNumericTable(DaalContext context, Class<? extends Number> cls, long nColumns, long nRows,
+    public HomogenBMNumericTable(DaalContext context, Class<? extends Number> cls, long nColumns, long nRows,
             AllocationFlag allocFlag, double constValue) {
         super(context);
-        tableImpl = new HomogenNumericTableByteBufferImpl(context, cls, nColumns, nRows, allocFlag, constValue);
+        tableImpl = new HomogenBMNumericTableByteBufferImpl(context, cls, nColumns, nRows, allocFlag, constValue);
     }
 
     /**
@@ -223,10 +223,10 @@ public class HomogenNumericTable extends NumericTable {
      * @param allocFlag               Flag that controls internal memory allocation for data in the numeric table
      * @param constValue              Constant to initialize entries of the homogeneous numeric table
      */
-    public HomogenNumericTable(DaalContext context, Class<? extends Number> cls, long nColumns, long nRows,
+    public HomogenBMNumericTable(DaalContext context, Class<? extends Number> cls, long nColumns, long nRows,
             AllocationFlag allocFlag, float constValue) {
         super(context);
-        tableImpl = new HomogenNumericTableByteBufferImpl(context, cls, nColumns, nRows, allocFlag, constValue);
+        tableImpl = new HomogenBMNumericTableByteBufferImpl(context, cls, nColumns, nRows, allocFlag, constValue);
     }
 
     /**
@@ -239,10 +239,10 @@ public class HomogenNumericTable extends NumericTable {
      * @param allocFlag               Flag that controls internal memory allocation for data in the numeric table
      * @param constValue              Constant to initialize entries of the homogeneous numeric table
      */
-    public HomogenNumericTable(DaalContext context, Class<? extends Number> cls, long nColumns, long nRows,
+    public HomogenBMNumericTable(DaalContext context, Class<? extends Number> cls, long nColumns, long nRows,
             AllocationFlag allocFlag, long constValue) {
         super(context);
-        tableImpl = new HomogenNumericTableByteBufferImpl(context, cls, nColumns, nRows, allocFlag, constValue);
+        tableImpl = new HomogenBMNumericTableByteBufferImpl(context, cls, nColumns, nRows, allocFlag, constValue);
     }
 
     /**
@@ -255,10 +255,10 @@ public class HomogenNumericTable extends NumericTable {
      * @param allocFlag               Flag that controls internal memory allocation for data in the numeric table
      * @param constValue              Constant to initialize entries of the homogeneous numeric table
      */
-    public HomogenNumericTable(DaalContext context, Class<? extends Number> cls, long nColumns, long nRows,
+    public HomogenBMNumericTable(DaalContext context, Class<? extends Number> cls, long nColumns, long nRows,
             AllocationFlag allocFlag, int constValue) {
         super(context);
-        tableImpl = new HomogenNumericTableByteBufferImpl(context, cls, nColumns, nRows, allocFlag, constValue);
+        tableImpl = new HomogenBMNumericTableByteBufferImpl(context, cls, nColumns, nRows, allocFlag, constValue);
     }
 
     /**
@@ -268,9 +268,9 @@ public class HomogenNumericTable extends NumericTable {
      * @param cls                     Numeric type of values in the table
      * @param dict                    Predefined Data Dictionary
      */
-    public HomogenNumericTable(DaalContext context, Class<? extends Number> cls, DataDictionary dict) {
+    public HomogenBMNumericTable(DaalContext context, Class<? extends Number> cls, DataDictionary dict) {
         super(context);
-        tableImpl = new HomogenNumericTableByteBufferImpl(context, cls, dict);
+        tableImpl = new HomogenBMNumericTableByteBufferImpl(context, cls, dict);
     }
 
     /**
@@ -279,104 +279,154 @@ public class HomogenNumericTable extends NumericTable {
      * @param constValue  Constant to initialize entries of the homogeneous numeric table
      */
     public void assign(long constValue) {
-        ((HomogenNumericTableImpl)tableImpl).assign(constValue);
+        ((HomogenBMNumericTableImpl)tableImpl).assign(constValue);
     }
 
-    /** @copydoc HomogenNumericTable::assign(long) */
+    /** @copydoc HomogenBMNumericTable::assign(long) */
     public void assign(int constValue) {
-        ((HomogenNumericTableImpl)tableImpl).assign(constValue);
+        ((HomogenBMNumericTableImpl)tableImpl).assign(constValue);
     }
 
-    /** @copydoc HomogenNumericTable::assign(long) */
+    /** @copydoc HomogenBMNumericTable::assign(long) */
     public void assign(double constValue) {
-        ((HomogenNumericTableImpl)tableImpl).assign(constValue);
+        ((HomogenBMNumericTableImpl)tableImpl).assign(constValue);
     }
 
-    /** @copydoc HomogenNumericTable::assign(long) */
+    /** @copydoc HomogenBMNumericTable::assign(long) */
     public void assign(float constValue) {
-        ((HomogenNumericTableImpl)tableImpl).assign(constValue);
+        ((HomogenBMNumericTableImpl)tableImpl).assign(constValue);
     }
 
     /** @copydoc NumericTable::getBlockOfRows(long,long,DoubleBuffer) */
     @Override
     public DoubleBuffer getBlockOfRows(long vectorIndex, long vectorNum, DoubleBuffer buf) {
-        return ((HomogenNumericTableImpl)tableImpl).getBlockOfRows(vectorIndex, vectorNum, buf);
+        return ((HomogenBMNumericTableImpl)tableImpl).getBlockOfRows(vectorIndex, vectorNum, buf);
     }
 
     //langshi added
     public void getBlockOfRowsByte(long vectorIndex, long vectorNum, double[] data) {
-         ((HomogenNumericTableImpl)tableImpl).getBlockOfRowsByte(vectorIndex, vectorNum, data);
+         ((HomogenBMNumericTableImpl)tableImpl).getBlockOfRowsByte(vectorIndex, vectorNum, data);
     }
 
     /** @copydoc NumericTable::getBlockOfRows(long,long,FloatBuffer) */
     @Override
     public FloatBuffer getBlockOfRows(long vectorIndex, long vectorNum, FloatBuffer buf) {
-        return ((HomogenNumericTableImpl)tableImpl).getBlockOfRows(vectorIndex, vectorNum, buf);
+        return ((HomogenBMNumericTableImpl)tableImpl).getBlockOfRows(vectorIndex, vectorNum, buf);
+    }
+
+    //langshi added
+    public void getBlockOfRowsByte(long vectorIndex, long vectorNum, float[] data) {
+         ((HomogenBMNumericTableImpl)tableImpl).getBlockOfRowsByte(vectorIndex, vectorNum, data);
     }
 
     /** @copydoc NumericTable::getBlockOfRows(long,long,IntBuffer) */
     @Override
     public IntBuffer getBlockOfRows(long vectorIndex, long vectorNum, IntBuffer buf) {
-        return ((HomogenNumericTableImpl)tableImpl).getBlockOfRows(vectorIndex, vectorNum, buf);
+        return ((HomogenBMNumericTableImpl)tableImpl).getBlockOfRows(vectorIndex, vectorNum, buf);
+    }
+
+    //langshi added
+    public void getBlockOfRowsByte(long vectorIndex, long vectorNum, int[] data) {
+         ((HomogenBMNumericTableImpl)tableImpl).getBlockOfRowsByte(vectorIndex, vectorNum, data);
     }
 
     /** @copydoc NumericTable::getBlockOfColumnValues(long,long,long,DoubleBuffer) */
     @Override
     public DoubleBuffer getBlockOfColumnValues(long featureIndex, long vectorIndex, long vectorNum, DoubleBuffer buf) {
-        return ((HomogenNumericTableImpl)tableImpl).getBlockOfColumnValues(featureIndex, vectorIndex, vectorNum, buf);
+        return ((HomogenBMNumericTableImpl)tableImpl).getBlockOfColumnValues(featureIndex, vectorIndex, vectorNum, buf);
+    }
+
+    //langshi added
+    public void getBlockOfColumnValuesByte(long featureIndex, long vectorIndex, long vectorNum, double[] data) {
+        ((HomogenBMNumericTableImpl)tableImpl).getBlockOfColumnValuesByte(featureIndex, vectorIndex, vectorNum, data);
     }
 
     /** @copydoc NumericTable::getBlockOfColumnValues(long,long,long,FloatBuffer) */
     @Override
     public FloatBuffer getBlockOfColumnValues(long featureIndex, long vectorIndex, long vectorNum, FloatBuffer buf) {
-        return ((HomogenNumericTableImpl)tableImpl).getBlockOfColumnValues(featureIndex, vectorIndex, vectorNum, buf);
+        return ((HomogenBMNumericTableImpl)tableImpl).getBlockOfColumnValues(featureIndex, vectorIndex, vectorNum, buf);
+    }
+
+    //langshi added
+    public void getBlockOfColumnValuesByte(long featureIndex, long vectorIndex, long vectorNum, float[] data) {
+         ((HomogenBMNumericTableImpl)tableImpl).getBlockOfColumnValuesByte(featureIndex, vectorIndex, vectorNum, data);
     }
 
     /** @copydoc NumericTable::getBlockOfColumnValues(long,long,long,IntBuffer) */
     @Override
     public IntBuffer getBlockOfColumnValues(long featureIndex, long vectorIndex, long vectorNum, IntBuffer buf) {
-        return ((HomogenNumericTableImpl)tableImpl).getBlockOfColumnValues(featureIndex, vectorIndex, vectorNum, buf);
+        return ((HomogenBMNumericTableImpl)tableImpl).getBlockOfColumnValues(featureIndex, vectorIndex, vectorNum, buf);
     }
 
+    //langshi added
+    public void getBlockOfColumnValuesByte(long featureIndex, long vectorIndex, long vectorNum, int[] data) {
+        ((HomogenBMNumericTableImpl)tableImpl).getBlockOfColumnValuesByte(featureIndex, vectorIndex, vectorNum, data);
+    }
+    
     /** @copydoc NumericTable::releaseBlockOfRows(long,long,FloatBuffer) */
     @Override
     public void releaseBlockOfRows(long vectorIndex, long vectorNum, FloatBuffer buf) {
-        ((HomogenNumericTableImpl)tableImpl).releaseBlockOfRows(vectorIndex, vectorNum, buf);
+        ((HomogenBMNumericTableImpl)tableImpl).releaseBlockOfRows(vectorIndex, vectorNum, buf);
+    }
+
+    //langshi added
+    public void releaseBlockOfRowsByte(long vectorIndex, long vectorNum, float[] data) {
+        ((HomogenBMNumericTableImpl)tableImpl).releaseBlockOfRowsByte(vectorIndex, vectorNum, data);
     }
 
     /** @copydoc NumericTable::releaseBlockOfRows(long,long,DoubleBuffer) */
     @Override
     public void releaseBlockOfRows(long vectorIndex, long vectorNum, DoubleBuffer buf) {
-        ((HomogenNumericTableImpl)tableImpl).releaseBlockOfRows(vectorIndex, vectorNum, buf);
+        ((HomogenBMNumericTableImpl)tableImpl).releaseBlockOfRows(vectorIndex, vectorNum, buf);
     }
 
     //langshi added
     public void releaseBlockOfRowsByte(long vectorIndex, long vectorNum, double[] data) {
-        ((HomogenNumericTableImpl)tableImpl).releaseBlockOfRowsByte(vectorIndex, vectorNum, data);
+        ((HomogenBMNumericTableImpl)tableImpl).releaseBlockOfRowsByte(vectorIndex, vectorNum, data);
     }
 
     /** @copydoc NumericTable::releaseBlockOfRows(long,long,IntBuffer) */
     @Override
     public void releaseBlockOfRows(long vectorIndex, long vectorNum, IntBuffer buf) {
-        ((HomogenNumericTableImpl)tableImpl).releaseBlockOfRows(vectorIndex, vectorNum, buf);
+        ((HomogenBMNumericTableImpl)tableImpl).releaseBlockOfRows(vectorIndex, vectorNum, buf);
+    }
+
+    //langshi added
+    public void releaseBlockOfRowsByte(long vectorIndex, long vectorNum, int[] data) {
+        ((HomogenBMNumericTableImpl)tableImpl).releaseBlockOfRowsByte(vectorIndex, vectorNum, data);
     }
 
     /** @copydoc NumericTable::releaseBlockOfColumnValues(long,long,long,DoubleBuffer) */
     @Override
     public void releaseBlockOfColumnValues(long featureIndex, long vectorIndex, long vectorNum, DoubleBuffer buf) {
-        ((HomogenNumericTableImpl)tableImpl).releaseBlockOfColumnValues(featureIndex, vectorIndex, vectorNum, buf);
+        ((HomogenBMNumericTableImpl)tableImpl).releaseBlockOfColumnValues(featureIndex, vectorIndex, vectorNum, buf);
+    }
+
+    //langshi added
+    public void releaseBlockOfColumnValuesByte(long featureIndex, long vectorIndex, long vectorNum, double[] data) {
+        ((HomogenBMNumericTableImpl)tableImpl).releaseBlockOfColumnValuesByte(featureIndex, vectorIndex, vectorNum, data);
     }
 
     /** @copydoc NumericTable::releaseBlockOfColumnValues(long,long,long,FloatBuffer) */
     @Override
     public void releaseBlockOfColumnValues(long featureIndex, long vectorIndex, long vectorNum, FloatBuffer buf) {
-        ((HomogenNumericTableImpl)tableImpl).releaseBlockOfColumnValues(featureIndex, vectorIndex, vectorNum, buf);
+        ((HomogenBMNumericTableImpl)tableImpl).releaseBlockOfColumnValues(featureIndex, vectorIndex, vectorNum, buf);
+    }
+
+    //langshi added
+    public void releaseBlockOfColumnValuesByte(long featureIndex, long vectorIndex, long vectorNum, float[] data) {
+        ((HomogenBMNumericTableImpl)tableImpl).releaseBlockOfColumnValuesByte(featureIndex, vectorIndex, vectorNum, data);
     }
 
     /** @copydoc NumericTable::releaseBlockOfColumnValues(long,long,long,IntBuffer) */
     @Override
     public void releaseBlockOfColumnValues(long featureIndex, long vectorIndex, long vectorNum, IntBuffer buf) {
-        ((HomogenNumericTableImpl)tableImpl).releaseBlockOfColumnValues(featureIndex, vectorIndex, vectorNum, buf);
+        ((HomogenBMNumericTableImpl)tableImpl).releaseBlockOfColumnValues(featureIndex, vectorIndex, vectorNum, buf);
+    }
+
+    //langshi added
+    public void releaseBlockOfColumnValuesByte(long featureIndex, long vectorIndex, long vectorNum, int[] data) {
+        ((HomogenBMNumericTableImpl)tableImpl).releaseBlockOfColumnValuesByte(featureIndex, vectorIndex, vectorNum, data);
     }
 
     /**
@@ -384,7 +434,7 @@ public class HomogenNumericTable extends NumericTable {
      * @return Table data as an array of double
      */
     public double[] getDoubleArray() {
-        return ((HomogenNumericTableImpl)tableImpl).getDoubleArray();
+        return ((HomogenBMNumericTableImpl)tableImpl).getDoubleArray();
     }
 
     /**
@@ -392,7 +442,7 @@ public class HomogenNumericTable extends NumericTable {
      * @return Table data as an array of floats
      */
     public float[] getFloatArray() {
-        return ((HomogenNumericTableImpl)tableImpl).getFloatArray();
+        return ((HomogenBMNumericTableImpl)tableImpl).getFloatArray();
     }
 
     /**
@@ -400,7 +450,7 @@ public class HomogenNumericTable extends NumericTable {
      * @return Table data as an array of longs
      */
     public long[] getLongArray() {
-        return ((HomogenNumericTableImpl)tableImpl).getLongArray();
+        return ((HomogenBMNumericTableImpl)tableImpl).getLongArray();
     }
 
     /**
@@ -408,7 +458,7 @@ public class HomogenNumericTable extends NumericTable {
      * @return Table data as an Object
      */
     public Object getDataObject() {
-        return ((HomogenNumericTableImpl)tableImpl).getDataObject();
+        return ((HomogenBMNumericTableImpl)tableImpl).getDataObject();
     }
 
     /**
@@ -416,6 +466,6 @@ public class HomogenNumericTable extends NumericTable {
      * @return Numeric type of table data
      */
     public Class<? extends Number> getNumericType() {
-        return ((HomogenNumericTableImpl)tableImpl).getNumericType();
+        return ((HomogenBMNumericTableImpl)tableImpl).getNumericType();
     }
 }

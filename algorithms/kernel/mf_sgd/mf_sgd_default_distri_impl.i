@@ -47,6 +47,7 @@
 #include "tbb/tick_count.h"
 #include "task_scheduler_init.h"
 #include "tbb/concurrent_hash_map.h"
+#include "tbb/concurrent_vector.h"
 
 #include "blocked_range.h"
 #include "parallel_for.h"
@@ -57,6 +58,7 @@
 using namespace tbb;
 using namespace daal::internal;
 using namespace daal::services::internal;
+
 
 typedef queuing_mutex currentMutex_t;
 typedef tbb::concurrent_hash_map<int, int> ConcurrentMap;

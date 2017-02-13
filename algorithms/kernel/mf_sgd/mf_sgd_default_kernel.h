@@ -336,6 +336,17 @@ struct MFSGDTBB_TEST
 
 
 };
+
+
+template<typename interm>
+struct omp_task
+{
+    interm* wP_ptr;
+    interm* hP_ptr;
+    interm val;
+};
+
+
 } // namespace daal::internal
 }
 }

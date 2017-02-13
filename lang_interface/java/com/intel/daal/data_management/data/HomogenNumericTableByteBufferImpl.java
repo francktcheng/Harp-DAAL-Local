@@ -167,25 +167,6 @@ class HomogenNumericTableByteBufferImpl extends HomogenNumericTableImpl {
         return byteBuf.asDoubleBuffer();
     }
 
-    @Override
-    public void getBlockOfRowsByte(long vectorIndex, long vectorNum, double[] data) {
-        checkCObject();
-
-        long nColumns = getNumberOfColumns();
-        long bufferSize = vectorNum * nColumns;
-
-        // Gets data from C++ NumericTable object
-        if (bufferSize * 8 > maxBufferSize) {
-            throw new IllegalArgumentException("size of the block of rows cannot exceed 2 gigabytes");
-        }
-
-        ByteBuffer byteBuf = ByteBuffer.allocateDirect((int)(bufferSize * 8) /* sizeof(double) */);
-        byteBuf.order(ByteOrder.LITTLE_ENDIAN);
-        byteBuf = getDoubleBlockBuffer(getCObject(), vectorIndex, vectorNum, byteBuf);
-        byteBuf.asDoubleBuffer().get(data);
-        // return byteBuf.asDoubleBuffer();
-    }
-
     /** @copydoc NumericTable::getBlockOfRows(long,long,FloatBuffer) */
     @Override
     public FloatBuffer getBlockOfRows(long vectorIndex, long vectorNum, FloatBuffer buf) {
@@ -298,28 +279,6 @@ class HomogenNumericTableByteBufferImpl extends HomogenNumericTableImpl {
         releaseDoubleBlockBuffer(getCObject(), vectorIndex, vectorNum, byteBuf);
     }
     
-    @Override
-    public void releaseBlockOfRowsByte(long vectorIndex, long vectorNum, double[] data) {
-        checkCObject();
-
-        long nColumns = getNumberOfColumns();
-        long bufferSize = vectorNum * nColumns;
-
-        if (bufferSize * 8 > maxBufferSize) {
-            throw new IllegalArgumentException("size of the block of rows cannot exceed 2 gigabytes");
-        }
-
-        // double[] data = new double[buf.capacity()];
-        // buf.position(0);
-        // buf.get(data);
-
-        // Gets data from C++ NumericTable object
-        ByteBuffer byteBuf = ByteBuffer.allocateDirect((int)(bufferSize * 8) /* sizeof(double) */);
-        byteBuf.order(ByteOrder.LITTLE_ENDIAN);
-        byteBuf.asDoubleBuffer().put(data);
-        releaseDoubleBlockBuffer(getCObject(), vectorIndex, vectorNum, byteBuf);
-    }
-
     /** @copydoc NumericTable::releaseBlockOfRows(long,long,FloatBuffer) */
     @Override
     public void releaseBlockOfRows(long vectorIndex, long vectorNum, FloatBuffer buf) {
@@ -683,9 +642,6 @@ class HomogenNumericTableByteBufferImpl extends HomogenNumericTableImpl {
     private native void releaseDoubleBlockBuffer(long cObject, long vectorIndex, long vectorNum, ByteBuffer buffer);
     private native void releaseFloatBlockBuffer(long cObject, long vectorIndex, long vectorNum, ByteBuffer buffer);
     private native void releaseIntBlockBuffer(long cObject, long vectorIndex, long vectorNum, ByteBuffer buffer);
-
-    //langshi added
-    private native long getNumericTableAddr(long cObject, long vectorIndex, long vectorNum);
 
     private native void assignLong(long cObject, long constValue);
     private native void assignInt(long cObject, int constValue);

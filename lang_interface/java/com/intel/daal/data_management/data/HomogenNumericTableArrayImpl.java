@@ -210,11 +210,6 @@ class HomogenNumericTableArrayImpl extends HomogenNumericTableImpl {
         return buf;
     }
 
-    @Override
-    public void getBlockOfRowsByte(long vectorIndex, long vectorNum, double[] data) {
-        
-    }
-
     /** @copydoc NumericTable::getBlockOfColumnValues(long,long,long,DoubleBuffer) */
     @Override
     public DoubleBuffer getBlockOfColumnValues(long featureIndex, long vectorIndex, long vectorNum, DoubleBuffer buf) {
@@ -275,10 +270,6 @@ class HomogenNumericTableArrayImpl extends HomogenNumericTableImpl {
         DataFeature df = dict.getFeature(0);
         DataFeatureUtils.VectorDownCastIface vectorDownCast = DataFeatureUtils.VectorDownCast.getCast(double.class, df.type);
         vectorDownCast.downCast(bufferSize, shift, buf, jData);
-    }
-
-    @Override
-    public void releaseBlockOfRowsByte(long vectorIndex, long vectorNum, double[] data) {
     }
 
     /** @copydoc NumericTable::releaseBlockOfRows(long,long,FloatBuffer) */

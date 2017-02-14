@@ -136,6 +136,8 @@ void DistriContainer<step, interm, method, cpu>::compute()
                 pos->second = k;
             }
 
+            pos.release();
+
             daal::internal::UniformRng<interm, daal::sse2> rng1(time(0));
             rng1.uniform(dim_r, 0.0, scale, &wMat_body[k*dim_r]);
         }
@@ -153,34 +155,16 @@ void DistriContainer<step, interm, method, cpu>::compute()
                 pos->second = k;
             }
 
+            pos.release();
+
             //randomize the kth row in the memory space
             rng1.uniform(dim_r, 0.0, scale, &wMat_body[k*dim_r]);
         }
 
 #endif
 
-        //debug: check wMat_body random value
-        // for (int i = 0; i < 20 ; i++) 
-        // {
-        //     std::printf("wMat_body[%d]: %f\n", i, wMat_body[i]);
-        //     std::fflush(stdout);
-        // }
-
-        // rng1.uniform(dim_r*wMat_size, 0.0, scale, wMat_body);
         result->set(presWData, data_management::NumericTablePtr(new HomogenNumericTable<interm>(wMat_body, dim_r, wMat_size)));
 
-        //debug: check the concurrent hashmap
-        // for(int k=0;k<10;k++)
-        // {
-        //     ConcurrentMap::accessor pos;
-        //     if (par->_wMat_map->find(pos, wMat_index_ptr[k]))
-        //     {
-        //         std::printf("Row Id: %d, Row Pos: %d\n", wMat_index_ptr[k], pos->second);
-        //         std::fflush(stdout);
-        //     }
-        //
-        // }
-        
     }
 
     /* construct the hashmap to hold training point position indexed by col id */
@@ -215,10 +199,14 @@ void DistriContainer<step, interm, method, cpu>::compute()
             else
                 train_wPos_ptr[k] = -1;
 
+            pos_w.release();
+
             /* construct the training data queue indexed by col id */
             int col_id = train_hPos_ptr[k];
             par->_train_map->insert(pos_train, col_id);
             pos_train->second.push_back(k);
+
+            pos_train.release();
 
         }
 
@@ -238,10 +226,14 @@ void DistriContainer<step, interm, method, cpu>::compute()
             else
                 train_wPos_ptr[k] = -1;
 
+            pos_w.release();
+
             /* construct the training data queue indexed by col id */
             int col_id = train_hPos_ptr[k];
             par->_train_map->insert(pos_train, col_id);
             pos_train->second.push_back(k);
+
+            pos_train.release();
 
         }
 
@@ -281,10 +273,14 @@ void DistriContainer<step, interm, method, cpu>::compute()
             else
                 test_wPos_ptr[k] = -1;
 
+            pos_w.release();
+
             /* construct the test data queue indexed by col id */
             int col_id = test_hPos_ptr[k];
             par->_test_map->insert(pos_test, col_id);
             pos_test->second.push_back(k);
+
+            pos_test.release();
 
         }
 
@@ -304,10 +300,14 @@ void DistriContainer<step, interm, method, cpu>::compute()
             else
                 test_wPos_ptr[k] = -1;
 
+            pos_w.release();
+
             /* construct the test data queue indexed by col id */
             int col_id = test_hPos_ptr[k];
             par->_test_map->insert(pos_test, col_id);
             pos_test->second.push_back(k);
+
+            pos_test.release();
 
         }
         
@@ -356,6 +356,8 @@ void DistriContainer<step, interm, method, cpu>::compute()
                 pos->second = k;
             }
 
+            pos.release();
+
         }
 
 #else
@@ -371,6 +373,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
                 pos->second = k;
             }
 
+            pos.release();
         }
 
 #endif

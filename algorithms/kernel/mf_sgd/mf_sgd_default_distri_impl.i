@@ -518,12 +518,16 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
         else
             continue;
 
+        pos_h.release();
+
         ConcurrentVectorMap::accessor pos_train; 
         std::vector<int>* sub_tasks_ptr = NULL;
         if (map_train->find(pos_train, col_id))
         {
              sub_tasks_ptr = &(pos_train->second);
         }
+
+        pos_train.release();
 
         if (sub_tasks_ptr != NULL)
         {
@@ -1104,12 +1108,16 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
         else
             continue;
 
+        pos_h.release();
+
         ConcurrentVectorMap::accessor pos_test; 
         std::vector<int>* sub_tasks_ptr = NULL;
         if (map_test->find(pos_test, col_id))
         {
              sub_tasks_ptr = &(pos_test->second);
         }
+
+        pos_test.release();
 
         if (sub_tasks_ptr != NULL)
         {

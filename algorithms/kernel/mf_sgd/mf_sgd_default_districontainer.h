@@ -47,8 +47,8 @@ namespace mf_sgd
 {
     
 
-typedef tbb::concurrent_hash_map<int, int> ConcurrentMap;
-typedef tbb::concurrent_hash_map<int, std::vector<int> > ConcurrentVectorMap;
+typedef tbb::concurrent_hash_map<int, int> ConcurrentModelMap;
+typedef tbb::concurrent_hash_map<int, std::vector<int> > ConcurrentDataMap;
 
 /**
  *  @brief Initialize list of mf_sgd with implementations for supported architectures
@@ -116,7 +116,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
 
         interm* wMat_body = (interm*)calloc(dim_r*wMat_size, sizeof(interm));
 
-        par->_wMat_map = new ConcurrentMap(wMat_size);
+        par->_wMat_map = new ConcurrentModelMap(wMat_size);
 
         interm scale = 1.0/sqrt(static_cast<interm>(dim_r));
 
@@ -130,7 +130,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
         #pragma omp parallel for schedule(guided) num_threads(thread_num) 
         for(int k=0;k<wMat_size;k++)
         {
-            ConcurrentMap::accessor pos; 
+            ConcurrentModelMap::accessor pos; 
             if(par->_wMat_map->insert(pos, wMat_index_ptr[k]))
             {
                 pos->second = k;
@@ -149,7 +149,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
 
         for(int k=0;k<wMat_size;k++)
         {
-            ConcurrentMap::accessor pos; 
+            ConcurrentModelMap::accessor pos; 
             if(par->_wMat_map->insert(pos, wMat_index_ptr[k]))
             {
                 pos->second = k;
@@ -170,7 +170,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
     /* construct the hashmap to hold training point position indexed by col id */
     if (par->_train_map == NULL && par->_sgd2 == 1)
     {
-        par->_train_map = new ConcurrentVectorMap();
+        par->_train_map = new ConcurrentDataMap();
 
         int train_size = a0->getNumberOfRows();
         daal::internal::FeatureMicroTable<int, readWrite, cpu> train_wPos(a0);
@@ -187,8 +187,8 @@ void DistriContainer<step, interm, method, cpu>::compute()
         #pragma omp parallel for schedule(guided) num_threads(thread_num) 
         for(int k=0;k<train_size;k++)
         {
-            ConcurrentMap::accessor pos_w;
-            ConcurrentVectorMap::accessor pos_train;
+            ConcurrentModelMap::accessor pos_w;
+            ConcurrentDataMap::accessor pos_train;
 
             /* replace row id by row position */
             int row_id = train_wPos_ptr[k];
@@ -214,8 +214,8 @@ void DistriContainer<step, interm, method, cpu>::compute()
 
         for(int k=0;k<train_size;k++)
         {
-            ConcurrentMap::accessor pos_w;
-            ConcurrentMap::accessor pos_train;
+            ConcurrentModelMap::accessor pos_w;
+            ConcurrentModelMap::accessor pos_train;
 
             /* replace row id by row position */
             int row_id = train_wPos_ptr[k];
@@ -244,7 +244,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
 
     if (par->_test_map == NULL && par->_sgd2 == 1 )
     {
-        par->_test_map = new ConcurrentVectorMap();
+        par->_test_map = new ConcurrentDataMap();
 
         int test_size = a3->getNumberOfRows();
         daal::internal::FeatureMicroTable<int, readWrite, cpu> test_wPos(a3);
@@ -261,8 +261,8 @@ void DistriContainer<step, interm, method, cpu>::compute()
         #pragma omp parallel for schedule(guided) num_threads(thread_num) 
         for(int k=0;k<test_size;k++)
         {
-            ConcurrentMap::accessor pos_w;
-            ConcurrentVectorMap::accessor pos_test;
+            ConcurrentModelMap::accessor pos_w;
+            ConcurrentDataMap::accessor pos_test;
 
             /* replace row id by row position */
             int row_id = test_wPos_ptr[k];
@@ -288,8 +288,8 @@ void DistriContainer<step, interm, method, cpu>::compute()
 
         for(int k=0;k<test_size;k++)
         {
-            ConcurrentMap::accessor pos_w;
-            ConcurrentVectorMap::accessor pos_test;
+            ConcurrentModelMap::accessor pos_w;
+            ConcurrentDataMap::accessor pos_test;
 
             /* replace row id by row position */
             int row_id = test_wPos_ptr[k];
@@ -337,9 +337,9 @@ void DistriContainer<step, interm, method, cpu>::compute()
         hMat_block.getBlockOfRows(0, hMat_rowNum, &hMat_block_ptr);
 
         if (par->_hMat_map != NULL)
-            par->_hMat_map->~ConcurrentMap();
+            par->_hMat_map->~ConcurrentModelMap();
             
-        par->_hMat_map = new ConcurrentMap(hMat_rowNum);
+        par->_hMat_map = new ConcurrentModelMap(hMat_rowNum);
 
 #ifdef _OPENMP
 
@@ -347,7 +347,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
         #pragma omp parallel for schedule(guided) num_threads(thread_num) 
         for(int k=0;k<hMat_rowNum;k++)
         {
-            ConcurrentMap::accessor pos; 
+            ConcurrentModelMap::accessor pos; 
             int col_id = (int)(hMat_block_ptr[k*hMat_colNum]);
             col_ids[k] = col_id;
 
@@ -365,7 +365,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
         /* a serial version */
         for(int k=0;k<hMat_rowNum;k++)
         {
-            ConcurrentMap::accessor pos; 
+            ConcurrentModelMap::accessor pos; 
             int col_id = (int)(hMat_block_ptr[k*hMat_colNum]);
 
             if(par->_hMat_map->insert(pos, col_id))

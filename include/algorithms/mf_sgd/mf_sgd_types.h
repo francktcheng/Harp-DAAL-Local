@@ -442,6 +442,9 @@ protected:
 struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 {
 
+    typedef tbb::concurrent_hash_map<int, int> ConcurrentModelMap;
+    typedef tbb::concurrent_hash_map<int, std::vector<int> > ConcurrentDataMap;
+
 	/* default constructor */
     Parameter() 
     {
@@ -638,10 +641,10 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     size_t      _absent_test_num;                 /* num of test points whose row and col id not included in training dataset */
     int         _reorder_length;                  /* length of queue in reorder mode */
     int         _isReorder;                       /* 1 (true) if it uses reorder mode */
-    tbb::concurrent_hash_map<int,int>* _wMat_map;      /* concurrent hashmap for storing index of W Matrix */
-    tbb::concurrent_hash_map<int,int>* _hMat_map;      /* concurrent hashmap for storing index of H Matrix */
-    tbb::concurrent_hash_map<int, std::vector<int> >* _train_map; /* hashmap to hold the training data indexed by col id */
-    tbb::concurrent_hash_map<int, std::vector<int> >* _test_map; /* hashmap to hold the training data indexed by col id */
+    ConcurrentModelMap*  _wMat_map;                /* concurrent hashmap for storing index of W Matrix */
+    ConcurrentModelMap*  _hMat_map;                /* concurrent hashmap for storing index of H Matrix */
+    ConcurrentDataMap*   _train_map;               /* hashmap to hold the training data indexed by col id */
+    ConcurrentDataMap*   _test_map;                /* hashmap to hold the training data indexed by col id */
     int         _sgd2;                            /* 0 default sgd method, 1 the second sgd method */
     size_t      _testV;                           /* the actual computed data points from test dataset */
 

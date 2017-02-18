@@ -73,6 +73,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
     DistributedPartialResult *result = static_cast<DistributedPartialResult *>(_pres);
     Parameter *par = static_cast<Parameter*>(_par);
     int* col_ids = NULL;
+    int thread_num = par->_thread_num;
 
     /* retrieve the training and test datasets */
     NumericTable *a0 = static_cast<NumericTable *>(input->get(wPos).get());
@@ -126,7 +127,9 @@ void DistriContainer<step, interm, method, cpu>::compute()
 
 #ifdef _OPENMP
 
-        int thread_num = omp_get_max_threads();
+        if (thread_num == 0)
+            thread_num = omp_get_max_threads();
+
         #pragma omp parallel for schedule(guided) num_threads(thread_num) 
         for(int k=0;k<wMat_size;k++)
         {
@@ -183,7 +186,9 @@ void DistriContainer<step, interm, method, cpu>::compute()
 
 #ifdef _OPENMP
 
-        int thread_num = omp_get_max_threads();
+        if (thread_num == 0)
+            thread_num = omp_get_max_threads();
+
         #pragma omp parallel for schedule(guided) num_threads(thread_num) 
         for(int k=0;k<train_size;k++)
         {
@@ -257,7 +262,9 @@ void DistriContainer<step, interm, method, cpu>::compute()
 
 #ifdef _OPENMP
 
-        int thread_num = omp_get_max_threads();
+        if (thread_num == 0)
+            thread_num = omp_get_max_threads();
+
         #pragma omp parallel for schedule(guided) num_threads(thread_num) 
         for(int k=0;k<test_size;k++)
         {
@@ -343,7 +350,9 @@ void DistriContainer<step, interm, method, cpu>::compute()
 
 #ifdef _OPENMP
 
-        int thread_num = omp_get_max_threads();
+        if (thread_num == 0)
+            thread_num = omp_get_max_threads();
+
         #pragma omp parallel for schedule(guided) num_threads(thread_num) 
         for(int k=0;k<hMat_rowNum;k++)
         {

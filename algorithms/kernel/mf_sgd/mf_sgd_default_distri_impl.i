@@ -221,6 +221,9 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute(NumericTable** WPos,
         BlockMicroTable<interm, readWrite, cpu> mtRMSETable(r[2]);
         mtRMSETable.getBlockOfRows(0, 1, &mtRMSEPtr);
 
+        parameter->_Dim_h = dim_h;
+        parameter->_Dim_w = dim_w;
+
         MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(workWPos,workHPos,workV, dim_set, mtWDataPtr,mtHDataPtr, mtRMSEPtr, parameter, col_ids);
 
     }
@@ -1052,21 +1055,27 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
     const int tbb_grainsize = parameter->_tbb_grainsize;
     const int Avx_explicit = parameter->_Avx_explicit;
 
+    //create tbb mutex
+
+    currentMutex_t* mutex_w = new currentMutex_t[dim_w];
+    currentMutex_t* mutex_h = new currentMutex_t[dim_h];
+
     /* create the mutex for WData and HData */
-    services::SharedPtr<omp_lock_t> mutex_w(new omp_lock_t[dim_w]);
-    services::SharedPtr<omp_lock_t> mutex_h(new omp_lock_t[dim_h]);
-
-    /* RMSE value for test dataset */
-    /* services::SharedPtr<interm> testRMSE(new interm[dim_set]); */
-    /* interm* testRMSELocal = testRMSE.get(); */
-
-    omp_lock_t* mutex_w_ptr = mutex_w.get();
-    for(int j=0; j<dim_w;j++)
-         omp_init_lock(&(mutex_w_ptr[j]));
-
-    omp_lock_t* mutex_h_ptr = mutex_h.get();
-    for(int j=0; j<dim_h;j++)
-         omp_init_lock(&(mutex_h_ptr[j]));
+    /* omp_lock_t* mutex_w = new omp_lock_t[dim_w];   */
+    /* omp_lock_t* mutex_h = new omp_lock_t[dim_h];   */
+    /*  */
+    /* for(int j=0; j<dim_w;j++) */
+    /*      omp_init_lock(&(mutex_w[j])); */
+    /* for(int j=0; j<dim_h;j++) */
+    /*      omp_init_lock(&(mutex_h[j])); */
+    /*  */
+    /* for(int j=0; j<dim_w;j++) */
+    /*      omp_destroy_lock(&(mutex_w[j])); */
+    /* for(int j=0; j<dim_h;j++) */
+    /*      omp_destroy_lock(&(mutex_h[j])); */
+    /*  */
+    /* delete[] mutex_w; */
+    /* delete[] mutex_h; */
 
     /* ------------------- Starting OpenMP based testing  -------------------*/
     int num_thds_max = omp_get_max_threads();
@@ -1106,8 +1115,6 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
         ConcurrentModelMap::accessor pos_h; 
         if (map_h->find(pos_h, col_id))
             col_pos = pos_h->second;
-        else
-            continue;
 
         pos_h.release();
 
@@ -1120,7 +1127,7 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
 
         pos_test.release();
 
-        if (sub_tasks_ptr != NULL)
+        if (sub_tasks_ptr != NULL && col_pos != -1)
         {
             int tasks_size = (int)sub_tasks_ptr->size();
             int itr = 0; 
@@ -1157,7 +1164,11 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
     interm totalRMSE = 0;
     
     //the effective computed num of test V points
-    int numTestV = 0;
+    int totalTestV = 0;
+
+    //an array to record partial rmse values
+    interm* partialRMSE = (interm*)calloc(task_queues_num, sizeof(interm));
+    int* partialTestV = (int*)calloc(task_queues_num, sizeof(int));
 
     #pragma omp parallel for schedule(guided) num_threads(thread_num) 
     for(int k=0;k<task_queues_num;k++)
@@ -1174,6 +1185,8 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
         interm WMatVal = 0;
         interm HMatVal = 0;
         int p = 0;
+        interm rmse = 0;
+        int testV = 0;
 
         interm* mtWDataLocal = mtWDataPtr;
         interm* mtHDataLocal = mtHDataPtr + 1; // consider the sentinel element 
@@ -1186,12 +1199,15 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
         int* ids_ptr = queue_ids_ptr[k];
 
 
-        omp_set_lock(&(mutex_h_ptr[col_pos]));
+        //omp_set_lock(&(mutex_h_ptr[col_pos])); 
+        currentMutex_t::scoped_lock lock_h(mutex_h[col_pos]);
 
         //---------- copy hmat data ---------------
         memcpy(HMat, mtHDataLocal+col_pos*stride_h, dim_r*sizeof(interm));
 
-        omp_unset_lock(&(mutex_h_ptr[col_pos]));
+        lock_h.release();
+
+        //omp_unset_lock(&(mutex_h_ptr[col_pos]));
 
         for(int j=0;j<squeue_size;j++)
         {
@@ -1202,30 +1218,44 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
 
             Mult = 0;
 
-            omp_set_lock(&(mutex_w_ptr[row_pos]));
+            //omp_set_lock(&(mutex_w_ptr[row_pos]));
+            currentMutex_t::scoped_lock lock_w(mutex_w[row_pos]);
+
             WMat = mtWDataLocal + row_pos*stride_w;
 
             for(p = 0; p<dim_r; p++)
                 Mult += (WMat[p]*HMat[p]);
 
-            omp_unset_lock(&(mutex_w_ptr[row_pos]));
+            //omp_unset_lock(&(mutex_w_ptr[row_pos]));
+            lock_w.release();
 
             Err = workVLocal[data_id] - Mult;
 
-            #pragma omp atomic
-            totalRMSE += (Err*Err);
-
-            #pragma omp atomic
-            numTestV++;
+            rmse += (Err*Err);
+            testV++;
 
         }
 
+        partialRMSE[k] = rmse;
+        partialTestV[k] = testV;
 
+    }
+
+    //sum up the rmse and testV values
+    for(int k=0;k<task_queues_num;k++)
+    {
+        totalRMSE += partialRMSE[k];
+        totalTestV += partialTestV[k];
     }
 
     delete task_queue_colPos;
     delete task_queue_size;
     delete task_queue_ids;
+    free(partialRMSE);
+    free(partialTestV);
+
+    delete[] mutex_w;
+    delete[] mutex_h;
 
     clock_gettime(CLOCK_MONOTONIC, &ts2);
     diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
@@ -1233,11 +1263,12 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
 
     mtRMSEPtr[0] = totalRMSE;
 
-    parameter->setTestV(numTestV);
+    parameter->setTestV(totalTestV);
 
     std::printf("local RMSE value: %f, test time: %f\n", totalRMSE, test_time);
     std::fflush(stdout);
 
+   
 #else
 
     std::printf("Error: OpenMP module is not enabled\n");

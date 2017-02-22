@@ -184,6 +184,19 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
         cSetIsSGD2(this.cObject, isSGD2);
     }
 
+    
+    /**
+     * @brief get the actual trained num of points in
+     * each iteration if the timer is used
+     *
+     * @return 
+     */
+    public long GetTrainedNumV() {
+
+        return cGetTrainedNumV(this.cObject);
+
+    }
+
     public void freeData() {
         cFreeData(this.cObject);
     }
@@ -212,6 +225,8 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
     private native void cSetTestV(long parAddr, int testV);
 
     private native int cGetTestV(long parAddr);
+
+    private native long cGetTrainedNumV(long parAddr);
 
     private native void cSetIsSGD2(long parAddr, int isSGD2);
 

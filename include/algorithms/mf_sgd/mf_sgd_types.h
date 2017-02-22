@@ -472,6 +472,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _test_map = NULL;
         _sgd2 = 0;
         _testV=0;
+        _trainedNumV = 0;
     }
 
     virtual ~Parameter() {}
@@ -647,6 +648,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     ConcurrentDataMap*   _test_map;                /* hashmap to hold the training data indexed by col id */
     int         _sgd2;                            /* 0 default sgd method, 1 the second sgd method */
     size_t      _testV;                           /* the actual computed data points from test dataset */
+    long        _trainedNumV;                     /* the trained num of training points if using timer */
 
 };
 /** @} */

@@ -115,6 +115,12 @@ JNIEXPORT jint JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cGetTest
 	return (jint)(((mf_sgd::Parameter*)parAddr)->_testV);
 }
 
+JNIEXPORT jlong JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cGetTrainedNumV
+(JNIEnv *env, jobject thisObj, jlong parAddr)
+{
+	return (jlong)(((mf_sgd::Parameter*)parAddr)->_trainedNumV);
+}
+
 JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cSetIsSGD2
 (JNIEnv *env, jobject thisObj, jlong parAddr, jint isSGD2)
 {

@@ -145,7 +145,7 @@ public:
     void compute_train_omp(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter);
 
     /* another multi-threading version of training process implemented by OpenMP */
-    void compute_train2_omp(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter, int* col_ids);
+    void compute_train2_omp(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, Parameter *parameter, int* col_ids);
 
     /* a multi-threading version of testing process implemented by TBB */
     void compute_test(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, interm* mtRMSEPtr,const Parameter *parameter);

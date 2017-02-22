@@ -455,7 +455,7 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
                                                                 const int dim_set,
                                                                 interm* mtWDataPtr, 
                                                                 interm* mtHDataPtr, 
-                                                                const Parameter *parameter,
+                                                                Parameter *parameter,
                                                                 int* col_ids)
 {/*{{{*/
 
@@ -474,7 +474,6 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
 
     const double ratio = parameter->_ratio;
     const int itr = parameter->_itr;
-    double timeout = parameter->_timeout;
 
     /* ------------------- Starting OpenMP based Training  -------------------*/
     int num_thds_max = omp_get_max_threads();
@@ -564,14 +563,26 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
     int* queue_size_ptr = &(*task_queue_size)[0];
     int** queue_ids_ptr = &(*task_queue_ids)[0];
 
-    //shuffle the tasks
-    //std::random_shuffle(task_queue->begin(), task_queue->end());
-
+    
     //int task_queues_num = (int)task_queue->size();
     //omp_task** task_queue_array = &(*task_queue)[0]; 
 
     std::printf("Col num: %ld, Tasks num: %d\n", dim_h, task_queues_num);
     std::fflush(stdout);
+
+    long* partialTrainedNumV = (long*)calloc(task_queues_num, sizeof(long));
+    long totalTrainedNumV = 0;
+    tbb::tick_count timeStart = tbb::tick_count::now();
+    double timeout = (parameter->_timeout)/1000; /* convert from milliseconds to seconds */
+
+    int* execute_seq = (int*)calloc(task_queues_num, sizeof(int));
+    for(int k=0;k<task_queues_num;k++)
+        execute_seq[k] = k;
+
+    //shuffle the tasks
+    std::srand(time(0));
+    /* std::random_shuffle(std::begin(execute_seq), std::end(execute_seq)); */
+    std::random_shuffle(&(execute_seq[0]), &(execute_seq[task_queues_num]));
 
     #pragma omp parallel for schedule(guided) num_threads(thread_num) 
     for(int k=0;k<task_queues_num;k++)
@@ -579,6 +590,11 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
         int* workWPosLocal = workWPos; 
         int* workHPosLocal = workHPos; 
         interm* workVLocal = workV; 
+        int* execution_order = execute_seq;
+
+        int task_id =  execution_order[k];
+
+        double timeoutLocal = timeout;
 
         interm *WMat = 0; 
         interm HMat[dim_r];
@@ -598,55 +614,59 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
         interm learningRateLocal = learningRate;
         interm lambdaLocal = lambda;
 
-        //omp_task* elem = task_queue_array[k];
-        int col_pos = queue_cols_ptr[k];
-        int squeue_size = queue_size_ptr[k];
-        int* ids_ptr = queue_ids_ptr[k];
+        int col_pos = queue_cols_ptr[task_id];
+        int squeue_size = queue_size_ptr[task_id];
+        int* ids_ptr = queue_ids_ptr[task_id];
 
-        //int col_pos = elem->_col_pos;
-        //int squeue_size = elem->_len;
-        //int* ids_ptr = elem->_task_ids;
-
-        /* HMat = mtHDataLocal + col_pos*stride_h; */
-        //data copy 
-        memcpy(HMat, mtHDataLocal+col_pos*stride_h, dim_r*sizeof(interm));
-
-        for(int j=0;j<squeue_size;j++)
+        // ------- start the training process -----------
+        // check the timer set up
+        if ( (timeoutLocal == 0) || ((tbb::tick_count::now() - timeStart).seconds() < timeoutLocal) ) 
         {
-            int data_id = ids_ptr[j];
-            int row_pos = workWPosLocal[data_id];
-            Mult = 0;
-            Err = 0;
+            //data copy 
+            memcpy(HMat, mtHDataLocal+col_pos*stride_h, dim_r*sizeof(interm));
 
-            WMat = mtWDataLocal + row_pos*stride_w;
-
-            for(p = 0; p<dim_r; p++)
-                Mult += (WMat[p]*HMat[p]);
-
-            Err = workVLocal[data_id] - Mult;
-
-            for(p = 0;p<dim_r;p++)
+            for(int j=0;j<squeue_size;j++)
             {
-                WMatVal = WMat[p];
-                HMatVal = HMat[p];
+                int data_id = ids_ptr[j];
+                int row_pos = workWPosLocal[data_id];
+                Mult = 0;
+                Err = 0;
 
-                WMat[p] = WMatVal + learningRateLocal*(Err*HMatVal - lambdaLocal*WMatVal);
-                HMat[p] = HMatVal + learningRateLocal*(Err*WMatVal - lambdaLocal*HMatVal);
+                WMat = mtWDataLocal + row_pos*stride_w;
+
+                for(p = 0; p<dim_r; p++)
+                    Mult += (WMat[p]*HMat[p]);
+
+                Err = workVLocal[data_id] - Mult;
+
+                for(p = 0;p<dim_r;p++)
+                {
+                    WMatVal = WMat[p];
+                    HMatVal = HMat[p];
+
+                    WMat[p] = WMatVal + learningRateLocal*(Err*HMatVal - lambdaLocal*WMatVal);
+                    HMat[p] = HMatVal + learningRateLocal*(Err*WMatVal - lambdaLocal*HMatVal);
+
+                }
 
             }
 
+            partialTrainedNumV[task_id] = squeue_size;
+            memcpy(mtHDataLocal+col_pos*stride_h, HMat, dim_r*sizeof(interm));
         }
-
-        memcpy(mtHDataLocal+col_pos*stride_h, HMat, dim_r*sizeof(interm));
-        //delete elem;
 
     }
 
+    for(int k=0;k<task_queues_num;k++)
+        totalTrainedNumV += partialTrainedNumV[k];
+
+    parameter->_trainedNumV = totalTrainedNumV;
 
     delete task_queue_colPos;
     delete task_queue_size;
     delete task_queue_ids;
-    //delete task_queue;
+    free(execute_seq);
+    free(partialTrainedNumV);
 
     /* training MF-SGD */
     /* for(int k=0;k<dim_set;k++) */

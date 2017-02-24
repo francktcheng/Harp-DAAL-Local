@@ -84,6 +84,10 @@ void DistriContainer<step, interm, method, cpu>::compute()
     NumericTable *a4 = NULL;
     NumericTable *a5 = NULL;
 
+    interm** hMat_native_mem  = NULL;
+    // daal::internal::FeatureMicroTable<interm, readWrite, cpu>** hMat_feature_ptr = NULL;
+    daal::internal::FeatureMicroTable<interm, writeOnly, cpu>** hMat_feature_ptr = NULL;
+
     if (par->_sgd2 == 1)
     {
         a3 = static_cast<NumericTable *>(input->get(wPosTest).get());
@@ -326,38 +330,77 @@ void DistriContainer<step, interm, method, cpu>::compute()
 
     r[3] = static_cast<NumericTable *>(result->get(presWData).get());
 
+
     //debug
     // std::printf("Created W Matrix Row: %d, col: %d\n", (int)(r[2]->getNumberOfRows()), (int)(r[2]->getNumberOfColumns()));
     // std::fflush(stdout);
+
+    //------------------------------- build up the hMat matrix -------------------------------
+    //r[1] now is a SOANumericTable nFeature equals the number of rows in hMat, nVectors equals the number of cols in hMat
+    //data in r[1] is now stored at the Java side
 
     if (par->_sgd2 == 1)
     {
         //initialize the hMat_hashtable for every iteration
         //store the hMat_hashtable within par of mf_sgd
-        int hMat_colNum = r[1]->getNumberOfColumns(); /* should be dim_r + 1, there is a sentinel to record the col id */
-        int hMat_rowNum = r[1]->getNumberOfRows();
+        int hMat_rowNum = r[1]->getNumberOfColumns(); 
+        int hMat_colNum = r[1]->getNumberOfRows(); /* should be dim_r + 1, there is a sentinel to record the col id */
 
         col_ids = (int*)calloc(hMat_rowNum, sizeof(int));
+        hMat_native_mem = (interm**)malloc(hMat_rowNum*sizeof(interm*));
 
-        daal::internal::BlockMicroTable<interm, readWrite, cpu> hMat_block(r[1]);
-        interm* hMat_block_ptr = 0;
-        hMat_block.getBlockOfRows(0, hMat_rowNum, &hMat_block_ptr);
+        // daal::internal::BlockMicroTable<interm, readWrite, cpu> hMat_block(r[1]);
+        // interm* hMat_block_ptr = 0;
+        // hMat_block.getBlockOfRows(0, hMat_rowNum, &hMat_block_ptr);
 
+        //create a list of FeatureMicroTable on heap
+        // hMat_feature_ptr = new (daal::internal::FeatureMicroTable<interm, readWrite, cpu>*)[hMat_rowNum];
+        // hMat_feature_ptr = 
+        //     (daal::internal::FeatureMicroTable<interm, readWrite, cpu>**)malloc(hMat_rowNum*sizeof(daal::internal::FeatureMicroTable<interm, readWrite, cpu>*));
+
+        hMat_feature_ptr = 
+            (daal::internal::FeatureMicroTable<interm, writeOnly, cpu>**)malloc(hMat_rowNum*sizeof(daal::internal::FeatureMicroTable<interm, writeOnly, cpu>*));
+
+        //clean up and re-generate a hMat hashmap
         if (par->_hMat_map != NULL)
             par->_hMat_map->~ConcurrentModelMap();
             
         par->_hMat_map = new ConcurrentModelMap(hMat_rowNum);
 
-#ifdef _OPENMP
+// #ifdef _OPENMP
+//
+//         if (thread_num == 0)
+//             thread_num = omp_get_max_threads();
+//
+//         #pragma omp parallel for schedule(guided) num_threads(thread_num) 
+//         for(int k=0;k<hMat_rowNum;k++)
+//         {
+//             ConcurrentModelMap::accessor pos; 
+//             int col_id = (int)(hMat_block_ptr[k*hMat_colNum]);
+//             col_ids[k] = col_id;
+//
+//             if(par->_hMat_map->insert(pos, col_id))
+//             {
+//                 pos->second = k;
+//             }
+//
+//             pos.release();
+//
+//         }
+//
+// #else
 
-        if (thread_num == 0)
-            thread_num = omp_get_max_threads();
-
-        #pragma omp parallel for schedule(guided) num_threads(thread_num) 
+        /* a serial version */
         for(int k=0;k<hMat_rowNum;k++)
         {
+            // hMat_feature_ptr[k] = new daal::internal::FeatureMicroTable<interm, readWrite, cpu>(r[1]);
+            hMat_feature_ptr[k] = new daal::internal::FeatureMicroTable<interm, writeOnly, cpu>(r[1]);
+            //create a direct byte buffer and assign the address of buffer to hMat_native_mem[k]
+            hMat_feature_ptr[k]->getBlockOfColumnValues(k,0,hMat_colNum, &(hMat_native_mem[k]));
+
             ConcurrentModelMap::accessor pos; 
-            int col_id = (int)(hMat_block_ptr[k*hMat_colNum]);
+            // int col_id = (int)(hMat_block_ptr[k*hMat_colNum]);
+            int col_id = (int)((hMat_native_mem[k])[0]);
             col_ids[k] = col_id;
 
             if(par->_hMat_map->insert(pos, col_id))
@@ -366,26 +409,9 @@ void DistriContainer<step, interm, method, cpu>::compute()
             }
 
             pos.release();
-
         }
 
-#else
-
-        /* a serial version */
-        for(int k=0;k<hMat_rowNum;k++)
-        {
-            ConcurrentModelMap::accessor pos; 
-            int col_id = (int)(hMat_block_ptr[k*hMat_colNum]);
-
-            if(par->_hMat_map->insert(pos, col_id))
-            {
-                pos->second = k;
-            }
-
-            pos.release();
-        }
-
-#endif
+// #endif
 
     }
 
@@ -396,8 +422,19 @@ void DistriContainer<step, interm, method, cpu>::compute()
 
     daal::services::Environment::env &env = *_env;
 
-    /* invoke the MF_SGDBatchKernel */
-    __DAAL_CALL_KERNEL(env, internal::MF_SGDDistriKernel, __DAAL_KERNEL_ARGUMENTS(interm, method), compute, WPos, HPos, Val, WPosTest, HPosTest, ValTest, r, par, col_ids);
+    
+    if (hMat_native_mem != NULL)
+    {
+        for(int k=0;k<10;k++)
+        {
+            std::printf("Outer Col Pos: %d, Col id: %f\n", k, hMat_native_mem[k][0]);
+            std::printf("Outer Col Pos: %d, Col val[1]: %f\n", k, hMat_native_mem[k][1]);
+            std::fflush(stdout);
+        }
+    }
+
+    /* invoke the MF_SGDDistriKernel */
+    __DAAL_CALL_KERNEL(env, internal::MF_SGDDistriKernel, __DAAL_KERNEL_ARGUMENTS(interm, method), compute, WPos, HPos, Val, WPosTest, HPosTest, ValTest, r, par, col_ids, hMat_native_mem);
 
     //clean up the memory space per iteration
     if (col_ids != NULL)
@@ -407,9 +444,26 @@ void DistriContainer<step, interm, method, cpu>::compute()
     {
         delete par->_hMat_map;
         par->_hMat_map = NULL;
+    }
+
+    if (hMat_feature_ptr != NULL)
+    {
+        //release content of buffer back to the Java side of SOANumericTable
+        for(int k=0;k<r[1]->getNumberOfColumns();k++)
+        {
+            hMat_feature_ptr[k]->release();
+            delete hMat_feature_ptr[k];
+        }
 
     }
+
+    //only free up the array of pointers
+    //the content of pointers will be released by hMat_feature_ptr[k]
+    if (hMat_native_mem != NULL)
+        free(hMat_native_mem);
    
+    if (hMat_feature_ptr != NULL)
+        free(hMat_feature_ptr);
 }
 
 template<ComputeStep step, typename interm, Method method, CpuType cpu>

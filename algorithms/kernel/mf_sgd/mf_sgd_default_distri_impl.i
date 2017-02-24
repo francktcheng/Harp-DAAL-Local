@@ -88,7 +88,8 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute(NumericTable** WPos,
                                                       NumericTable** WPosTest,
                                                       NumericTable** HPosTest, 
                                                       NumericTable** ValTest, 
-                                                      NumericTable *r[], Parameter *parameter, int* col_ids)
+                                                      NumericTable *r[], Parameter *parameter, int* col_ids,
+                                                      interm** hMat_native_mem)
 {/*{{{*/
 
     /* retrieve members of parameter */
@@ -174,12 +175,12 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute(NumericTable** WPos,
         mtWDataTable.getBlockOfRows(0, dim_w, &mtWDataPtr);
 
         /* ---------------- Retrieve Model H ---------------- */
-        BlockMicroTable<interm, readWrite, cpu> mtHDataTable(r[1]);
+        /* BlockMicroTable<interm, readWrite, cpu> mtHDataTable(r[1]); */
 
         interm* mtHDataPtr = 0;
-        mtHDataTable.getBlockOfRows(0, dim_h, &mtHDataPtr);
+        /* mtHDataTable.getBlockOfRows(0, dim_h, &mtHDataPtr); */
 
-        MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(workWPos,workHPos,workV, dim_set, mtWDataPtr, mtHDataPtr, parameter, col_ids); 
+        MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(workWPos,workHPos,workV, dim_set, mtWDataPtr, mtHDataPtr, parameter, col_ids, hMat_native_mem); 
 
     }
     else
@@ -212,10 +213,10 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute(NumericTable** WPos,
         mtWDataTable.getBlockOfRows(0, dim_w, &mtWDataPtr);
 
         /* ---------------- Retrieve Model H ---------------- */
-        BlockMicroTable<interm, readWrite, cpu> mtHDataTable(r[1]);
+        /* BlockMicroTable<interm, readWrite, cpu> mtHDataTable(r[1]); */
 
         interm* mtHDataPtr = 0;
-        mtHDataTable.getBlockOfRows(0, dim_h, &mtHDataPtr);
+        /* mtHDataTable.getBlockOfRows(0, dim_h, &mtHDataPtr); */
 
         interm* mtRMSEPtr = 0;
         BlockMicroTable<interm, readWrite, cpu> mtRMSETable(r[2]);
@@ -224,7 +225,7 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute(NumericTable** WPos,
         parameter->_Dim_h = dim_h;
         parameter->_Dim_w = dim_w;
 
-        MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(workWPos,workHPos,workV, dim_set, mtWDataPtr,mtHDataPtr, mtRMSEPtr, parameter, col_ids);
+        MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(workWPos,workHPos,workV, dim_set, mtWDataPtr,mtHDataPtr, mtRMSEPtr, parameter, col_ids, hMat_native_mem);
 
     }
 
@@ -456,7 +457,8 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
                                                                 interm* mtWDataPtr, 
                                                                 interm* mtHDataPtr, 
                                                                 Parameter *parameter,
-                                                                int* col_ids)
+                                                                int* col_ids,
+                                                                interm** hMat_native_mem)
 {/*{{{*/
 
 #ifdef _OPENMP
@@ -584,6 +586,14 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
     /* std::random_shuffle(std::begin(execute_seq), std::end(execute_seq)); */
     std::random_shuffle(&(execute_seq[0]), &(execute_seq[task_queues_num]));
 
+    //debug print out the hMat value in direc byte buffer
+    for(int k=0;k<10;k++)
+    {
+        std::printf("Inner Train Col Pos: %d, Col id: %f\n", k, hMat_native_mem[k][0]);
+        std::printf("Inner Train Col Pos: %d, Col val[1]: %f\n", k, hMat_native_mem[k][1]);
+        std::fflush(stdout);
+    }
+
     #pragma omp parallel for schedule(guided) num_threads(thread_num) 
     for(int k=0;k<task_queues_num;k++)
     {
@@ -606,7 +616,8 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
         int p = 0;
 
         interm* mtWDataLocal = mtWDataPtr;
-        interm* mtHDataLocal = mtHDataPtr + 1; // consider the sentinel element 
+        /* interm* mtHDataLocal = mtHDataPtr + 1; // consider the sentinel element  */
+        interm** mtHDataLocal = hMat_native_mem;   
 
         int stride_w = dim_r;
         int stride_h = dim_r + 1; // h matrix has a sentinel as the first element of each row 
@@ -623,7 +634,8 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
         if ( (timeoutLocal == 0) || ((tbb::tick_count::now() - timeStart).seconds() < timeoutLocal) ) 
         {
             //data copy 
-            memcpy(HMat, mtHDataLocal+col_pos*stride_h, dim_r*sizeof(interm));
+            /* memcpy(HMat, mtHDataLocal+col_pos*stride_h, dim_r*sizeof(interm)); */
+            memcpy(HMat, (mtHDataLocal[col_pos]+1), dim_r*sizeof(interm));
 
             for(int j=0;j<squeue_size;j++)
             {
@@ -652,7 +664,8 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
             }
 
             partialTrainedNumV[task_id] = squeue_size;
-            memcpy(mtHDataLocal+col_pos*stride_h, HMat, dim_r*sizeof(interm));
+            /* memcpy(mtHDataLocal+col_pos*stride_h, HMat, dim_r*sizeof(interm)); */
+            memcpy(mtHDataLocal[col_pos]+1, HMat, dim_r*sizeof(interm));
         }
 
     }
@@ -1061,7 +1074,8 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
                                                                interm* mtHDataPtr, 
                                                                interm* mtRMSEPtr,
                                                                Parameter *parameter,
-                                                               int* col_ids)
+                                                               int* col_ids,
+                                                               interm** hMat_native_mem)
 
 {/*{{{*/
 
@@ -1190,6 +1204,14 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
     interm* partialRMSE = (interm*)calloc(task_queues_num, sizeof(interm));
     int* partialTestV = (int*)calloc(task_queues_num, sizeof(int));
 
+    //debug print out the hMat value in direc byte buffer
+    for(int k=0;k<10;k++)
+    {
+        std::printf("Inner Test Col Pos: %d, Col id: %f\n", k, hMat_native_mem[k][0]);
+        std::printf("Inner Test Col Pos: %d, Col val[1]: %f\n", k, hMat_native_mem[k][1]);
+        std::fflush(stdout);
+    }
+
     #pragma omp parallel for schedule(guided) num_threads(thread_num) 
     for(int k=0;k<task_queues_num;k++)
     {
@@ -1209,7 +1231,8 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
         int testV = 0;
 
         interm* mtWDataLocal = mtWDataPtr;
-        interm* mtHDataLocal = mtHDataPtr + 1; // consider the sentinel element 
+        /* interm* mtHDataLocal = mtHDataPtr + 1; // consider the sentinel element  */
+        interm** mtHDataLocal = hMat_native_mem;  
 
         int stride_w = dim_r;
         int stride_h = dim_r + 1; // h matrix has a sentinel as the first element of each row 
@@ -1223,7 +1246,8 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
         currentMutex_t::scoped_lock lock_h(mutex_h[col_pos]);
 
         //---------- copy hmat data ---------------
-        memcpy(HMat, mtHDataLocal+col_pos*stride_h, dim_r*sizeof(interm));
+        /* memcpy(HMat, mtHDataLocal+col_pos*stride_h, dim_r*sizeof(interm)); */
+        memcpy(HMat, mtHDataLocal[col_pos]+1, dim_r*sizeof(interm));
 
         lock_h.release();
 

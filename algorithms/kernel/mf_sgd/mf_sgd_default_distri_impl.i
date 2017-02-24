@@ -1205,12 +1205,12 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
     int* partialTestV = (int*)calloc(task_queues_num, sizeof(int));
 
     //debug print out the hMat value in direc byte buffer
-    for(int k=0;k<10;k++)
-    {
-        std::printf("Inner Test Col Pos: %d, Col id: %f\n", k, hMat_native_mem[k][0]);
-        std::printf("Inner Test Col Pos: %d, Col val[1]: %f\n", k, hMat_native_mem[k][1]);
-        std::fflush(stdout);
-    }
+    /* for(int k=0;k<10;k++) */
+    /* { */
+    /*     std::printf("Inner Test Col Pos: %d, Col id: %f\n", k, hMat_native_mem[k][0]); */
+    /*     std::printf("Inner Test Col Pos: %d, Col val[1]: %f\n", k, hMat_native_mem[k][1]); */
+    /*     std::fflush(stdout); */
+    /* } */
 
     #pragma omp parallel for schedule(guided) num_threads(thread_num) 
     for(int k=0;k<task_queues_num;k++)

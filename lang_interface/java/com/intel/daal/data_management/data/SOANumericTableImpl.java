@@ -243,6 +243,32 @@ public class SOANumericTableImpl extends NumericTableImpl {
         vectorDownCast.downCast((int) vectorNum, (int) vectorIndex, buf, arrays.get((int) featureIndex));
     }
 
+    //---------------------------- added for harp-daal----------------------------
+    public void clearArrays() 
+    {
+        arrays.clear();
+    }
+
+    public void resetArraysSize(int newSize)
+    {
+        arrays.setSize(newSize);
+    }
+
+    //set up all the features to Double type
+    public void setAllFeaturesDouble(int nFeature)
+    {
+        for(int k=0;k<nFeature;k++)
+        {
+            dict.setFeature(Double.class, k);
+        }
+    }
+
+    //set array without alter feature
+    public void setArrayOnly(double[] arr, long idx)
+    {
+        arrays.set((int) idx, arr);
+    }
+
     protected Vector<Object> arrays;
 
     @Override

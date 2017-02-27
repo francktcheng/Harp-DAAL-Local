@@ -93,4 +93,25 @@ public class SOANumericTable extends NumericTable {
     public void setArray(int[] arr, long idx) {
         ((SOANumericTableImpl)tableImpl).setArray(arr, idx);
     }
+
+    //---------------------------------- added for harp-daal ----------------------------------
+    public void clearArrays()
+    {
+        ((SOANumericTableImpl)tableImpl).clearArrays();
+    }
+
+    public void resetArraysSize(int newSize)
+    {
+        ((SOANumericTableImpl)tableImpl).resetArraysSize(newSize);
+    }
+
+    public void setAllFeaturesDouble(int nFeature)
+    {
+        ((SOANumericTableImpl)tableImpl).setAllFeaturesDouble(nFeature);
+    }
+
+    public void setArrayOnly(double[] arr, long idx)
+    {
+        ((SOANumericTableImpl)tableImpl).setArrayOnly(arr, idx);
+    }
 }

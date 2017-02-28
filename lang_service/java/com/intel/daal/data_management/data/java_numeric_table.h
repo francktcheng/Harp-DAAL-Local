@@ -515,6 +515,17 @@ public:
         tls.local() = local_tls;
 
         block.setPtr( (T *)buf, 1, nrows );
+
+        if(!local_tls.is_main_thread)
+        {
+            status = jvm->DetachCurrentThread();
+            if(status != JNI_OK)
+            {
+                this->_errors->add(services::ErrorCouldntAttachCurrentThreadToJavaVM);
+                return;
+            }
+        }
+
     }
 
     template<typename T>
@@ -555,6 +566,16 @@ public:
             /* Call 'releaseBlockOfRows' Java method */
             (local_tls.jenv)->CallObjectMethod(
                 jJavaNumTable, jmeth, (jlong)feature_idx, (jlong)idx, (jlong)nrows, local_tls.jbuf, rwFlag);
+
+            if(!local_tls.is_main_thread)
+            {
+                status = jvm->DetachCurrentThread();
+                if(status != JNI_OK)
+                {
+                    this->_errors->add(services::ErrorCouldntAttachCurrentThreadToJavaVM);
+                    return;
+                }
+            }
 
             tls.local() = local_tls;
         }
@@ -605,8 +626,19 @@ public:
             (local_tls.jenv)->CallObjectMethod( jJavaNumTable, jmeth, (jlong)feature_idx, (jlong)idx, (jlong)nrows,
                                                 local_tls.jbuf, block.getRWFlag());
 
+            if(!local_tls.is_main_thread)
+            {
+                status = jvm->DetachCurrentThread();
+                if(status != JNI_OK)
+                {
+                    this->_errors->add(services::ErrorCouldntAttachCurrentThreadToJavaVM);
+                    return;
+                }
+            }
+
             tls.local() = local_tls;
         }
+
         block.setDetails( 0, 0, 0 );
     }
 

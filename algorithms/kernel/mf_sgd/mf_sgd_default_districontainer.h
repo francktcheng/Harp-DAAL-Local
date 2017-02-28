@@ -348,20 +348,23 @@ void DistriContainer<step, interm, method, cpu>::compute()
         int hMat_colNum = r[1]->getNumberOfRows(); /* should be dim_r + 1, there is a sentinel to record the col id */
 
         col_ids = (int*)calloc(hMat_rowNum, sizeof(int));
-        // hMat_native_mem = (interm**)malloc(hMat_rowNum*sizeof(interm*));
         hMat_native_mem = new interm *[hMat_rowNum];
-
-        // hMat_feature_ptr = 
-        //     (daal::internal::FeatureMicroTable<interm, writeOnly, cpu>**)malloc(hMat_rowNum*sizeof(daal::internal::FeatureMicroTable<interm, writeOnly, cpu>*));
         hMat_blk_array = new  BlockDescriptor<interm> *[hMat_rowNum];
+
+        /* a serial version  to retrieve data from java table */
+        for(int k=0;k<hMat_rowNum;k++)
+        {
+            hMat_blk_array[k] = new BlockDescriptor<interm>();
+            r[1]->getBlockOfColumnValues(k, 0, hMat_colNum, writeOnly, *(hMat_blk_array[k]));
+            hMat_native_mem[k] = hMat_blk_array[k]->getBlockPtr();
+
+        }
 
         //clean up and re-generate a hMat hashmap
         if (par->_hMat_map != NULL)
             par->_hMat_map->~ConcurrentModelMap();
-            
-        par->_hMat_map = new ConcurrentModelMap(hMat_rowNum);
 
-#ifdef _OPENMP
+        par->_hMat_map = new ConcurrentModelMap(hMat_rowNum);
 
         if (thread_num == 0)
             thread_num = omp_get_max_threads();
@@ -369,14 +372,6 @@ void DistriContainer<step, interm, method, cpu>::compute()
         #pragma omp parallel for schedule(guided) num_threads(thread_num) 
         for(int k=0;k<hMat_rowNum;k++)
         {
-            // hMat_feature_ptr[k] = new daal::internal::FeatureMicroTable<interm, writeOnly, cpu>(r[1]);
-            //create a direct byte buffer and assign the address of buffer to hMat_native_mem[k]
-            // hMat_feature_ptr[k]->getBlockOfColumnValues(k,0,hMat_colNum, &(hMat_native_mem[k]));
-
-            NumericTable* hMat_daal = r[1];
-            hMat_blk_array[k] = new BlockDescriptor<interm>();
-            hMat_daal->getBlockOfColumnValues(k, 0, hMat_colNum, writeOnly, *(hMat_blk_array[k]));
-            hMat_native_mem[k] = hMat_blk_array[k]->getBlockPtr();
 
             ConcurrentModelMap::accessor pos; 
             int col_id = (int)((hMat_native_mem[k])[0]);
@@ -388,33 +383,8 @@ void DistriContainer<step, interm, method, cpu>::compute()
             }
 
             pos.release();
+
         }
-
-#else
-
-        /* a serial version */
-        for(int k=0;k<hMat_rowNum;k++)
-        {
-            // hMat_feature_ptr[k] = new daal::internal::FeatureMicroTable<interm, writeOnly, cpu>(r[1]);
-            //create a direct byte buffer and assign the address of buffer to hMat_native_mem[k]
-            // hMat_feature_ptr[k]->getBlockOfColumnValues(k,0,hMat_colNum, &(hMat_native_mem[k]));
-            hMat_blk_array[k] = new BlockDescriptor<interm>();
-            r[1]->getBlockOfColumnValues(k, 0, hMat_colNum, writeOnly, *(hMat_blk_array[k]));
-            hMat_native_mem[k] = hMat_blk_array[k]->getBlockPtr();
-
-            ConcurrentModelMap::accessor pos; 
-            int col_id = (int)((hMat_native_mem[k])[0]);
-            col_ids[k] = col_id;
-
-            if(par->_hMat_map->insert(pos, col_id))
-            {
-                pos->second = k;
-            }
-
-            pos.release();
-        }
-
-#endif
 
     }
 
@@ -438,30 +408,8 @@ void DistriContainer<step, interm, method, cpu>::compute()
         par->_hMat_map = NULL;
     }
 
-    // if (hMat_feature_ptr != NULL)
     if (par->_sgd2 == 1 && hMat_blk_array != NULL)
     {
-#ifdef _OPENMP
-
-        //parallel version
-        if (thread_num == 0)
-            thread_num = omp_get_max_threads();
-
-        //release content of buffer back to the Java side of SOANumericTable
-        int hMat_rows_size = r[1]->getNumberOfColumns();
-
-        #pragma omp parallel for schedule(guided) num_threads(thread_num) 
-        for(int k=0;k<hMat_rows_size;k++)
-        {
-            // hMat_feature_ptr[k]->release();
-            NumericTable* hMat_table = r[1];
-            hMat_table->releaseBlockOfColumnValues(*(hMat_blk_array[k]));
-            hMat_blk_array[k]->~BlockDescriptor();
-            delete hMat_blk_array[k];
-
-        }
-
-#else
 
         //sequential version
         int hMat_rows_size = r[1]->getNumberOfColumns();
@@ -473,14 +421,11 @@ void DistriContainer<step, interm, method, cpu>::compute()
 
         }
 
-#endif
-
     }
 
     if (hMat_blk_array != NULL)
         delete[] hMat_blk_array;
 
-    //the content of pointers will be released by hMat_feature_ptr[k]
     if (hMat_native_mem != NULL)
         delete[] hMat_native_mem;
 

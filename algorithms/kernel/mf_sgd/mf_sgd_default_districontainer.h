@@ -32,6 +32,8 @@
 #include "service_micro_table.h"
 #include "service_numeric_table.h"
 
+#include <pthread.h>
+
 #include <omp.h>
 #include "mf_sgd_types.h"
 #include "mf_sgd_distri.h"
@@ -65,6 +67,8 @@ DistriContainer<step, interm, method, cpu>::~DistriContainer()
     __DAAL_DEINITIALIZE_KERNELS();
 }
 
+
+
 template<ComputeStep step, typename interm, Method method, CpuType cpu>
 void DistriContainer<step, interm, method, cpu>::compute()
 {
@@ -85,8 +89,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
     NumericTable *a5 = NULL;
 
     interm** hMat_native_mem  = NULL;
-    // daal::internal::FeatureMicroTable<interm, writeOnly, cpu>** hMat_feature_ptr = NULL;
-
+    internal::SOADataCopy<interm>** copylist = NULL;
     BlockDescriptor<interm>** hMat_blk_array = NULL;
 
     if (par->_sgd2 == 1)
@@ -352,14 +355,47 @@ void DistriContainer<step, interm, method, cpu>::compute()
         hMat_blk_array = new  BlockDescriptor<interm> *[hMat_rowNum];
 
         /* a serial version  to retrieve data from java table */
+        // for(int k=0;k<hMat_rowNum;k++)
+        // {
+        //     hMat_blk_array[k] = new BlockDescriptor<interm>();
+        //     r[1]->getBlockOfColumnValues(k, 0, hMat_colNum, writeOnly, *(hMat_blk_array[k]));
+        //     hMat_native_mem[k] = hMat_blk_array[k]->getBlockPtr();
+        //
+        // }
+
+        //---------------------------------- start doing a parallel data conversion by using pthread----------------------------------
+        pthread_t thread_id[thread_num];
+
         for(int k=0;k<hMat_rowNum;k++)
         {
             hMat_blk_array[k] = new BlockDescriptor<interm>();
-            r[1]->getBlockOfColumnValues(k, 0, hMat_colNum, writeOnly, *(hMat_blk_array[k]));
-            hMat_native_mem[k] = hMat_blk_array[k]->getBlockPtr();
-
         }
 
+        copylist = new internal::SOADataCopy<interm> *[thread_num];
+
+        int res = hMat_rowNum%thread_num;
+        int cpy_len = (int)((hMat_rowNum - res)/thread_num);
+        int last_cpy_len = cpy_len + res;
+
+        for(int k=0;k<thread_num-1;k++)
+        {
+            copylist[k] = new internal::SOADataCopy<interm>(r[1], k*cpy_len, cpy_len, hMat_colNum, hMat_blk_array, hMat_native_mem);
+        }
+
+        copylist[thread_num-1] = new internal::SOADataCopy<interm>(r[1], (thread_num-1)*cpy_len, last_cpy_len, hMat_colNum, hMat_blk_array, hMat_native_mem);
+
+        for(int k=0;k<thread_num;k++)
+        {
+            pthread_create(&thread_id[k], NULL, internal::SOACopyBulkData<interm>, copylist[k]);
+        }
+
+        for(int k=0;k<thread_num;k++)
+        {
+            pthread_join(thread_id[k], NULL);
+        }
+
+                
+        //---------------------------------- finish doing a parallel data conversion by using pthread----------------------------------
         //clean up and re-generate a hMat hashmap
         if (par->_hMat_map != NULL)
             par->_hMat_map->~ConcurrentModelMap();
@@ -408,21 +444,56 @@ void DistriContainer<step, interm, method, cpu>::compute()
         par->_hMat_map = NULL;
     }
 
+    //sequential version
+    // if (par->_sgd2 == 1 && hMat_blk_array != NULL)
+    // {
+    //     
+    //     int hMat_rows_size = r[1]->getNumberOfColumns();
+    //     for(int k=0;k<hMat_rows_size;k++)
+    //     {
+    //         r[1]->releaseBlockOfColumnValues(*(hMat_blk_array[k]));
+    //         hMat_blk_array[k]->~BlockDescriptor();
+    //         delete hMat_blk_array[k];
+    //
+    //     }
+    //
+    // }
+
+    //a parallel verison
     if (par->_sgd2 == 1 && hMat_blk_array != NULL)
     {
 
-        //sequential version
+        pthread_t thread_id[thread_num];
+
+        for(int k=0;k<thread_num;k++)
+        {
+            pthread_create(&thread_id[k], NULL, internal::SOAReleaseBulkData<interm>, copylist[k]);
+        }
+
+        for(int k=0;k<thread_num;k++)
+        {
+            pthread_join(thread_id[k], NULL);
+        }
+
+        // r[1]->releaseBlockOfColumnValues(*(hMat_blk_array[k]));
+        //free up memory space of native column data of hMat
         int hMat_rows_size = r[1]->getNumberOfColumns();
         for(int k=0;k<hMat_rows_size;k++)
         {
-            r[1]->releaseBlockOfColumnValues(*(hMat_blk_array[k]));
             hMat_blk_array[k]->~BlockDescriptor();
             delete hMat_blk_array[k];
 
         }
 
+        //free up memory space of pthread copy args
+        for(int k=0;k<thread_num;k++)
+            delete copylist[k];
+
+        delete[] copylist;
+
     }
 
+    
     if (hMat_blk_array != NULL)
         delete[] hMat_blk_array;
 
@@ -430,6 +501,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
         delete[] hMat_native_mem;
 
 }
+
 
 template<ComputeStep step, typename interm, Method method, CpuType cpu>
 void DistriContainer<step, interm, method, cpu>::finalizeCompute() {}

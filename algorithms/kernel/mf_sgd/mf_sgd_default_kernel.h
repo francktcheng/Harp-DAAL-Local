@@ -30,6 +30,8 @@
 #include "queuing_mutex.h"
 #include "numeric_table.h"
 #include "kernel.h"
+#include <cstdlib> 
+#include <cstdio> 
 
 #include "mf_sgd_batch.h"
 #include "tbb/tick_count.h"
@@ -337,15 +339,61 @@ struct MFSGDTBB_TEST
 
 };
 
+//function used in pthread to copy data from javanumrictable 
+template <typename interm>
+struct SOADataCopy
+{
+    SOADataCopy(
+            NumericTable* SOA_Table,
+            int start_pos,
+            int len,
+            int nDim,
+            BlockDescriptor<interm>** Descriptor,
+            interm** nativeMem
+            ): _SOA_Table(SOA_Table), _start_pos(start_pos), _len(len), _nDim(nDim), _Descriptor(Descriptor), _nativeMem(nativeMem) {}
 
-// struct omp_task
-// {
-//     omp_task(int col_pos, int len, int* task_ids);
-//     int _col_pos;
-//     int _len;
-//     int* _task_ids;
-// };
+    NumericTable* _SOA_Table;
+    int _start_pos;
+    int _len;
+    int _nDim;
+    BlockDescriptor<interm>** _Descriptor;
+    interm** _nativeMem;
 
+};
+
+template <typename interm>
+void* SOACopyBulkData(void* arg)
+{
+    internal::SOADataCopy<interm>* copyElem = static_cast<internal::SOADataCopy<interm>* >(arg);
+    (copyElem->_SOA_Table)->getBlockOfColumnValuesBM(copyElem->_start_pos, copyElem->_len, 0, copyElem->_nDim, writeOnly, copyElem->_Descriptor);
+
+    //assign ptr of blockDescriptors to nativeMem
+    for(int k=0;k<copyElem->_len;k++)
+    {
+        int feature_idx = copyElem->_start_pos + k;
+        (copyElem->_nativeMem)[feature_idx] = (copyElem->_Descriptor)[feature_idx]->getBlockPtr();
+
+    }
+
+    return NULL;
+}
+
+template <typename interm>
+void* SOAReleaseBulkData(void* arg)
+{
+    internal::SOADataCopy<interm>* copyElem = static_cast<internal::SOADataCopy<interm>* >(arg);
+    (copyElem->_SOA_Table)->releaseBlockOfColumnValuesBM(copyElem->_start_pos, copyElem->_len, copyElem->_Descriptor);
+
+    //assign ptr of blockDescriptors to nativeMem
+    // for(int k=0;k<copyElem->_len;k++)
+    // {
+    //     int feature_idx = copyElem->_start_pos + k;
+    //     (copyElem->_nativeMem)[feature_idx] = (copyElem->_Descriptor)[feature_idx]->getBlockPtr();
+    //
+    // }
+
+    return NULL;
+}
 
 } // namespace daal::internal
 }

@@ -104,6 +104,7 @@ void Input::convert_format_distri(std::unordered_map<int64_t, std::vector<mf_sgd
 }/*}}}*/
 
 
+
 }// namespace interface1
 }// namespace mf_sgd
 }// namespace algorithms

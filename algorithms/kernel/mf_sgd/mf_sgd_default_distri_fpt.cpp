@@ -29,6 +29,9 @@ namespace algorithms
 {
 namespace mf_sgd
 {
+
+// template void* SOACopyBulkData<DAAL_FPTYPE>(void* arg);
+
 namespace interface1
 {
 

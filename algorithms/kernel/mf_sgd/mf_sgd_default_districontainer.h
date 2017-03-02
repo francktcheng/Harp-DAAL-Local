@@ -338,6 +338,13 @@ void DistriContainer<step, interm, method, cpu>::compute()
     //debug
     // std::printf("Created W Matrix Row: %d, col: %d\n", (int)(r[2]->getNumberOfRows()), (int)(r[2]->getNumberOfColumns()));
     // std::fflush(stdout);
+    // clear wMap
+
+    if (par->_train_map != NULL && par->_test_map != NULL && par->_wMat_map != NULL)
+    {
+        delete par->_wMat_map;
+        par->_wMat_map = NULL;
+    }
 
     //------------------------------- build up the hMat matrix -------------------------------
     //r[1] now is a SOANumericTable nFeature equals the number of rows in hMat, nVectors equals the number of cols in hMat

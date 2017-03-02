@@ -117,7 +117,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
     //initialize wMat_hashtable for the first iteration
     //store the wMat_hashtable within par of mf_sgd
     //regenerate the wMat numericTablj 
-    if (par->_wMat_map == NULL && par->_sgd2 == 1)
+    if (par->_wMat_map == NULL && par->_sgd2 == 1 && par->_wMatFinished == 0)
     {
         
         //construct the wMat_hashtable
@@ -344,6 +344,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
     {
         delete par->_wMat_map;
         par->_wMat_map = NULL;
+        par->_wMatFinished = 1;
     }
 
     //------------------------------- build up the hMat matrix -------------------------------

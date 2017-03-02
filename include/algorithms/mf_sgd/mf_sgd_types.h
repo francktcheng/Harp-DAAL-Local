@@ -473,6 +473,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _sgd2 = 0;
         _testV=0;
         _trainedNumV = 0;
+        _wMatFinished = 0;
     }
 
     virtual ~Parameter() {}
@@ -649,6 +650,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     int         _sgd2;                            /* 0 default sgd method, 1 the second sgd method */
     size_t      _testV;                           /* the actual computed data points from test dataset */
     long        _trainedNumV;                     /* the trained num of training points if using timer */
+    int         _wMatFinished;
 
 };
 /** @} */

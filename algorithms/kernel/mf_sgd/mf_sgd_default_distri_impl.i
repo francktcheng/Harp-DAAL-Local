@@ -512,10 +512,20 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
 
     const int tasks_queue_len = 100;
 
-    for(int k=0;k<dim_h;k++)
+    /* for(int k=0;k<dim_h;k++) */
+    //loop over all the columns from local training points
+    int col_id = 0;
+    int col_pos = 0;
+    int sub_len = 0;
+    int iterator = 0;
+    int residue = 0;
+    for(int k=0;k<parameter->_train_list_len;k++)
     {
-        int col_id = col_ids[k];
-        int col_pos = -1;
+        /* int col_id = col_ids[k]; */
+        col_id = parameter->_train_list_ids[k];
+        col_pos = -1;
+
+        //check if this local col appears in the rotated columns
         ConcurrentModelMap::accessor pos_h; 
         if (map_h->find(pos_h, col_id))
             col_pos = pos_h->second;
@@ -524,37 +534,38 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
 
         pos_h.release();
 
-        ConcurrentDataMap::accessor pos_train; 
-        std::vector<int>* sub_tasks_ptr = NULL;
-        if (map_train->find(pos_train, col_id))
+        /* ConcurrentDataMap::accessor pos_train;  */
+        /* std::vector<int>* sub_tasks_ptr = NULL; */
+        /* if (map_train->find(pos_train, col_id)) */
+        /* { */
+        /*      sub_tasks_ptr = &(pos_train->second); */
+        /* } */
+        /*  */
+        /* pos_train.release(); */
+        sub_len = (parameter->_train_sub_len)[k];
+
+        if (sub_len > 0)
         {
-             sub_tasks_ptr = &(pos_train->second);
-        }
+            /* int tasks_size = (int)sub_tasks_ptr->size(); */
+            iterator = 0; 
 
-        pos_train.release();
-
-        if (sub_tasks_ptr != NULL)
-        {
-            int tasks_size = (int)sub_tasks_ptr->size();
-            int itr = 0; 
-
-            while (((itr+1)*tasks_queue_len) <= tasks_size)
+            while (((iterator+1)*tasks_queue_len) <= sub_len)
             {
-                //task_queue->push_back(new omp_task(col_pos, tasks_queue_len, &(*sub_tasks_ptr)[itr*tasks_queue_len])); 
                 task_queue_colPos->push_back(col_pos);
                 task_queue_size->push_back(tasks_queue_len);
-                task_queue_ids->push_back(&(*sub_tasks_ptr)[itr*tasks_queue_len]);
-                itr++;
+                /* task_queue_ids->push_back(&(*sub_tasks_ptr)[iterator*tasks_queue_len]); */
+                task_queue_ids->push_back(&((parameter->_train_list[k])[iterator*tasks_queue_len]));
+                iterator++;
             }
 
             //add the last sub task queue
-            int residue = tasks_size - itr*tasks_queue_len;
+            residue = sub_len - iterator*tasks_queue_len;
             if (residue > 0)
             {
-                //task_queue->push_back(new omp_task(col_pos, residue, &(*sub_tasks_ptr)[itr*tasks_queue_len]));
                 task_queue_colPos->push_back(col_pos);
                 task_queue_size->push_back(residue);
-                task_queue_ids->push_back(&(*sub_tasks_ptr)[itr*tasks_queue_len]);
+                /* task_queue_ids->push_back(&(*sub_tasks_ptr)[iterator*tasks_queue_len]); */
+                task_queue_ids->push_back(&((parameter->_train_list[k])[iterator*tasks_queue_len]));
             }
         }
 
@@ -1142,13 +1153,24 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
     
     const int tasks_queue_len = 20;
 
+    /* //loop over all the columns from local test points */
+    /* int col_id = 0; */
+    /* int sub_len = 0; */
+    /* int iterator = 0; */
+    /* int residue = 0; */
+    /* for(int k=0;k<parameter->_test_list_len;k++) */
     for(int k=0;k<dim_h;k++)
     {
         int col_id = col_ids[k];
+        /* col_id = parameter->_test_list_ids[k]; */
         int col_pos = -1;
+
+        //check if this local col appears in the rotated columns
         ConcurrentModelMap::accessor pos_h; 
         if (map_h->find(pos_h, col_id))
             col_pos = pos_h->second;
+        /* else */
+        /*     continue; */
 
         pos_h.release();
 
@@ -1161,26 +1183,35 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
 
         pos_test.release();
 
+        /* sub_len = (parameter->_test_sub_len)[k]; */
+
         if (sub_tasks_ptr != NULL && col_pos != -1)
+        /* if (sub_len > 0 && col_pos != -1) */
         {
             int tasks_size = (int)sub_tasks_ptr->size();
-            int itr = 0; 
+            int itr = 0;
+            /* iterator = 0;  */
 
+            /* while (((iterator+1)*tasks_queue_len) <= sub_len) */
             while (((itr+1)*tasks_queue_len) <= tasks_size)
             {
                 task_queue_colPos->push_back(col_pos);
                 task_queue_size->push_back(tasks_queue_len);
                 task_queue_ids->push_back(&(*sub_tasks_ptr)[itr*tasks_queue_len]);
+                /* task_queue_ids->push_back(&((parameter->_test_list[k])[iterator*tasks_queue_len])); */
+                /* iterator++; */
                 itr++;
             }
 
             //add the last sub task queue
+            /* residue = sub_len - iterator*tasks_queue_len; */
             int residue = tasks_size - itr*tasks_queue_len;
             if (residue > 0)
             {
                 task_queue_colPos->push_back(col_pos);
                 task_queue_size->push_back(residue);
                 task_queue_ids->push_back(&(*sub_tasks_ptr)[itr*tasks_queue_len]);
+                /* task_queue_ids->push_back(&((parameter->_test_list[k])[iterator*tasks_queue_len])); */
             }
         }
 

@@ -21,6 +21,7 @@
 //--
 */
 #include <cstdlib> 
+#include <cstring>
 #include <ctime> 
 #include <iostream>
 #include <cstdio>
@@ -174,12 +175,14 @@ void DistriContainer<step, interm, method, cpu>::compute()
 
 #endif
 
+        par->_wMatFinished = 1;
+
         result->set(presWData, data_management::NumericTablePtr(new HomogenNumericTable<interm>(wMat_body, dim_r, wMat_size)));
 
     }
 
     /* construct the hashmap to hold training point position indexed by col id */
-    if (par->_train_map == NULL && par->_sgd2 == 1)
+    if (par->_train_map == NULL && par->_sgd2 == 1 && par->_trainMapFinished == 0)
     {
         par->_train_map = new ConcurrentDataMap();
 
@@ -251,11 +254,45 @@ void DistriContainer<step, interm, method, cpu>::compute()
         }
 
 #endif
+        par->_trainMapFinished = 1;
 
+        //transfer data from train_Map to train_list
+        int trainMapSize = par->_train_map->size();
 
+        //put in the number of local columns
+        par->_train_list_len = trainMapSize;
+
+        //put in the col_ids
+        par->_train_list_ids = new int[trainMapSize];
+
+        //put in the subqueue lenght
+        par->_train_sub_len = new int[trainMapSize];
+
+        par->_train_list = new int *[trainMapSize];
+
+        ConcurrentDataMap::iterator itr = par->_train_map->begin();
+        int subqueueSize = 0;
+        int traverse_itr = 0;
+        while (itr != par->_train_map->end())
+        {
+            (par->_train_list_ids)[traverse_itr] = itr->first;
+            subqueueSize = itr->second.size();
+            (par->_train_sub_len)[traverse_itr] = subqueueSize;
+
+            (par->_train_list)[traverse_itr] = new int[subqueueSize];
+            
+            std::memcpy((par->_train_list)[traverse_itr], &(itr->second)[0], subqueueSize*sizeof(int) );
+
+            itr++;
+            traverse_itr++;
+        }
+
+        //delete par->_train_map
+        delete par->_train_map;
+        par->_train_map = NULL;
     }
 
-    if (par->_test_map == NULL && par->_sgd2 == 1 )
+    if (par->_test_map == NULL && par->_sgd2 == 1 && par->_testMapFinished == 0 )
     {
         par->_test_map = new ConcurrentDataMap();
 
@@ -328,7 +365,42 @@ void DistriContainer<step, interm, method, cpu>::compute()
         
 
 #endif
+        par->_testMapFinished = 1;
 
+        //transfer data from test_Map to test_list
+        // int testMapSize = par->_test_map->size();
+        //
+        // //put in the number of local columns
+        // par->_test_list_len = testMapSize;
+        //
+        // //put in the col_ids
+        // par->_test_list_ids = new int[testMapSize];
+        //
+        // //put in the subqueue lenght
+        // par->_test_sub_len = new int[testMapSize];
+        //
+        // par->_test_list = new int *[testMapSize];
+        //
+        // ConcurrentDataMap::iterator itr = par->_test_map->begin();
+        // int subqueueSize = 0;
+        // int traverse_itr = 0;
+        // while (itr != par->_test_map->end())
+        // {
+        //     (par->_test_list_ids)[traverse_itr] = itr->first;
+        //     subqueueSize = itr->second.size();
+        //     (par->_test_sub_len)[traverse_itr] = subqueueSize;
+        //
+        //     (par->_test_list)[traverse_itr] = new int[subqueueSize];
+        //     
+        //     std::memcpy((par->_test_list)[traverse_itr], &(itr->second)[0], subqueueSize*sizeof(int) );
+        //
+        //     itr++;
+        //     traverse_itr++;
+        // }
+        //
+        // //delete par->_train_map
+        // delete par->_test_map;
+        // par->_test_map = NULL;
 
     }
 
@@ -339,12 +411,10 @@ void DistriContainer<step, interm, method, cpu>::compute()
     // std::printf("Created W Matrix Row: %d, col: %d\n", (int)(r[2]->getNumberOfRows()), (int)(r[2]->getNumberOfColumns()));
     // std::fflush(stdout);
     // clear wMap
-
     if (par->_train_map != NULL && par->_test_map != NULL && par->_wMat_map != NULL)
     {
         delete par->_wMat_map;
         par->_wMat_map = NULL;
-        par->_wMatFinished = 1;
     }
 
     //------------------------------- build up the hMat matrix -------------------------------

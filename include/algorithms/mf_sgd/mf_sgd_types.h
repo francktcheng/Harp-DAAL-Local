@@ -470,10 +470,26 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _hMat_map = NULL;
         _train_map = NULL;
         _test_map = NULL;
+
+        _train_list = NULL;
+        _train_list_ids = NULL;
+        _train_sub_len = NULL;
+        _train_list_len = 0;
+        _train_col_num = 0;
+
+        _test_list = NULL;
+        _test_list_ids = NULL;
+        _test_sub_len = NULL;
+        _test_list_len = 0;
+        _test_col_num = 0;
+
         _sgd2 = 0;
         _testV=0;
         _trainedNumV = 0;
         _wMatFinished = 0;
+        _trainMapFinished = 0;
+        _testMapFinished = 0;
+
     }
 
     virtual ~Parameter() {}
@@ -623,6 +639,34 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         if (_test_map != NULL)
             delete _test_map;
 
+        if (_train_list != NULL)
+        {
+            for(int k=0;k<_train_list_len;k++)
+                delete[] _train_list[k];
+
+            delete[] _train_list;
+        }
+
+        if (_train_list_ids != NULL)
+            delete[] _train_list_ids;
+
+        if (_train_sub_len != NULL)
+            delete[] _train_sub_len;
+
+        if (_test_list != NULL)
+        {
+            for(int k=0;k<_test_list_len;k++)
+                delete[] _test_list[k];
+
+            delete[] _test_list;
+        }
+
+        if (_test_list_ids != NULL)
+            delete[] _test_list_ids;
+
+        if (_test_sub_len != NULL)
+            delete[] _test_sub_len;
+
     }
 
     double		_learningRate;                    /* the rate of learning by SGD  */
@@ -651,6 +695,18 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     size_t      _testV;                           /* the actual computed data points from test dataset */
     long        _trainedNumV;                     /* the trained num of training points if using timer */
     int         _wMatFinished;
+    int         _trainMapFinished;
+    int         _testMapFinished;
+    int**       _train_list;
+    int*        _train_list_ids;
+    int*        _train_sub_len;
+    int         _train_list_len;
+    int         _train_col_num;
+    int**       _test_list;
+    int*        _test_list_ids;
+    int*        _test_sub_len;
+    int         _test_list_len;
+    int         _test_col_num;
 
 };
 /** @} */

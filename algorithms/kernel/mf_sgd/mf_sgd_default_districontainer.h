@@ -421,6 +421,12 @@ void DistriContainer<step, interm, method, cpu>::compute()
     //r[1] now is a SOANumericTable nFeature equals the number of rows in hMat, nVectors equals the number of cols in hMat
     //data in r[1] is now stored at the Java side
 
+    struct timespec ts1;
+	struct timespec ts2;
+    int64_t diff = 0;
+    double hMat_time = 0;
+
+
     if (par->_sgd2 == 1)
     {
         //initialize the hMat_hashtable for every iteration
@@ -434,6 +440,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
         hMat_blk_array = new  BlockDescriptor<interm> *[hMat_rowNum];
 
         /* a serial version  to retrieve data from java table */
+        // clock_gettime(CLOCK_MONOTONIC, &ts1);
         // for(int k=0;k<hMat_rowNum;k++)
         // {
         //     hMat_blk_array[k] = new BlockDescriptor<interm>();
@@ -441,9 +448,19 @@ void DistriContainer<step, interm, method, cpu>::compute()
         //     hMat_native_mem[k] = hMat_blk_array[k]->getBlockPtr();
         //
         // }
+        //
+        // clock_gettime(CLOCK_MONOTONIC, &ts2);
+        // diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
+        // hMat_time = (double)(diff)/1000000L;
+        //
+        // /* init.terminate(); */
+        // std::printf("Loading hMat time: %f\n", hMat_time);
+        // std::fflush(stdout);
 
         //---------------------------------- start doing a parallel data conversion by using pthread----------------------------------
-        pthread_t thread_id[thread_num];
+        clock_gettime(CLOCK_MONOTONIC, &ts1);
+
+        // pthread_t thread_id[thread_num];
 
         for(int k=0;k<hMat_rowNum;k++)
         {
@@ -463,17 +480,30 @@ void DistriContainer<step, interm, method, cpu>::compute()
 
         copylist[thread_num-1] = new internal::SOADataCopy<interm>(r[1], (thread_num-1)*cpy_len, last_cpy_len, hMat_colNum, hMat_blk_array, hMat_native_mem);
 
+        #pragma omp parallel for schedule(static) num_threads(thread_num) 
         for(int k=0;k<thread_num;k++)
         {
-            pthread_create(&thread_id[k], NULL, internal::SOACopyBulkData<interm>, copylist[k]);
+            internal::SOACopyBulkData<interm>(copylist[k]);
         }
 
-        for(int k=0;k<thread_num;k++)
-        {
-            pthread_join(thread_id[k], NULL);
-        }
+        // for(int k=0;k<thread_num;k++)
+        // {
+        //     pthread_create(&thread_id[k], NULL, internal::SOACopyBulkData<interm>, copylist[k]);
+        // }
+        //
+        // for(int k=0;k<thread_num;k++)
+        // {
+        //     pthread_join(thread_id[k], NULL);
+        // }
 
-                
+        clock_gettime(CLOCK_MONOTONIC, &ts2);
+        diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
+        hMat_time = (double)(diff)/1000000L;
+
+        /* init.terminate(); */
+        std::printf("Loading hMat time: %f\n", hMat_time);
+        std::fflush(stdout);
+       
         //---------------------------------- finish doing a parallel data conversion by using pthread----------------------------------
         //clean up and re-generate a hMat hashmap
         if (par->_hMat_map != NULL)
@@ -526,8 +556,9 @@ void DistriContainer<step, interm, method, cpu>::compute()
     //sequential version
     // if (par->_sgd2 == 1 && hMat_blk_array != NULL)
     // {
-    //     
-    //     int hMat_rows_size = r[1]->getNumberOfColumns();
+    //
+    //     // int hMat_rows_size = r[1]->getNumberOfColumns();
+    //     int hMat_rows_size = par->_Dim_h;
     //     for(int k=0;k<hMat_rows_size;k++)
     //     {
     //         r[1]->releaseBlockOfColumnValues(*(hMat_blk_array[k]));
@@ -542,16 +573,22 @@ void DistriContainer<step, interm, method, cpu>::compute()
     if (par->_sgd2 == 1 && hMat_blk_array != NULL)
     {
 
-        pthread_t thread_id[thread_num];
+        // pthread_t thread_id[thread_num];
+        //
+        // for(int k=0;k<thread_num;k++)
+        // {
+        //     pthread_create(&thread_id[k], NULL, internal::SOAReleaseBulkData<interm>, copylist[k]);
+        // }
+        //
+        // for(int k=0;k<thread_num;k++)
+        // {
+        //     pthread_join(thread_id[k], NULL);
+        // }
 
+        #pragma omp parallel for schedule(static) num_threads(thread_num) 
         for(int k=0;k<thread_num;k++)
         {
-            pthread_create(&thread_id[k], NULL, internal::SOAReleaseBulkData<interm>, copylist[k]);
-        }
-
-        for(int k=0;k<thread_num;k++)
-        {
-            pthread_join(thread_id[k], NULL);
+            internal::SOAReleaseBulkData<interm>(copylist[k]);
         }
 
         // r[1]->releaseBlockOfColumnValues(*(hMat_blk_array[k]));

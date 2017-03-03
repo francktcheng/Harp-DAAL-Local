@@ -507,7 +507,7 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
     std::vector<int*>* task_queue_ids = new std::vector<int*>();
     /* std::vector<omp_task*>* task_queue = new std::vector<omp_task*>(); */
 
-    const int tasks_queue_len = 100;
+    const int tasks_queue_len = 1000;
 
     /* for(int k=0;k<dim_h;k++) */
     //loop over all the columns from local training points

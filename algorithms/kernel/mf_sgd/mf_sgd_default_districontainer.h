@@ -368,39 +368,39 @@ void DistriContainer<step, interm, method, cpu>::compute()
         par->_testMapFinished = 1;
 
         //transfer data from test_Map to test_list
-        // int testMapSize = par->_test_map->size();
-        //
-        // //put in the number of local columns
-        // par->_test_list_len = testMapSize;
-        //
-        // //put in the col_ids
-        // par->_test_list_ids = new int[testMapSize];
-        //
-        // //put in the subqueue lenght
-        // par->_test_sub_len = new int[testMapSize];
-        //
-        // par->_test_list = new int *[testMapSize];
-        //
-        // ConcurrentDataMap::iterator itr = par->_test_map->begin();
-        // int subqueueSize = 0;
-        // int traverse_itr = 0;
-        // while (itr != par->_test_map->end())
-        // {
-        //     (par->_test_list_ids)[traverse_itr] = itr->first;
-        //     subqueueSize = itr->second.size();
-        //     (par->_test_sub_len)[traverse_itr] = subqueueSize;
-        //
-        //     (par->_test_list)[traverse_itr] = new int[subqueueSize];
-        //     
-        //     std::memcpy((par->_test_list)[traverse_itr], &(itr->second)[0], subqueueSize*sizeof(int) );
-        //
-        //     itr++;
-        //     traverse_itr++;
-        // }
-        //
-        // //delete par->_train_map
-        // delete par->_test_map;
-        // par->_test_map = NULL;
+        int testMapSize = par->_test_map->size();
+
+        //put in the number of local columns
+        par->_test_list_len = testMapSize;
+
+        //put in the col_ids
+        par->_test_list_ids = new int[testMapSize];
+
+        //put in the subqueue lenght
+        par->_test_sub_len = new int[testMapSize];
+
+        par->_test_list = new int *[testMapSize];
+
+        ConcurrentDataMap::iterator itr = par->_test_map->begin();
+        int subqueueSize = 0;
+        int traverse_itr = 0;
+        while (itr != par->_test_map->end())
+        {
+            (par->_test_list_ids)[traverse_itr] = itr->first;
+            subqueueSize = itr->second.size();
+            (par->_test_sub_len)[traverse_itr] = subqueueSize;
+
+            (par->_test_list)[traverse_itr] = new int[subqueueSize];
+
+            std::memcpy((par->_test_list)[traverse_itr], &(itr->second)[0], subqueueSize*sizeof(int) );
+
+            itr++;
+            traverse_itr++;
+        }
+
+        //delete par->_train_map
+        delete par->_test_map;
+        par->_test_map = NULL;
 
     }
 
@@ -425,7 +425,8 @@ void DistriContainer<step, interm, method, cpu>::compute()
     {
         //initialize the hMat_hashtable for every iteration
         //store the hMat_hashtable within par of mf_sgd
-        int hMat_rowNum = r[1]->getNumberOfColumns(); 
+        // int hMat_rowNum = r[1]->getNumberOfColumns(); bug is larger than par->dim_h 
+        int hMat_rowNum = par->_Dim_h;
         int hMat_colNum = r[1]->getNumberOfRows(); /* should be dim_r + 1, there is a sentinel to record the col id */
 
         col_ids = (int*)calloc(hMat_rowNum, sizeof(int));
@@ -555,7 +556,8 @@ void DistriContainer<step, interm, method, cpu>::compute()
 
         // r[1]->releaseBlockOfColumnValues(*(hMat_blk_array[k]));
         //free up memory space of native column data of hMat
-        int hMat_rows_size = r[1]->getNumberOfColumns();
+        // int hMat_rows_size = r[1]->getNumberOfColumns();
+        int hMat_rows_size = par->_Dim_h;
         for(int k=0;k<hMat_rows_size;k++)
         {
             hMat_blk_array[k]->~BlockDescriptor();

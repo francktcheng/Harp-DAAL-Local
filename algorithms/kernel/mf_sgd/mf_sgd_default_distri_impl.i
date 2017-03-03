@@ -166,7 +166,6 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute(NumericTable** WPos,
         workflow_ptr.getBlockOfColumnValues(0, 0, dim_set, &workV);
 
         dim_w = r[3]->getNumberOfRows();
-        dim_h = r[1]->getNumberOfRows();
 
         /* ---------------- Retrieve Model W ---------------- */
         BlockMicroTable<interm, readWrite, cpu> mtWDataTable(r[3]);
@@ -204,7 +203,6 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute(NumericTable** WPos,
         workflow_ptr.getBlockOfColumnValues(0, 0, dim_set, &workV);
 
         dim_w = r[3]->getNumberOfRows();
-        dim_h = r[1]->getNumberOfRows();
 
         /* ---------------- Retrieve Model W ---------------- */
         BlockMicroTable<interm, readWrite, cpu> mtWDataTable(r[3]);
@@ -222,7 +220,6 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute(NumericTable** WPos,
         BlockMicroTable<interm, readWrite, cpu> mtRMSETable(r[2]);
         mtRMSETable.getBlockOfRows(0, 1, &mtRMSEPtr);
 
-        parameter->_Dim_h = dim_h;
         parameter->_Dim_w = dim_w;
 
         MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(workWPos,workHPos,workV, dim_set, mtWDataPtr,mtHDataPtr, mtRMSEPtr, parameter, col_ids, hMat_native_mem);
@@ -528,11 +525,16 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
         //check if this local col appears in the rotated columns
         ConcurrentModelMap::accessor pos_h; 
         if (map_h->find(pos_h, col_id))
+        {
             col_pos = pos_h->second;
+            pos_h.release();
+        }
         else
+        {
+            pos_h.release();
             continue;
+        }
 
-        pos_h.release();
 
         /* ConcurrentDataMap::accessor pos_train;  */
         /* std::vector<int>* sub_tasks_ptr = NULL; */
@@ -1105,23 +1107,6 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
     currentMutex_t* mutex_w = new currentMutex_t[dim_w];
     currentMutex_t* mutex_h = new currentMutex_t[dim_h];
 
-    /* create the mutex for WData and HData */
-    /* omp_lock_t* mutex_w = new omp_lock_t[dim_w];   */
-    /* omp_lock_t* mutex_h = new omp_lock_t[dim_h];   */
-    /*  */
-    /* for(int j=0; j<dim_w;j++) */
-    /*      omp_init_lock(&(mutex_w[j])); */
-    /* for(int j=0; j<dim_h;j++) */
-    /*      omp_init_lock(&(mutex_h[j])); */
-    /*  */
-    /* for(int j=0; j<dim_w;j++) */
-    /*      omp_destroy_lock(&(mutex_w[j])); */
-    /* for(int j=0; j<dim_h;j++) */
-    /*      omp_destroy_lock(&(mutex_h[j])); */
-    /*  */
-    /* delete[] mutex_w; */
-    /* delete[] mutex_h; */
-
     /* ------------------- Starting OpenMP based testing  -------------------*/
     int num_thds_max = omp_get_max_threads();
     std::printf("Max threads number: %d\n", num_thds_max);
@@ -1155,63 +1140,61 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
 
     /* //loop over all the columns from local test points */
     /* int col_id = 0; */
-    /* int sub_len = 0; */
-    /* int iterator = 0; */
-    /* int residue = 0; */
-    /* for(int k=0;k<parameter->_test_list_len;k++) */
-    for(int k=0;k<dim_h;k++)
+    int sub_len = 0;
+    int iterator = 0;
+    int residue = 0;
+    /* for(int k=0;k<dim_h;k++) */
+    for(int k=0;k<parameter->_test_list_len;k++)
     {
-        int col_id = col_ids[k];
-        /* col_id = parameter->_test_list_ids[k]; */
+        /* int col_id = col_ids[k]; */
+        int col_id = parameter->_test_list_ids[k];
         int col_pos = -1;
 
         //check if this local col appears in the rotated columns
         ConcurrentModelMap::accessor pos_h; 
         if (map_h->find(pos_h, col_id))
             col_pos = pos_h->second;
-        /* else */
-        /*     continue; */
 
         pos_h.release();
 
-        ConcurrentDataMap::accessor pos_test; 
-        std::vector<int>* sub_tasks_ptr = NULL;
-        if (map_test->find(pos_test, col_id))
+        /* ConcurrentDataMap::accessor pos_test;  */
+        /* std::vector<int>* sub_tasks_ptr = NULL; */
+        /* if (map_test->find(pos_test, col_id)) */
+        /* { */
+        /*      sub_tasks_ptr = &(pos_test->second); */
+        /* } */
+        /*  */
+        /* pos_test.release(); */
+
+        sub_len = (parameter->_test_sub_len)[k];
+
+        /* if (sub_tasks_ptr != NULL && col_pos != -1) */
+        if (sub_len > 0 && col_pos != -1)
         {
-             sub_tasks_ptr = &(pos_test->second);
-        }
+            /* int tasks_size = (int)sub_tasks_ptr->size(); */
+            /* int itr = 0; */
+            iterator = 0; 
 
-        pos_test.release();
-
-        /* sub_len = (parameter->_test_sub_len)[k]; */
-
-        if (sub_tasks_ptr != NULL && col_pos != -1)
-        /* if (sub_len > 0 && col_pos != -1) */
-        {
-            int tasks_size = (int)sub_tasks_ptr->size();
-            int itr = 0;
-            /* iterator = 0;  */
-
-            /* while (((iterator+1)*tasks_queue_len) <= sub_len) */
-            while (((itr+1)*tasks_queue_len) <= tasks_size)
+            /* while (((itr+1)*tasks_queue_len) <= tasks_size) */
+            while (((iterator+1)*tasks_queue_len) <= sub_len)
             {
                 task_queue_colPos->push_back(col_pos);
                 task_queue_size->push_back(tasks_queue_len);
-                task_queue_ids->push_back(&(*sub_tasks_ptr)[itr*tasks_queue_len]);
-                /* task_queue_ids->push_back(&((parameter->_test_list[k])[iterator*tasks_queue_len])); */
-                /* iterator++; */
-                itr++;
+                /* task_queue_ids->push_back(&(*sub_tasks_ptr)[itr*tasks_queue_len]); */
+                task_queue_ids->push_back(&((parameter->_test_list[k])[iterator*tasks_queue_len]));
+                iterator++;
+                /* itr++; */
             }
 
             //add the last sub task queue
-            /* residue = sub_len - iterator*tasks_queue_len; */
-            int residue = tasks_size - itr*tasks_queue_len;
+            residue = sub_len - iterator*tasks_queue_len;
+            /* int residue = tasks_size - itr*tasks_queue_len; */
             if (residue > 0)
             {
                 task_queue_colPos->push_back(col_pos);
                 task_queue_size->push_back(residue);
-                task_queue_ids->push_back(&(*sub_tasks_ptr)[itr*tasks_queue_len]);
-                /* task_queue_ids->push_back(&((parameter->_test_list[k])[iterator*tasks_queue_len])); */
+                /* task_queue_ids->push_back(&(*sub_tasks_ptr)[itr*tasks_queue_len]); */
+                task_queue_ids->push_back(&((parameter->_test_list[k])[iterator*tasks_queue_len]));
             }
         }
 
@@ -1274,45 +1257,57 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test2_omp(int* workWPos,
 
 
         //omp_set_lock(&(mutex_h_ptr[col_pos])); 
-        currentMutex_t::scoped_lock lock_h(mutex_h[col_pos]);
 
-        //---------- copy hmat data ---------------
-        /* memcpy(HMat, mtHDataLocal+col_pos*stride_h, dim_r*sizeof(interm)); */
-        memcpy(HMat, mtHDataLocal[col_pos]+1, dim_r*sizeof(interm));
-
-        lock_h.release();
-
-        //omp_unset_lock(&(mutex_h_ptr[col_pos]));
-
-        for(int j=0;j<squeue_size;j++)
+        
+        if (col_pos >=0 && col_pos < dim_h)
         {
-            int data_id = ids_ptr[j];
-            int row_pos = workWPosLocal[data_id];
-            if (row_pos < 0)
-                continue;
+            currentMutex_t::scoped_lock lock_h(mutex_h[col_pos]);
 
-            Mult = 0;
+            //---------- copy hmat data ---------------
+            /* memcpy(HMat, mtHDataLocal+col_pos*stride_h, dim_r*sizeof(interm)); */
+            memcpy(HMat, mtHDataLocal[col_pos]+1, dim_r*sizeof(interm));
 
-            //omp_set_lock(&(mutex_w_ptr[row_pos]));
-            currentMutex_t::scoped_lock lock_w(mutex_w[row_pos]);
+            lock_h.release();
 
-            WMat = mtWDataLocal + row_pos*stride_w;
+            //omp_unset_lock(&(mutex_h_ptr[col_pos]));
 
-            for(p = 0; p<dim_r; p++)
-                Mult += (WMat[p]*HMat[p]);
+            for(int j=0;j<squeue_size;j++)
+            {
+                int data_id = ids_ptr[j];
+                int row_pos = workWPosLocal[data_id];
+                if (row_pos < 0 || row_pos >= dim_w)
+                    continue;
 
-            //omp_unset_lock(&(mutex_w_ptr[row_pos]));
-            lock_w.release();
+                Mult = 0;
 
-            Err = workVLocal[data_id] - Mult;
+                //omp_set_lock(&(mutex_w_ptr[row_pos]));
+                currentMutex_t::scoped_lock lock_w(mutex_w[row_pos]);
 
-            rmse += (Err*Err);
-            testV++;
+                WMat = mtWDataLocal + row_pos*stride_w;
+
+                for(p = 0; p<dim_r; p++)
+                    Mult += (WMat[p]*HMat[p]);
+
+                //omp_unset_lock(&(mutex_w_ptr[row_pos]));
+                lock_w.release();
+
+                Err = workVLocal[data_id] - Mult;
+
+                rmse += (Err*Err);
+                testV++;
+
+            }
+
+            partialRMSE[k] = rmse;
+            partialTestV[k] = testV;
 
         }
+        else
+        {
+            std::printf("Abnormal Col pos: %d, H range: %ld\n", col_pos, dim_h);
+            std::fflush(stdout);
+        }
 
-        partialRMSE[k] = rmse;
-        partialTestV[k] = testV;
 
     }
 

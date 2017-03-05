@@ -429,6 +429,9 @@ template<typename interm, CpuType cpu>
 void updateMF_explicit(interm *WMat,interm *HMat, interm* workV, int idx, const long dim_r, const interm rate, const interm lambda)
 {/*{{{*/
 
+    std::printf("AVX updateMF_explicti is not used\n");
+    std::fflush;
+
     interm Mult = 0;
     interm Err = 0;
     interm WMatVal = 0;

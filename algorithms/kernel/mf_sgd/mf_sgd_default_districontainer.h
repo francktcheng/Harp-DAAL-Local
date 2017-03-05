@@ -30,6 +30,7 @@
 #include <vector>
 #include "numeric_table.h"
 #include "service_rng.h"
+#include "services/daal_memory.h"
 #include "service_micro_table.h"
 #include "service_numeric_table.h"
 
@@ -108,7 +109,7 @@ void DistriContainer<step, interm, method, cpu>::compute()
     NumericTable **HPosTest = &a4;
     NumericTable **ValTest = &a5;
 
-    int dim_r = par->_Dim_r;
+    size_t dim_r = par->_Dim_r;
 
     NumericTable *r[4];
     r[0] = static_cast<NumericTable *>(result->get(presWMat).get());
@@ -120,11 +121,27 @@ void DistriContainer<step, interm, method, cpu>::compute()
     //regenerate the wMat numericTablj 
     if (par->_wMat_map == NULL && par->_sgd2 == 1 && par->_wMatFinished == 0)
     {
+    
         
         //construct the wMat_hashtable
-        int wMat_size = r[0]->getNumberOfRows();
+        size_t wMat_size = r[0]->getNumberOfRows();
 
-        interm* wMat_body = (interm*)calloc(dim_r*wMat_size, sizeof(interm));
+        size_t wMat_bytes = wMat_size*dim_r*sizeof(interm); 
+
+        std::printf("size of size_t: %zd\n", sizeof(size_t));
+        std::fflush(stdout);
+
+        std::printf("Start constructing wMat_map, size:%zd, %zd, bytes: %zd\n", wMat_size, dim_r, wMat_bytes);
+        std::fflush(stdout);
+
+        // interm* wMat_body = (interm*)calloc(dim_r*wMat_size, sizeof(interm));
+        interm* wMat_body = (interm*)daal::services::daal_malloc(wMat_bytes);
+
+        if (wMat_body == NULL)
+        {
+            std::printf("Failed to allocate memory for wMat_map\n");
+            std::fflush(stdout);
+        }
 
         par->_wMat_map = new ConcurrentModelMap(wMat_size);
 
@@ -134,11 +151,72 @@ void DistriContainer<step, interm, method, cpu>::compute()
         int* wMat_index_ptr = 0;
         wMat_index.getBlockOfColumnValues(0, 0, wMat_size, &wMat_index_ptr);
 
+        std::printf("allocate memory for wMat_map\n");
+        std::fflush(stdout);
+
 #ifdef _OPENMP
 
         if (thread_num == 0)
             thread_num = omp_get_max_threads();
+        //
+        int res = wMat_size%thread_num;
+        int rng_len = (int)((wMat_size - res)/thread_num);
+        int last_rng_len = rng_len + res;
 
+        int* rng_start = new int[thread_num];
+        int* rng_lens = new int[thread_num];
+
+        for(int k=0;k<thread_num-1;k++)
+        {
+            rng_start[k] = k*rng_len;
+            rng_lens[k] = rng_len;
+        }
+
+        rng_start[thread_num-1] = (thread_num-1)*rng_len;
+        rng_lens[thread_num-1] = last_rng_len;
+
+        #pragma omp parallel for schedule(static) num_threads(thread_num) 
+        for(int k=0;k<thread_num;k++)
+        {
+            daal::internal::UniformRng<interm, daal::sse2> rng1(time(0));
+
+            int local_start = rng_start[k];
+            int local_len = rng_lens[k];
+            int l =0;
+            int j= 0;
+
+            for(l=local_start;l<local_len;l++)
+            {
+                rng1.uniform(dim_r, 0.0, scale, &wMat_body[l*dim_r]);
+                // for(j=0;j<dim_r;j++)
+                //     wMat_body[l*dim_r + j] = 1.0;
+            }
+
+        }
+
+        //
+        delete[] rng_start;
+        delete[] rng_lens;
+
+        std::printf("finish rng generation for wMat_map\n");
+        std::fflush(stdout);
+
+        // #pragma omp parallel for schedule(guided) num_threads(thread_num) 
+        // for(int k=0;k<wMat_size;k++)
+        // {
+        //     ConcurrentModelMap::accessor pos; 
+        //     if(par->_wMat_map->insert(pos, wMat_index_ptr[k]))
+        //     {
+        //         pos->second = k;
+        //     }
+        //
+        //     pos.release();
+        //
+        //     daal::internal::UniformRng<interm, daal::sse2> rng1(time(0));
+        //     rng1.uniform(dim_r, 0.0, scale, &wMat_body[k*dim_r]);
+        // }
+        //
+        
         #pragma omp parallel for schedule(guided) num_threads(thread_num) 
         for(int k=0;k<wMat_size;k++)
         {
@@ -150,8 +228,8 @@ void DistriContainer<step, interm, method, cpu>::compute()
 
             pos.release();
 
-            daal::internal::UniformRng<interm, daal::sse2> rng1(time(0));
-            rng1.uniform(dim_r, 0.0, scale, &wMat_body[k*dim_r]);
+            // daal::internal::UniformRng<interm, daal::sse2> rng1(time(0));
+            // rng1.uniform(dim_r, 0.0, scale, &wMat_body[k*dim_r]);
         }
 
 #else
@@ -179,11 +257,18 @@ void DistriContainer<step, interm, method, cpu>::compute()
 
         result->set(presWData, data_management::NumericTablePtr(new HomogenNumericTable<interm>(wMat_body, dim_r, wMat_size)));
 
+        std::printf("Finishing constructing wMat_map\n");
+        std::fflush(stdout);
+
     }
 
     /* construct the hashmap to hold training point position indexed by col id */
     if (par->_train_map == NULL && par->_sgd2 == 1 && par->_trainMapFinished == 0)
     {
+
+        std::printf("Start constructing train_map\n");
+        std::fflush(stdout);
+
         par->_train_map = new ConcurrentDataMap();
 
         int train_size = a0->getNumberOfRows();
@@ -290,10 +375,18 @@ void DistriContainer<step, interm, method, cpu>::compute()
         //delete par->_train_map
         delete par->_train_map;
         par->_train_map = NULL;
+
+        std::printf("Finish constructing train_map\n");
+        std::fflush(stdout);
+
     }
 
     if (par->_test_map == NULL && par->_sgd2 == 1 && par->_testMapFinished == 0 )
     {
+
+        std::printf("Start constructing test_map\n");
+        std::fflush(stdout);
+
         par->_test_map = new ConcurrentDataMap();
 
         int test_size = a3->getNumberOfRows();
@@ -402,6 +495,9 @@ void DistriContainer<step, interm, method, cpu>::compute()
         delete par->_test_map;
         par->_test_map = NULL;
 
+        std::printf("Finish constructing test_map\n");
+        std::fflush(stdout);
+
     }
 
     r[3] = static_cast<NumericTable *>(result->get(presWData).get());
@@ -429,6 +525,10 @@ void DistriContainer<step, interm, method, cpu>::compute()
 
     if (par->_sgd2 == 1)
     {
+
+        std::printf("Start constructing h_map\n");
+        std::fflush(stdout);
+
         //initialize the hMat_hashtable for every iteration
         //store the hMat_hashtable within par of mf_sgd
         // int hMat_rowNum = r[1]->getNumberOfColumns(); bug is larger than par->dim_h 
@@ -458,6 +558,9 @@ void DistriContainer<step, interm, method, cpu>::compute()
         // std::fflush(stdout);
 
         //---------------------------------- start doing a parallel data conversion by using pthread----------------------------------
+        std::printf("Start converting h_map\n");
+        std::fflush(stdout);
+
         clock_gettime(CLOCK_MONOTONIC, &ts1);
 
         // pthread_t thread_id[thread_num];
@@ -504,6 +607,9 @@ void DistriContainer<step, interm, method, cpu>::compute()
         std::printf("Loading hMat time: %f\n", hMat_time);
         std::fflush(stdout);
        
+        std::printf("Finish converting h_map\n");
+        std::fflush(stdout);
+
         //---------------------------------- finish doing a parallel data conversion by using pthread----------------------------------
         //clean up and re-generate a hMat hashmap
         if (par->_hMat_map != NULL)
@@ -530,6 +636,9 @@ void DistriContainer<step, interm, method, cpu>::compute()
             pos.release();
 
         }
+
+        std::printf("Finish constructing h_map\n");
+        std::fflush(stdout);
 
     }
 

@@ -121,6 +121,42 @@ JNIEXPORT jlong JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cGetTra
 	return (jlong)(((mf_sgd::Parameter*)parAddr)->_trainedNumV);
 }
 
+JNIEXPORT jlong JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cGetComputeTaskTime
+(JNIEnv *env, jobject thisObj, jlong parAddr)
+{
+	return (jlong)(((mf_sgd::Parameter*)parAddr)->_compute_task_time);
+}
+
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cResetComputeTaskTime
+(JNIEnv *env, jobject thisObj, jlong parAddr)
+{
+	((mf_sgd::Parameter*)parAddr)->_compute_task_time = 0;
+}
+
+JNIEXPORT jlong JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cGetDataConvertTime
+(JNIEnv *env, jobject thisObj, jlong parAddr)
+{
+	return (jlong)(((mf_sgd::Parameter*)parAddr)->_jniDataConvertTime);
+}
+
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cResetDataConvertTime
+(JNIEnv *env, jobject thisObj, jlong parAddr)
+{
+	((mf_sgd::Parameter*)parAddr)->_jniDataConvertTime = 0;
+}
+
+JNIEXPORT jlong JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cGetItrTimeStamp
+(JNIEnv *env, jobject thisObj, jlong parAddr)
+{
+	return (jlong)(((mf_sgd::Parameter*)parAddr)->_itrTimeStamp);
+}
+
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cResetItrTimeStamp
+(JNIEnv *env, jobject thisObj, jlong parAddr)
+{
+	((mf_sgd::Parameter*)parAddr)->_itrTimeStamp = 0;
+}
+
 JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_mf_1sgd_Parameter_cSetIsSGD2
 (JNIEnv *env, jobject thisObj, jlong parAddr, jint isSGD2)
 {

@@ -490,7 +490,6 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
     int64_t diff = 0;
     double train_time = 0;
 
-    clock_gettime(CLOCK_MONOTONIC, &ts1);
 
     /* shared vars */
     /* ConcurrentModelMap* map_w = parameter->_wMat_map; */
@@ -507,7 +506,7 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
     std::vector<int*>* task_queue_ids = new std::vector<int*>();
     /* std::vector<omp_task*>* task_queue = new std::vector<omp_task*>(); */
 
-    const int tasks_queue_len = 1000;
+    const int tasks_queue_len = 100;
 
     /* for(int k=0;k<dim_h;k++) */
     //loop over all the columns from local training points
@@ -607,6 +606,8 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
     /*     std::fflush(stdout); */
     /* } */
 
+    clock_gettime(CLOCK_MONOTONIC, &ts1);
+
     #pragma omp parallel for schedule(guided) num_threads(thread_num) 
     for(int k=0;k<task_queues_num;k++)
     {
@@ -699,7 +700,9 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train2_omp(int* workWPos,
     clock_gettime(CLOCK_MONOTONIC, &ts2);
     /* get the training time for each iteration */
     diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
-    train_time += (double)(diff)/1000000L;
+    train_time = (double)(diff)/1000000L;
+
+    parameter->_compute_task_time += (size_t)train_time; 
 
     /* init.terminate(); */
     std::printf("Training time this iteration: %f\n", train_time);

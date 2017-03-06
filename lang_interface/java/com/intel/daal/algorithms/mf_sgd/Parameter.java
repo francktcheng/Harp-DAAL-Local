@@ -201,6 +201,30 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
         cFreeData(this.cObject);
     }
 
+    public long GetComputeTaskTime() {
+        return cGetComputeTaskTime(this.cObject);
+    }
+
+    public void ResetComputeTaskTime() {
+        cResetComputeTaskTime(this.cObject);
+    }
+
+    public long GetDataConvertTime() {
+        return cGetDataConvertTime(this.cObject);
+    }
+
+    public void ResetDataConvertTime() {
+        cResetDataConvertTime(this.cObject);
+    }
+
+    public long GetItrTimeStamp() {
+        return cGetItrTimeStamp(this.cObject);
+    }
+
+    public void ResetItrTimeStamp() {
+        cResetItrTimeStamp(this.cObject);
+    }
+
     private native void cSetParameters(long parAddr, double learningRate, double lambda, long Dim_r, long Dim_w, long Dim_h, int iteration, int thread_num, int tbb_grainsize, 
 			int Avx_explicit );
 
@@ -231,4 +255,17 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
     private native void cSetIsSGD2(long parAddr, int isSGD2);
 
     private native void cFreeData(long parAddr);
+
+    private native long cGetComputeTaskTime(long parAddr);
+
+    private native void cResetComputeTaskTime(long parAddr);
+
+    private native long cGetDataConvertTime(long parAddr);
+
+    private native void cResetDataConvertTime(long parAddr);
+
+    private native long cGetItrTimeStamp(long parAddr);
+
+    private native void cResetItrTimeStamp(long parAddr);
+
 }

@@ -159,64 +159,48 @@ void DistriContainer<step, interm, method, cpu>::compute()
         if (thread_num == 0)
             thread_num = omp_get_max_threads();
         //
-        int res = wMat_size%thread_num;
-        int rng_len = (int)((wMat_size - res)/thread_num);
-        int last_rng_len = rng_len + res;
-
-        int* rng_start = new int[thread_num];
-        int* rng_lens = new int[thread_num];
-
-        for(int k=0;k<thread_num-1;k++)
-        {
-            rng_start[k] = k*rng_len;
-            rng_lens[k] = rng_len;
-        }
-
-        rng_start[thread_num-1] = (thread_num-1)*rng_len;
-        rng_lens[thread_num-1] = last_rng_len;
-
-        #pragma omp parallel for schedule(static) num_threads(thread_num) 
-        for(int k=0;k<thread_num;k++)
-        {
-            daal::internal::UniformRng<interm, daal::sse2> rng1(time(0));
-
-            int local_start = rng_start[k];
-            int local_len = rng_lens[k];
-            int l =0;
-            int j= 0;
-
-            for(l=local_start;l<local_len;l++)
-            {
-                rng1.uniform(dim_r, 0.0, scale, &wMat_body[l*dim_r]);
-                // for(j=0;j<dim_r;j++)
-                //     wMat_body[l*dim_r + j] = 1.0;
-            }
-
-        }
-
+        // int res = wMat_size%thread_num;
+        // int rng_len = (int)((wMat_size - res)/thread_num);
+        // int last_rng_len = rng_len + res;
         //
-        delete[] rng_start;
-        delete[] rng_lens;
-
-        std::printf("finish rng generation for wMat_map\n");
-        std::fflush(stdout);
-
-        // #pragma omp parallel for schedule(guided) num_threads(thread_num) 
-        // for(int k=0;k<wMat_size;k++)
+        // int* rng_start = new int[thread_num];
+        // int* rng_lens = new int[thread_num];
+        //
+        // for(int k=0;k<thread_num-1;k++)
         // {
-        //     ConcurrentModelMap::accessor pos; 
-        //     if(par->_wMat_map->insert(pos, wMat_index_ptr[k]))
-        //     {
-        //         pos->second = k;
-        //     }
-        //
-        //     pos.release();
-        //
-        //     daal::internal::UniformRng<interm, daal::sse2> rng1(time(0));
-        //     rng1.uniform(dim_r, 0.0, scale, &wMat_body[k*dim_r]);
+        //     rng_start[k] = k*rng_len;
+        //     rng_lens[k] = rng_len;
         // }
         //
-        
+        // rng_start[thread_num-1] = (thread_num-1)*rng_len;
+        // rng_lens[thread_num-1] = last_rng_len;
+        // size_t seed = time(0);
+        //
+        // #pragma omp parallel for schedule(static) num_threads(thread_num) 
+        // for(int k=0;k<thread_num;k++)
+        // {
+        //
+        //     int local_start = rng_start[k];
+        //     int local_len = rng_lens[k];
+        //     int l =0;
+        //     int j= 0;
+        //
+        //
+        //     for(l=local_start;l<local_len;l++)
+        //     {
+        //         daal::internal::UniformRng<interm, daal::sse2> rng1(seed);
+        //         rng1.uniform(dim_r, 0.0, scale, &wMat_body[l*dim_r]);
+        //     }
+        //
+        // }
+        //
+        // //
+        // delete[] rng_start;
+        // delete[] rng_lens;
+        //
+        // std::printf("finish rng generation for wMat_map\n");
+        // std::fflush(stdout);
+
         #pragma omp parallel for schedule(guided) num_threads(thread_num) 
         for(int k=0;k<wMat_size;k++)
         {
@@ -228,8 +212,8 @@ void DistriContainer<step, interm, method, cpu>::compute()
 
             pos.release();
 
-            // daal::internal::UniformRng<interm, daal::sse2> rng1(time(0));
-            // rng1.uniform(dim_r, 0.0, scale, &wMat_body[k*dim_r]);
+            daal::internal::UniformRng<interm, daal::sse2> rng1(time(0));
+            rng1.uniform(dim_r, 0.0, scale, &wMat_body[k*dim_r]);
         }
 
 #else
@@ -607,6 +591,8 @@ void DistriContainer<step, interm, method, cpu>::compute()
         std::printf("Loading hMat time: %f\n", hMat_time);
         std::fflush(stdout);
        
+        par->_jniDataConvertTime += (size_t)hMat_time;
+
         std::printf("Finish converting h_map\n");
         std::fflush(stdout);
 
@@ -694,6 +680,8 @@ void DistriContainer<step, interm, method, cpu>::compute()
         //     pthread_join(thread_id[k], NULL);
         // }
 
+        clock_gettime(CLOCK_MONOTONIC, &ts1);
+
         #pragma omp parallel for schedule(static) num_threads(thread_num) 
         for(int k=0;k<thread_num;k++)
         {
@@ -716,6 +704,12 @@ void DistriContainer<step, interm, method, cpu>::compute()
             delete copylist[k];
 
         delete[] copylist;
+
+        clock_gettime(CLOCK_MONOTONIC, &ts2);
+        diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
+        hMat_time = (double)(diff)/1000000L;
+
+        par->_jniDataConvertTime += (size_t)hMat_time;
 
     }
 

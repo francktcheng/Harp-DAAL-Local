@@ -56,8 +56,8 @@ namespace algorithms
 namespace mf_sgd
 {
 
-    typedef tbb::concurrent_hash_map<int, int> ConcurrentModelMap;
-    typedef tbb::concurrent_hash_map<int, std::vector<int> > ConcurrentDataMap;
+typedef tbb::concurrent_hash_map<int, int> ConcurrentModelMap;
+typedef tbb::concurrent_hash_map<int, std::vector<int> > ConcurrentDataMap;
 
 namespace internal
 {
@@ -96,21 +96,21 @@ public:
      */
     void reorder(int* trainWPos, int* trainHPos, interm* trainV, const int train_num, const Parameter *parameter);
 
-    /* a multi-threading version of compute implemented by TBB */
+    // a multi-threading version of compute implemented by TBB 
     void compute_thr(int* trainWPos, int* trainHPos, interm* trainV, const int train_num,
                      int* testWPos, int* testHPos, interm* testV, const int test_num,
                      interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter);
 
-    /* a multi-threading version of compute implemented by OpenMP */
+    // a multi-threading version of compute implemented by OpenMP 
     void compute_openmp(int* trainWPos, int* trainHPos, interm* trainV, const int train_num,
                         int* testWPos, int* testHPos, interm* testV, const int test_num,
                         interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter);
 
-    /* a multi-threading version of compute implemented by TBB with reordered training dataset points */
+    // a multi-threading version of compute implemented by TBB with reordered training dataset points 
     void compute_thr_reordered(int* testWPos, int* testHPos, interm* testV, const int test_num,
                                interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter);
 
-    /* a multi-threading version of compute implemented by OpenMP with reordered training dataset points */
+    // a multi-threading version of compute implemented by OpenMP with reordered training dataset points 
     void compute_openmp_reordered(int* testWPos, int* testHPos, interm* testV, const int test_num,
                                interm* mtWDataPtr, interm* mtHDataPtr, const Parameter *parameter);
 
@@ -147,13 +147,14 @@ public:
      * @param[in] par
      */
     void compute(NumericTable** WPos, NumericTable** HPos, NumericTable** Val, NumericTable** WPosTest, NumericTable** HPosTest, NumericTable** ValTest, 
-            NumericTable *r[], Parameter *par, int* col_ids, interm** hMat_native_mem);
+            NumericTable *r[], Parameter* &par, int* &col_ids, interm** &hMat_native_mem);
 
-    /* another multi-threading version of training process implemented by OpenMP */
-    void compute_train_omp(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, Parameter *parameter, int* col_ids, interm** hMat_native_mem);
+    // another multi-threading version of training process implemented by OpenMP 
+    void compute_train_omp(int* &workWPos, int* &workHPos, interm* &workV, const int dim_set,
+                           interm* &mtWDataPtr, int* &col_ids, interm** &hMat_native_mem, Parameter* &parameter);
 
-    /* another multi-threading version of testing process implemented by OpenMP */
-    void compute_test_omp(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtHDataPtr, interm* mtRMSEPtr, Parameter *parameter, int* col_ids, interm** hMat_native_mem);
+    // another multi-threading version of testing process implemented by OpenMP 
+    void compute_test_omp(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtRMSEPtr, Parameter *parameter, int* col_ids, interm** hMat_native_mem);
 
 };
 
@@ -166,7 +167,7 @@ public:
 template<typename interm, CpuType cpu>
 struct MFSGDTBB
 {
-   /* default constructor */ 
+    // default constructor  
     MFSGDTBB(
             interm* mtWDataTable,
             interm* mtHDataTable,
@@ -183,15 +184,12 @@ struct MFSGDTBB
             const int dim_train
             );
 
-	
-
 	/**
 	 * @brief operator used by parallel_for template
 	 *
 	 * @param[in] range range of parallel block to execute by a thread
 	 */
     void operator()( const blocked_range<int>& range ) const; 
-
 	
 	/**
 	 * @brief set up the id of iteration
@@ -207,27 +205,42 @@ struct MFSGDTBB
 
     void setOrder(int* order) {_order = order;}
 
-    interm* _mtWDataTable;  /* model W */
-    interm* _mtHDataTable;  /* model H */
+    // model W 
+    interm* _mtWDataTable;  
 
-    int* _workWPos;         /* row id of point in W */
-    int* _workHPos;		    /* col id of point in H */
-    interm* _workV;         /* value of point */
+    // model H 
+    interm* _mtHDataTable;  
 
-    long _Dim;              /* dimension of vector in model W and H */
+    // row id of point in W 
+    int* _workWPos;         
+
+    // col id of point in H 
+    int* _workHPos;		    
+
+    // value of point 
+    interm* _workV;         
+
+    // dimension of vector in model W and H 
+    long _Dim;              
     interm _learningRate;
     interm _lambda;
 
-    int _Avx_explicit;   /* 1 if use explicit avx intrincis 0 if use compiler vectorization */
+    // 1 if use explicit avx intrincis 0 if use compiler vectorization 
+    int _Avx_explicit;   
 
-    int _step;              /* stride of tasks if only part of tasks are executed */
-    int _dim_train;         /* total number of tasks */
-    int _itr;               /* iteration id  */
+    // stride of tasks if only part of tasks are executed 
+    int _step;              
+    // total number of tasks 
+    int _dim_train;         
+    // iteration id  
+    int _itr;               
     tbb::tick_count _timeStart = tbb::tick_count::now();
+
     double _timeOut = 0;
 
     currentMutex_t* _mutex_w;
     currentMutex_t* _mutex_h;
+
     int* _order = NULL;
 
 };
@@ -235,7 +248,7 @@ struct MFSGDTBB
 template<typename interm, CpuType cpu>
 struct MFSGDTBBREORDER
 {
-   /* default constructor */ 
+    // default constructor  
     MFSGDTBBREORDER(
             interm* mtWDataTable,
             interm* mtHDataTable,
@@ -249,8 +262,6 @@ struct MFSGDTBBREORDER
             currentMutex_t* mutex_w,
             currentMutex_t* mutex_h,
             const int Avx_explicit
-            // const int step,
-            // const int dim_train
             );
 
 	/**
@@ -260,38 +271,30 @@ struct MFSGDTBBREORDER
 	 */
     void operator()( const blocked_range<int>& range ) const; 
 
-	
-	/**
-	 * @brief set up the id of iteration
-	 * used in distributed mode
-	 *
-	 * @param itr
-	 */
-    // void setItr(int itr) { _itr = itr;}
-    
-    // void setTimeStart(tbb::tick_count timeStart) {_timeStart = timeStart;}
+    /* model W */
+    interm* _mtWDataTable;  
+    /* model H */
+    interm* _mtHDataTable;  
 
-    // void setTimeOut(double timeOut) {_timeOut = timeOut;}
+    // row id of W for each queue 
+    int* _queueWPos;        
 
-    interm* _mtWDataTable;  /* model W */
-    interm* _mtHDataTable;  /* model H */
+    // num of cols for each row 
+    int* _queueLength;		
 
-    int* _queueWPos;        /* row id of W for each queue */
-    int* _queueLength;		/* num of cols for each row */
-    int** _queueHPos;       /* col ids of H for each queue */
-    interm** _queueVVal;    /* value of points for each queue */
+    // col ids of H for each queue 
+    int** _queueHPos;       
 
-    long _Dim;              /* dimension of vector in model W and H */
+    // value of points for each queue 
+    interm** _queueVVal;    
+
+    // dimension of vector in model W and H 
+    long _Dim;              
     interm _learningRate;
     interm _lambda;
 
-    int _Avx_explicit;   /* 1 if use explicit avx intrincis 0 if use compiler vectorization */
-
-    // int _step;              /* stride of tasks if only part of tasks are executed */
-    // int _dim_train;         /* total number of tasks */
-    // int _itr;               /* iteration id  */
-    // tbb::tick_count _timeStart = tbb::tick_count::now();
-    // double _timeOut = 0;
+    // 1 if use explicit avx intrincis 0 if use compiler vectorization 
+    int _Avx_explicit;   
 
     currentMutex_t* _mutex_w;
     currentMutex_t* _mutex_h;
@@ -319,16 +322,29 @@ struct MFSGDTBB_TEST
 
     void operator()( const blocked_range<int>& range ) const; 
 
-	interm* _mtWDataTable;   /* model W */
-    interm* _mtHDataTable;   /* model H */
+    // model W 
+	interm* _mtWDataTable;   
+    
+    // model H 
+    interm* _mtHDataTable;   
 
-    int* _testWPos;          /* row id of point in W */
-    int* _testHPos;          /* col id of point in H */
-    interm* _testV;          /* value of point  */
+    // row id of point in W 
+    int* _testWPos;          
 
-    int _Dim;                /* dimension of model data */
-    interm* _testRMSE;       /* RMSE value calculated for each training point */
-    int _Avx_explicit;    /* 1 to use explicit avx intrinsics or 0 not */
+    // col id of point in H 
+    int* _testHPos;          
+
+    // value of point  
+    interm* _testV;          
+
+    // dimension of model data 
+    int _Dim;                
+
+    // RMSE value calculated for each training point 
+    interm* _testRMSE;       
+
+    // 1 to use explicit avx intrinsics or 0 not 
+    int _Avx_explicit;    
 
     currentMutex_t* _mutex_w;
     currentMutex_t* _mutex_h;
@@ -336,7 +352,12 @@ struct MFSGDTBB_TEST
 
 };
 
-//function used in pthread to copy data from javanumrictable 
+/**
+ * @brief A function to copy data between JavaNumericTable 
+ * and native memory space in parallel
+ *
+ * @tparam interm
+ */
 template <typename interm>
 struct SOADataCopy
 {
@@ -358,6 +379,14 @@ struct SOADataCopy
 
 };
 
+/**
+ * @brief Function to retrieve data from JavaNumericTable
+ *
+ * @tparam interm
+ * @param arg
+ *
+ * @return 
+ */
 template <typename interm>
 void* SOACopyBulkData(void* arg)
 {/*{{{*/
@@ -375,6 +404,14 @@ void* SOACopyBulkData(void* arg)
     return NULL;
 }/*}}}*/
 
+/**
+ * @brief Funtion to release data to JavaNumericTable 
+ *
+ * @tparam interm
+ * @param arg
+ *
+ * @return 
+ */
 template <typename interm>
 void* SOAReleaseBulkData(void* arg)
 {/*{{{*/
@@ -383,9 +420,21 @@ void* SOAReleaseBulkData(void* arg)
     return NULL;
 }/*}}}*/
 
+/**
+ * @brief generate W matrix model data 
+ *
+ * @tparam interm
+ * @tparam cpu
+ * @param r[]
+ * @param par
+ * @param result
+ * @param dim_r
+ * @param thread_num
+ */
 template<typename interm, CpuType cpu>
 void wMat_generate_distri(NumericTable *r[], mf_sgd::Parameter* &par, mf_sgd::DistributedPartialResult* &result, size_t dim_r, int thread_num)
 {/*{{{*/
+
     //construct the wMat_hashtable
     //use size_t to avoid overflow of wMat_bytes
     size_t wMat_size = r[0]->getNumberOfRows();
@@ -405,15 +454,13 @@ void wMat_generate_distri(NumericTable *r[], mf_sgd::Parameter* &par, mf_sgd::Di
     int* wMat_index_ptr = 0;
     wMat_index.getBlockOfColumnValues(0, 0, wMat_size, &wMat_index_ptr);
 
-    // std::printf("allocate memory for wMat_map\n");
-    // std::fflush(stdout);
 #ifdef _OPENMP
 
     if (thread_num == 0)
         thread_num = omp_get_max_threads();
 
-#pragma omp parallel for schedule(guided) num_threads(thread_num) 
-    for(int k=0;k<wMat_size;k++)
+    #pragma omp parallel for schedule(guided) num_threads(thread_num) 
+    for(size_t k=0;k<wMat_size;k++)
     {
         ConcurrentModelMap::accessor pos; 
         if(par->_wMat_map->insert(pos, wMat_index_ptr[k]))
@@ -432,7 +479,7 @@ void wMat_generate_distri(NumericTable *r[], mf_sgd::Parameter* &par, mf_sgd::Di
     // a serial version 
     daal::internal::UniformRng<interm, daal::sse2> rng1(time(0));
 
-    for(int k=0;k<wMat_size;k++)
+    for(size_t k=0;k<wMat_size;k++)
     {
         ConcurrentModelMap::accessor pos; 
         if(par->_wMat_map->insert(pos, wMat_index_ptr[k]))
@@ -448,16 +495,25 @@ void wMat_generate_distri(NumericTable *r[], mf_sgd::Parameter* &par, mf_sgd::Di
 
     par->_wMatFinished = 1;
     result->set(presWData, data_management::NumericTablePtr(new HomogenNumericTable<interm>(wMat_body, dim_r, wMat_size)));
-    // std::printf("Finishing constructing wMat_map\n");
-    // std::fflush(stdout);
+
 }/*}}}*/
 
+/**
+ * @brief generate training dataset hashmap 
+ *
+ * @tparam interm
+ * @tparam cpu
+ * @param r[]
+ * @param a0
+ * @param a1
+ * @param par
+ * @param dim_r
+ * @param thread_num
+ */
 template<typename interm, CpuType cpu>
 void train_generate_distri(NumericTable *r[], NumericTable* &a0, NumericTable* &a1, mf_sgd::Parameter* &par, size_t dim_r, int thread_num)
 {/*{{{*/
 
-    // std::printf("Start constructing train_map\n");
-    // std::fflush(stdout);
     par->_train_map = new ConcurrentDataMap();
     assert(par->_train_map != NULL);
 
@@ -475,7 +531,7 @@ void train_generate_distri(NumericTable *r[], NumericTable* &a0, NumericTable* &
     if (thread_num == 0)
         thread_num = omp_get_max_threads();
 
-#pragma omp parallel for schedule(guided) num_threads(thread_num) 
+    #pragma omp parallel for schedule(guided) num_threads(thread_num) 
     for(size_t k=0;k<train_size;k++)
     {
         ConcurrentModelMap::accessor pos_w;
@@ -528,6 +584,7 @@ void train_generate_distri(NumericTable *r[], NumericTable* &a0, NumericTable* &
     }
 
 #endif
+
     par->_trainMapFinished = 1;
 
     //transfer data from train_Map to train_list
@@ -538,11 +595,14 @@ void train_generate_distri(NumericTable *r[], NumericTable* &a0, NumericTable* &
 
     //put in the col_ids
     par->_train_list_ids = new int[trainMapSize];
+    assert(par->_train_list_ids != NULL);
 
     //put in the subqueue lenght
     par->_train_sub_len = new int[trainMapSize];
+    assert(par->_train_sub_len != NULL);
 
     par->_train_list = new int *[trainMapSize];
+    assert(par->_train_list);
 
     ConcurrentDataMap::iterator itr = par->_train_map->begin();
     int subqueueSize = 0;
@@ -561,22 +621,36 @@ void train_generate_distri(NumericTable *r[], NumericTable* &a0, NumericTable* &
         traverse_itr++;
     }
 
+    //dump hashmap after transferring data to par->_train_list
     delete par->_train_map;
     par->_train_map = NULL;
 
-    std::printf("Finish constructing train_map\n");
-    std::fflush(stdout);
+    // std::printf("Finish constructing train_map\n");
+    // std::fflush(stdout);
 
 }/*}}}*/
 
+/**
+ * @brief generate test dataset hashmap
+ *
+ * @tparam interm
+ * @tparam cpu
+ * @param r[]
+ * @param a3
+ * @param a4
+ * @param par
+ * @param dim_r
+ * @param thread_num
+ */
 template<typename interm, CpuType cpu>
 void test_generate_distri(NumericTable *r[], NumericTable* &a3, NumericTable* &a4, mf_sgd::Parameter* &par, size_t dim_r, int thread_num)
 {/*{{{*/
 
-    std::printf("Start constructing test_map\n");
-    std::fflush(stdout);
+    // std::printf("Start constructing test_map\n");
+    // std::fflush(stdout);
 
     par->_test_map = new ConcurrentDataMap();
+    assert(par->_test_map != NULL);
 
     size_t test_size = a3->getNumberOfRows();
     daal::internal::FeatureMicroTable<int, readWrite, cpu> test_wPos(a3);
@@ -592,7 +666,7 @@ void test_generate_distri(NumericTable *r[], NumericTable* &a3, NumericTable* &a
     if (thread_num == 0)
         thread_num = omp_get_max_threads();
 
-#pragma omp parallel for schedule(guided) num_threads(thread_num) 
+    #pragma omp parallel for schedule(guided) num_threads(thread_num) 
     for(size_t k=0;k<test_size;k++)
     {
         ConcurrentModelMap::accessor pos_w;
@@ -619,6 +693,7 @@ void test_generate_distri(NumericTable *r[], NumericTable* &a3, NumericTable* &a
 
 #else
 
+    //a sequential version
     for(size_t k=0;k<test_size;k++)
     {
         ConcurrentModelMap::accessor pos_w;
@@ -646,6 +721,7 @@ void test_generate_distri(NumericTable *r[], NumericTable* &a3, NumericTable* &a
 
 
 #endif
+
     par->_testMapFinished = 1;
     //transfer data from test_Map to test_list
     size_t testMapSize = par->_test_map->size();
@@ -655,11 +731,14 @@ void test_generate_distri(NumericTable *r[], NumericTable* &a3, NumericTable* &a
 
     //put in the col_ids
     par->_test_list_ids = new int[testMapSize];
+    assert(par->_test_list_ids != NULL);
 
     //put in the subqueue lenght
     par->_test_sub_len = new int[testMapSize];
+    assert(par->_test_sub_len != NULL);
 
     par->_test_list = new int *[testMapSize];
+    assert(par->_test_list != NULL);
 
     ConcurrentDataMap::iterator itr = par->_test_map->begin();
     int subqueueSize = 0;
@@ -678,16 +757,31 @@ void test_generate_distri(NumericTable *r[], NumericTable* &a3, NumericTable* &a
         traverse_itr++;
     }
 
+    //dump hashmap after transferring to par->_test_list
     delete par->_test_map;
     par->_test_map = NULL;
 
-    std::printf("Finish constructing test_map\n");
-    std::fflush(stdout);
+    // std::printf("Finish constructing test_map\n");
+    // std::fflush(stdout);
 
 }/*}}}*/
 
+/**
+ * @brief generate H matrix model data from JavaNumericTable 
+ *
+ * @tparam interm
+ * @tparam cpu
+ * @param r[]
+ * @param par
+ * @param dim_r
+ * @param thread_num
+ * @param col_ids
+ * @param hMat_native_mem
+ * @param hMat_blk_array
+ * @param copylist
+ */
 template<typename interm, CpuType cpu>
-void hMat_allocate(NumericTable *r[], mf_sgd::Parameter* &par, size_t dim_r, int thread_num, int* &col_ids,
+void hMat_generate(NumericTable *r[], mf_sgd::Parameter* &par, size_t dim_r, int thread_num, int* &col_ids,
     interm** &hMat_native_mem, BlockDescriptor<interm>** &hMat_blk_array, internal::SOADataCopy<interm>** &copylist)
 {/*{{{*/
 
@@ -696,38 +790,46 @@ void hMat_allocate(NumericTable *r[], mf_sgd::Parameter* &par, size_t dim_r, int
     int64_t diff = 0;
     double hMat_time = 0;
 
-    std::printf("Start constructing h_map\n");
-    std::fflush(stdout);
+    // std::printf("Start constructing h_map\n");
+    // std::fflush(stdout);
 
     int hMat_rowNum = par->_Dim_h;
-    int hMat_colNum = r[1]->getNumberOfRows(); /* should be dim_r + 1, there is a sentinel to record the col id */
+    assert(hMat_rowNum <= (r[1]->getNumberOfColumns()));
+
+    // should be dim_r + 1, there is a sentinel to record the col id 
+    int hMat_colNum = r[1]->getNumberOfRows(); 
+    assert(hMat_colNum == dim_r + 1);
 
     col_ids = (int*)calloc(hMat_rowNum, sizeof(int));
+    assert(col_ids != NULL);
+
     hMat_native_mem = new interm *[hMat_rowNum];
+    assert(hMat_native_mem != NULL);
+
     hMat_blk_array = new BlockDescriptor<interm> *[hMat_rowNum];
+    assert(hMat_blk_array != NULL);
+
     copylist = new internal::SOADataCopy<interm> *[thread_num];
+    assert(copylist != NULL);
 
     for(int k=0;k<hMat_rowNum;k++)
-    {
         hMat_blk_array[k] = new BlockDescriptor<interm>();
-    }
 
     int res = hMat_rowNum%thread_num;
     int cpy_len = (int)((hMat_rowNum - res)/thread_num);
     int last_cpy_len = cpy_len + res;
 
     for(int k=0;k<thread_num-1;k++)
-    {
         copylist[k] = new internal::SOADataCopy<interm>(r[1], k*cpy_len, cpy_len, hMat_colNum, hMat_blk_array, hMat_native_mem);
-    }
+
     copylist[thread_num-1] = new internal::SOADataCopy<interm>(r[1], (thread_num-1)*cpy_len, last_cpy_len, hMat_colNum, hMat_blk_array, hMat_native_mem);
 
-    std::printf("Start converting h_map\n");
-    std::fflush(stdout);
-
-    clock_gettime(CLOCK_MONOTONIC, &ts1);
+    // std::printf("Start converting h_map\n");
+    // std::fflush(stdout);
 
     //---------------------------------- start doing a parallel data conversion by using pthread----------------------------------
+    clock_gettime(CLOCK_MONOTONIC, &ts1);
+
     #pragma omp parallel for schedule(static) num_threads(thread_num) 
     for(int k=0;k<thread_num;k++)
     {
@@ -738,13 +840,12 @@ void hMat_allocate(NumericTable *r[], mf_sgd::Parameter* &par, size_t dim_r, int
     diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
     hMat_time = (double)(diff)/1000000L;
 
-    std::printf("Loading hMat time: %f\n", hMat_time);
-    std::fflush(stdout);
-
+    // std::printf("Loading hMat time: %f\n", hMat_time);
+    // std::fflush(stdout);
     par->_jniDataConvertTime += (size_t)hMat_time;
 
-    std::printf("Finish converting h_map\n");
-    std::fflush(stdout);
+    // std::printf("Finish converting h_map\n");
+    // std::fflush(stdout);
 
     //---------------------------------- finish doing a parallel data conversion by using pthread----------------------------------
     //clean up and re-generate a hMat hashmap
@@ -752,6 +853,7 @@ void hMat_allocate(NumericTable *r[], mf_sgd::Parameter* &par, size_t dim_r, int
         par->_hMat_map->~ConcurrentModelMap();
 
     par->_hMat_map = new ConcurrentModelMap(hMat_rowNum);
+    assert(par->_hMat_map != NULL);
 
     if (thread_num == 0)
         thread_num = omp_get_max_threads();
@@ -759,7 +861,6 @@ void hMat_allocate(NumericTable *r[], mf_sgd::Parameter* &par, size_t dim_r, int
     #pragma omp parallel for schedule(guided) num_threads(thread_num) 
     for(int k=0;k<hMat_rowNum;k++)
     {
-
         ConcurrentModelMap::accessor pos; 
         int col_id = (int)((hMat_native_mem[k])[0]);
         col_ids[k] = col_id;
@@ -773,11 +874,23 @@ void hMat_allocate(NumericTable *r[], mf_sgd::Parameter* &par, size_t dim_r, int
 
     }
 
-    std::printf("Finish constructing h_map\n");
-    std::fflush(stdout);
+    // std::printf("Finish constructing h_map\n");
+    // std::fflush(stdout);
 
 }/*}}}*/
 
+/**
+ * @brief release H matrix model data to JavaNumericTable 
+ *
+ * @tparam interm
+ * @tparam cpu
+ * @param r[]
+ * @param par
+ * @param dim_r
+ * @param thread_num
+ * @param hMat_blk_array
+ * @param copylist
+ */
 template<typename interm, CpuType cpu>
 void hMat_release(NumericTable *r[], mf_sgd::Parameter* &par, size_t dim_r, int thread_num, BlockDescriptor<interm>** &hMat_blk_array, internal::SOADataCopy<interm>** &copylist)
 {/*{{{*/
@@ -799,7 +912,6 @@ void hMat_release(NumericTable *r[], mf_sgd::Parameter* &par, size_t dim_r, int 
             internal::SOAReleaseBulkData<interm>(copylist[k]);
         }
 
-        // r[1]->releaseBlockOfColumnValues(*(hMat_blk_array[k]));
         //free up memory space of native column data of hMat
         int hMat_rows_size = par->_Dim_h;
         for(int k=0;k<hMat_rows_size;k++)

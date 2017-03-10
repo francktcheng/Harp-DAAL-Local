@@ -77,7 +77,9 @@ void DistriContainer<step, interm, method, cpu>::compute()
     DistributedPartialResult *result = static_cast<DistributedPartialResult *>(_pres);
     Parameter *par = static_cast<Parameter*>(_par);
 
+    //get the feature dimension
     size_t dim_r = par->_Dim_r;
+    //get the num of threads
     int thread_num = par->_thread_num;
 
     // retrieve the training and test datasets 
@@ -110,20 +112,21 @@ void DistriContainer<step, interm, method, cpu>::compute()
     //r[1] stores values of H matrix
     r[1] = static_cast<NumericTable *>(result->get(presHMat).get());
 
-    //construct W Matrix once
+    //if wMat is not initialized, generate it only once
     if (par->_wMat_map == NULL && par->_wMatFinished == 0)
           internal::wMat_generate_distri<interm, cpu>(r, par,result, dim_r, thread_num);
 
-     // construct the hashmap to hold training point position indexed by col id 
+    //r[2] stores the values of W matrix
+    r[2] = static_cast<NumericTable *>(result->get(presWData).get());
+
+    //if training dataset hashmap is not initialized, generate it only once
     if (par->_train_map == NULL && par->_trainMapFinished == 0)
           internal::train_generate_distri<interm, cpu>(r, a0, a1, par, dim_r, thread_num);
 
+    //if test dataset hashmap is not initialized, generate it only once
     if (par->_test_map == NULL && par->_testMapFinished == 0 )
           internal::test_generate_distri<interm, cpu>(r, a3, a4, par, dim_r, thread_num);
 
-    r[2] = static_cast<NumericTable *>(result->get(presWData).get());
-
-    //debug
     // clear wMap
     if (par->_wMat_map != NULL)
     {
@@ -133,13 +136,19 @@ void DistriContainer<step, interm, method, cpu>::compute()
 
     //------------------------------- build up the hMat matrix -------------------------------
 
+    //store the col_ids of this iteration
     int* col_ids = NULL;
+    //native memory space to hold H matrix values
     interm** hMat_native_mem = NULL;
+
+    //containers for copying h matrix data between java and c++ in parallel
     BlockDescriptor<interm>** hMat_blk_array = NULL;
     internal::SOADataCopy<interm>** copylist = NULL;
 
-    internal::hMat_allocate<interm, cpu>(r, par, dim_r, thread_num, col_ids, hMat_native_mem, hMat_blk_array, copylist);
+    //generate h matrix on native side in parallel
+    internal::hMat_generate<interm, cpu>(r, par, dim_r, thread_num, col_ids, hMat_native_mem, hMat_blk_array, copylist);
     
+    //r[3] is used in test dataset to hold rmse values
     if ((static_cast<Parameter*>(_par))->_isTrain)
         r[3] = NULL;
     else
@@ -147,9 +156,10 @@ void DistriContainer<step, interm, method, cpu>::compute()
 
     daal::services::Environment::env &env = *_env;
 
-    /* invoke the MF_SGDDistriKernel */
+    // invoke the MF_SGDDistriKernel 
     __DAAL_CALL_KERNEL(env, internal::MF_SGDDistriKernel, __DAAL_KERNEL_ARGUMENTS(interm, method), compute, WPos, HPos, Val, WPosTest, HPosTest, ValTest, r, par, col_ids, hMat_native_mem);
 
+    //release h matrix from native side back to Java side after updating values
     internal::hMat_release<interm, cpu>(r, par, dim_r, thread_num, hMat_blk_array, copylist);
 
     //clean up the memory space per iteration

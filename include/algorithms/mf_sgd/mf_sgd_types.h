@@ -703,12 +703,12 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     int**       _train_list;
     int*        _train_list_ids;
     int*        _train_sub_len;
-    int         _train_list_len;
+    size_t      _train_list_len;
     int         _train_col_num;
     int**       _test_list;
     int*        _test_list_ids;
     int*        _test_sub_len;
-    int         _test_list_len;
+    size_t      _test_list_len;
     int         _test_col_num;
     size_t      _compute_task_time;             /* record the time spent in parallel training points update by each iteration, used in timer setup */
     size_t      _itrTimeStamp;                  /* timestamp for each iteration, used in the convergence analysis */

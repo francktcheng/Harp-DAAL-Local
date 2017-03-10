@@ -28,13 +28,13 @@
 #include <math.h>       
 #include <random>
 #include <vector>
+#include <assert.h>
 #include "numeric_table.h"
 #include "service_rng.h"
 #include "services/daal_memory.h"
 #include "service_micro_table.h"
 #include "service_numeric_table.h"
 
-#include <pthread.h>
 
 #include <omp.h>
 #include "mf_sgd_types.h"
@@ -69,8 +69,6 @@ DistriContainer<step, interm, method, cpu>::~DistriContainer()
     __DAAL_DEINITIALIZE_KERNELS();
 }
 
-
-
 template<ComputeStep step, typename interm, Method method, CpuType cpu>
 void DistriContainer<step, interm, method, cpu>::compute()
 {
@@ -78,565 +76,81 @@ void DistriContainer<step, interm, method, cpu>::compute()
     Input *input = static_cast<Input *>(_in);
     DistributedPartialResult *result = static_cast<DistributedPartialResult *>(_pres);
     Parameter *par = static_cast<Parameter*>(_par);
-    int* col_ids = NULL;
+
+    size_t dim_r = par->_Dim_r;
     int thread_num = par->_thread_num;
 
-    /* retrieve the training and test datasets */
+    // retrieve the training and test datasets 
     NumericTable *a0 = static_cast<NumericTable *>(input->get(wPos).get());
-    const NumericTable *a1 = static_cast<const NumericTable *>(input->get(hPos).get());
-    const NumericTable *a2 = static_cast<const NumericTable *>(input->get(val).get());
-    
-    NumericTable *a3 = NULL;
-    NumericTable *a4 = NULL;
-    NumericTable *a5 = NULL;
+    NumericTable *a1 = static_cast<NumericTable *>(input->get(hPos).get());
+    NumericTable *a2 = static_cast<NumericTable *>(input->get(val).get());
 
-    interm** hMat_native_mem  = NULL;
-    internal::SOADataCopy<interm>** copylist = NULL;
-    BlockDescriptor<interm>** hMat_blk_array = NULL;
+    NumericTable *a3 = static_cast<NumericTable *>(input->get(wPosTest).get());
+    NumericTable *a4 = static_cast<NumericTable *>(input->get(hPosTest).get());
+    NumericTable *a5 = static_cast<NumericTable *>(input->get(valTest).get());
 
-    if (par->_sgd2 == 1)
-    {
-        a3 = static_cast<NumericTable *>(input->get(wPosTest).get());
-        a4 = static_cast<NumericTable *>(input->get(hPosTest).get());
-        a5 = static_cast<NumericTable *>(input->get(valTest).get());
-    }
+    assert(a0 != NULL);
+    assert(a1 != NULL);
+    assert(a2 != NULL);
+    assert(a3 != NULL);
+    assert(a4 != NULL);
+    assert(a5 != NULL);
 
     NumericTable **WPos = &a0;
-    const NumericTable **HPos = &a1;
-    const NumericTable **Val = &a2;
+    NumericTable **HPos = &a1;
+    NumericTable **Val = &a2;
 
     NumericTable **WPosTest = &a3;
     NumericTable **HPosTest = &a4;
     NumericTable **ValTest = &a5;
 
-    size_t dim_r = par->_Dim_r;
-
     NumericTable *r[4];
+    //r[0] stores ids of W matrix
     r[0] = static_cast<NumericTable *>(result->get(presWMat).get());
+    //r[1] stores values of H matrix
     r[1] = static_cast<NumericTable *>(result->get(presHMat).get());
 
-    
-    //initialize wMat_hashtable for the first iteration
-    //store the wMat_hashtable within par of mf_sgd
-    //regenerate the wMat numericTablj 
-    if (par->_wMat_map == NULL && par->_sgd2 == 1 && par->_wMatFinished == 0)
-    {
-    
-        
-        //construct the wMat_hashtable
-        size_t wMat_size = r[0]->getNumberOfRows();
+    //construct W Matrix once
+    if (par->_wMat_map == NULL && par->_wMatFinished == 0)
+          internal::wMat_generate_distri<interm, cpu>(r, par,result, dim_r, thread_num);
 
-        size_t wMat_bytes = wMat_size*dim_r*sizeof(interm); 
+     // construct the hashmap to hold training point position indexed by col id 
+    if (par->_train_map == NULL && par->_trainMapFinished == 0)
+          internal::train_generate_distri<interm, cpu>(r, a0, a1, par, dim_r, thread_num);
 
-        std::printf("size of size_t: %zd\n", sizeof(size_t));
-        std::fflush(stdout);
+    if (par->_test_map == NULL && par->_testMapFinished == 0 )
+          internal::test_generate_distri<interm, cpu>(r, a3, a4, par, dim_r, thread_num);
 
-        std::printf("Start constructing wMat_map, size:%zd, %zd, bytes: %zd\n", wMat_size, dim_r, wMat_bytes);
-        std::fflush(stdout);
-
-        // interm* wMat_body = (interm*)calloc(dim_r*wMat_size, sizeof(interm));
-        interm* wMat_body = (interm*)daal::services::daal_malloc(wMat_bytes);
-
-        if (wMat_body == NULL)
-        {
-            std::printf("Failed to allocate memory for wMat_map\n");
-            std::fflush(stdout);
-        }
-
-        par->_wMat_map = new ConcurrentModelMap(wMat_size);
-
-        interm scale = 1.0/sqrt(static_cast<interm>(dim_r));
-
-        daal::internal::FeatureMicroTable<int, readWrite, cpu> wMat_index(r[0]);
-        int* wMat_index_ptr = 0;
-        wMat_index.getBlockOfColumnValues(0, 0, wMat_size, &wMat_index_ptr);
-
-        std::printf("allocate memory for wMat_map\n");
-        std::fflush(stdout);
-
-#ifdef _OPENMP
-
-        if (thread_num == 0)
-            thread_num = omp_get_max_threads();
-        //
-        // int res = wMat_size%thread_num;
-        // int rng_len = (int)((wMat_size - res)/thread_num);
-        // int last_rng_len = rng_len + res;
-        //
-        // int* rng_start = new int[thread_num];
-        // int* rng_lens = new int[thread_num];
-        //
-        // for(int k=0;k<thread_num-1;k++)
-        // {
-        //     rng_start[k] = k*rng_len;
-        //     rng_lens[k] = rng_len;
-        // }
-        //
-        // rng_start[thread_num-1] = (thread_num-1)*rng_len;
-        // rng_lens[thread_num-1] = last_rng_len;
-        // size_t seed = time(0);
-        //
-        // #pragma omp parallel for schedule(static) num_threads(thread_num) 
-        // for(int k=0;k<thread_num;k++)
-        // {
-        //
-        //     int local_start = rng_start[k];
-        //     int local_len = rng_lens[k];
-        //     int l =0;
-        //     int j= 0;
-        //
-        //
-        //     for(l=local_start;l<local_len;l++)
-        //     {
-        //         daal::internal::UniformRng<interm, daal::sse2> rng1(seed);
-        //         rng1.uniform(dim_r, 0.0, scale, &wMat_body[l*dim_r]);
-        //     }
-        //
-        // }
-        //
-        // //
-        // delete[] rng_start;
-        // delete[] rng_lens;
-        //
-        // std::printf("finish rng generation for wMat_map\n");
-        // std::fflush(stdout);
-
-        #pragma omp parallel for schedule(guided) num_threads(thread_num) 
-        for(int k=0;k<wMat_size;k++)
-        {
-            ConcurrentModelMap::accessor pos; 
-            if(par->_wMat_map->insert(pos, wMat_index_ptr[k]))
-            {
-                pos->second = k;
-            }
-
-            pos.release();
-
-            daal::internal::UniformRng<interm, daal::sse2> rng1(time(0));
-            rng1.uniform(dim_r, 0.0, scale, &wMat_body[k*dim_r]);
-        }
-
-#else
-
-        /* a serial version */
-        daal::internal::UniformRng<interm, daal::sse2> rng1(time(0));
-
-        for(int k=0;k<wMat_size;k++)
-        {
-            ConcurrentModelMap::accessor pos; 
-            if(par->_wMat_map->insert(pos, wMat_index_ptr[k]))
-            {
-                pos->second = k;
-            }
-
-            pos.release();
-
-            //randomize the kth row in the memory space
-            rng1.uniform(dim_r, 0.0, scale, &wMat_body[k*dim_r]);
-        }
-
-#endif
-
-        par->_wMatFinished = 1;
-
-        result->set(presWData, data_management::NumericTablePtr(new HomogenNumericTable<interm>(wMat_body, dim_r, wMat_size)));
-
-        std::printf("Finishing constructing wMat_map\n");
-        std::fflush(stdout);
-
-    }
-
-    /* construct the hashmap to hold training point position indexed by col id */
-    if (par->_train_map == NULL && par->_sgd2 == 1 && par->_trainMapFinished == 0)
-    {
-
-        std::printf("Start constructing train_map\n");
-        std::fflush(stdout);
-
-        par->_train_map = new ConcurrentDataMap();
-
-        int train_size = a0->getNumberOfRows();
-        daal::internal::FeatureMicroTable<int, readWrite, cpu> train_wPos(a0);
-        daal::internal::FeatureMicroTable<int, readWrite, cpu> train_hPos(a1);
-
-        int* train_wPos_ptr = 0;
-        train_wPos.getBlockOfColumnValues(0, 0, train_size, &train_wPos_ptr);
-        int* train_hPos_ptr = 0;
-        train_hPos.getBlockOfColumnValues(0, 0, train_size, &train_hPos_ptr);
-
-#ifdef _OPENMP
-
-        if (thread_num == 0)
-            thread_num = omp_get_max_threads();
-
-        #pragma omp parallel for schedule(guided) num_threads(thread_num) 
-        for(int k=0;k<train_size;k++)
-        {
-            ConcurrentModelMap::accessor pos_w;
-            ConcurrentDataMap::accessor pos_train;
-
-            /* replace row id by row position */
-            int row_id = train_wPos_ptr[k];
-            if (par->_wMat_map->find(pos_w, row_id))
-            {
-                train_wPos_ptr[k] = pos_w->second;
-            }
-            else
-                train_wPos_ptr[k] = -1;
-
-            pos_w.release();
-
-            /* construct the training data queue indexed by col id */
-            int col_id = train_hPos_ptr[k];
-            par->_train_map->insert(pos_train, col_id);
-            pos_train->second.push_back(k);
-
-            pos_train.release();
-
-        }
-
-#else
-
-        for(int k=0;k<train_size;k++)
-        {
-            ConcurrentModelMap::accessor pos_w;
-            ConcurrentModelMap::accessor pos_train;
-
-            /* replace row id by row position */
-            int row_id = train_wPos_ptr[k];
-            if (par->_wMat_map->find(pos_w, row_id))
-            {
-                train_wPos_ptr[k] = pos_w->second;
-            }
-            else
-                train_wPos_ptr[k] = -1;
-
-            pos_w.release();
-
-            /* construct the training data queue indexed by col id */
-            int col_id = train_hPos_ptr[k];
-            par->_train_map->insert(pos_train, col_id);
-            pos_train->second.push_back(k);
-
-            pos_train.release();
-
-        }
-
-#endif
-        par->_trainMapFinished = 1;
-
-        //transfer data from train_Map to train_list
-        int trainMapSize = par->_train_map->size();
-
-        //put in the number of local columns
-        par->_train_list_len = trainMapSize;
-
-        //put in the col_ids
-        par->_train_list_ids = new int[trainMapSize];
-
-        //put in the subqueue lenght
-        par->_train_sub_len = new int[trainMapSize];
-
-        par->_train_list = new int *[trainMapSize];
-
-        ConcurrentDataMap::iterator itr = par->_train_map->begin();
-        int subqueueSize = 0;
-        int traverse_itr = 0;
-        while (itr != par->_train_map->end())
-        {
-            (par->_train_list_ids)[traverse_itr] = itr->first;
-            subqueueSize = itr->second.size();
-            (par->_train_sub_len)[traverse_itr] = subqueueSize;
-
-            (par->_train_list)[traverse_itr] = new int[subqueueSize];
-            
-            std::memcpy((par->_train_list)[traverse_itr], &(itr->second)[0], subqueueSize*sizeof(int) );
-
-            itr++;
-            traverse_itr++;
-        }
-
-        //delete par->_train_map
-        delete par->_train_map;
-        par->_train_map = NULL;
-
-        std::printf("Finish constructing train_map\n");
-        std::fflush(stdout);
-
-    }
-
-    if (par->_test_map == NULL && par->_sgd2 == 1 && par->_testMapFinished == 0 )
-    {
-
-        std::printf("Start constructing test_map\n");
-        std::fflush(stdout);
-
-        par->_test_map = new ConcurrentDataMap();
-
-        int test_size = a3->getNumberOfRows();
-        daal::internal::FeatureMicroTable<int, readWrite, cpu> test_wPos(a3);
-        daal::internal::FeatureMicroTable<int, readWrite, cpu> test_hPos(a4);
-
-        int* test_wPos_ptr = 0;
-        test_wPos.getBlockOfColumnValues(0, 0, test_size, &test_wPos_ptr);
-        int* test_hPos_ptr = 0;
-        test_hPos.getBlockOfColumnValues(0, 0, test_size, &test_hPos_ptr);
-
-#ifdef _OPENMP
-
-        if (thread_num == 0)
-            thread_num = omp_get_max_threads();
-
-        #pragma omp parallel for schedule(guided) num_threads(thread_num) 
-        for(int k=0;k<test_size;k++)
-        {
-            ConcurrentModelMap::accessor pos_w;
-            ConcurrentDataMap::accessor pos_test;
-
-            /* replace row id by row position */
-            int row_id = test_wPos_ptr[k];
-            if (par->_wMat_map->find(pos_w, row_id))
-            {
-                test_wPos_ptr[k] = pos_w->second;
-            }
-            else
-                test_wPos_ptr[k] = -1;
-
-            pos_w.release();
-
-            /* construct the test data queue indexed by col id */
-            int col_id = test_hPos_ptr[k];
-            par->_test_map->insert(pos_test, col_id);
-            pos_test->second.push_back(k);
-
-            pos_test.release();
-
-        }
-
-#else
-
-        for(int k=0;k<test_size;k++)
-        {
-            ConcurrentModelMap::accessor pos_w;
-            ConcurrentDataMap::accessor pos_test;
-
-            /* replace row id by row position */
-            int row_id = test_wPos_ptr[k];
-            if (par->_wMat_map->find(pos_w, row_id))
-            {
-                test_wPos_ptr[k] = pos_w->second;
-            }
-            else
-                test_wPos_ptr[k] = -1;
-
-            pos_w.release();
-
-            /* construct the test data queue indexed by col id */
-            int col_id = test_hPos_ptr[k];
-            par->_test_map->insert(pos_test, col_id);
-            pos_test->second.push_back(k);
-
-            pos_test.release();
-
-        }
-        
-
-#endif
-        par->_testMapFinished = 1;
-
-        //transfer data from test_Map to test_list
-        int testMapSize = par->_test_map->size();
-
-        //put in the number of local columns
-        par->_test_list_len = testMapSize;
-
-        //put in the col_ids
-        par->_test_list_ids = new int[testMapSize];
-
-        //put in the subqueue lenght
-        par->_test_sub_len = new int[testMapSize];
-
-        par->_test_list = new int *[testMapSize];
-
-        ConcurrentDataMap::iterator itr = par->_test_map->begin();
-        int subqueueSize = 0;
-        int traverse_itr = 0;
-        while (itr != par->_test_map->end())
-        {
-            (par->_test_list_ids)[traverse_itr] = itr->first;
-            subqueueSize = itr->second.size();
-            (par->_test_sub_len)[traverse_itr] = subqueueSize;
-
-            (par->_test_list)[traverse_itr] = new int[subqueueSize];
-
-            std::memcpy((par->_test_list)[traverse_itr], &(itr->second)[0], subqueueSize*sizeof(int) );
-
-            itr++;
-            traverse_itr++;
-        }
-
-        //delete par->_train_map
-        delete par->_test_map;
-        par->_test_map = NULL;
-
-        std::printf("Finish constructing test_map\n");
-        std::fflush(stdout);
-
-    }
-
-    r[3] = static_cast<NumericTable *>(result->get(presWData).get());
-
+    r[2] = static_cast<NumericTable *>(result->get(presWData).get());
 
     //debug
-    // std::printf("Created W Matrix Row: %d, col: %d\n", (int)(r[2]->getNumberOfRows()), (int)(r[2]->getNumberOfColumns()));
-    // std::fflush(stdout);
     // clear wMap
-    if (par->_train_map != NULL && par->_test_map != NULL && par->_wMat_map != NULL)
+    if (par->_wMat_map != NULL)
     {
         delete par->_wMat_map;
         par->_wMat_map = NULL;
     }
 
     //------------------------------- build up the hMat matrix -------------------------------
-    //r[1] now is a SOANumericTable nFeature equals the number of rows in hMat, nVectors equals the number of cols in hMat
-    //data in r[1] is now stored at the Java side
 
-    struct timespec ts1;
-	struct timespec ts2;
-    int64_t diff = 0;
-    double hMat_time = 0;
+    int* col_ids = NULL;
+    interm** hMat_native_mem = NULL;
+    BlockDescriptor<interm>** hMat_blk_array = NULL;
+    internal::SOADataCopy<interm>** copylist = NULL;
 
-
-    if (par->_sgd2 == 1)
-    {
-
-        std::printf("Start constructing h_map\n");
-        std::fflush(stdout);
-
-        //initialize the hMat_hashtable for every iteration
-        //store the hMat_hashtable within par of mf_sgd
-        // int hMat_rowNum = r[1]->getNumberOfColumns(); bug is larger than par->dim_h 
-        int hMat_rowNum = par->_Dim_h;
-        int hMat_colNum = r[1]->getNumberOfRows(); /* should be dim_r + 1, there is a sentinel to record the col id */
-
-        col_ids = (int*)calloc(hMat_rowNum, sizeof(int));
-        hMat_native_mem = new interm *[hMat_rowNum];
-        hMat_blk_array = new  BlockDescriptor<interm> *[hMat_rowNum];
-
-        /* a serial version  to retrieve data from java table */
-        // clock_gettime(CLOCK_MONOTONIC, &ts1);
-        // for(int k=0;k<hMat_rowNum;k++)
-        // {
-        //     hMat_blk_array[k] = new BlockDescriptor<interm>();
-        //     r[1]->getBlockOfColumnValues(k, 0, hMat_colNum, writeOnly, *(hMat_blk_array[k]));
-        //     hMat_native_mem[k] = hMat_blk_array[k]->getBlockPtr();
-        //
-        // }
-        //
-        // clock_gettime(CLOCK_MONOTONIC, &ts2);
-        // diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
-        // hMat_time = (double)(diff)/1000000L;
-        //
-        // /* init.terminate(); */
-        // std::printf("Loading hMat time: %f\n", hMat_time);
-        // std::fflush(stdout);
-
-        //---------------------------------- start doing a parallel data conversion by using pthread----------------------------------
-        std::printf("Start converting h_map\n");
-        std::fflush(stdout);
-
-        clock_gettime(CLOCK_MONOTONIC, &ts1);
-
-        // pthread_t thread_id[thread_num];
-
-        for(int k=0;k<hMat_rowNum;k++)
-        {
-            hMat_blk_array[k] = new BlockDescriptor<interm>();
-        }
-
-        copylist = new internal::SOADataCopy<interm> *[thread_num];
-
-        int res = hMat_rowNum%thread_num;
-        int cpy_len = (int)((hMat_rowNum - res)/thread_num);
-        int last_cpy_len = cpy_len + res;
-
-        for(int k=0;k<thread_num-1;k++)
-        {
-            copylist[k] = new internal::SOADataCopy<interm>(r[1], k*cpy_len, cpy_len, hMat_colNum, hMat_blk_array, hMat_native_mem);
-        }
-
-        copylist[thread_num-1] = new internal::SOADataCopy<interm>(r[1], (thread_num-1)*cpy_len, last_cpy_len, hMat_colNum, hMat_blk_array, hMat_native_mem);
-
-        #pragma omp parallel for schedule(static) num_threads(thread_num) 
-        for(int k=0;k<thread_num;k++)
-        {
-            internal::SOACopyBulkData<interm>(copylist[k]);
-        }
-
-        // for(int k=0;k<thread_num;k++)
-        // {
-        //     pthread_create(&thread_id[k], NULL, internal::SOACopyBulkData<interm>, copylist[k]);
-        // }
-        //
-        // for(int k=0;k<thread_num;k++)
-        // {
-        //     pthread_join(thread_id[k], NULL);
-        // }
-
-        clock_gettime(CLOCK_MONOTONIC, &ts2);
-        diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
-        hMat_time = (double)(diff)/1000000L;
-
-        /* init.terminate(); */
-        std::printf("Loading hMat time: %f\n", hMat_time);
-        std::fflush(stdout);
-       
-        par->_jniDataConvertTime += (size_t)hMat_time;
-
-        std::printf("Finish converting h_map\n");
-        std::fflush(stdout);
-
-        //---------------------------------- finish doing a parallel data conversion by using pthread----------------------------------
-        //clean up and re-generate a hMat hashmap
-        if (par->_hMat_map != NULL)
-            par->_hMat_map->~ConcurrentModelMap();
-
-        par->_hMat_map = new ConcurrentModelMap(hMat_rowNum);
-
-        if (thread_num == 0)
-            thread_num = omp_get_max_threads();
-
-        #pragma omp parallel for schedule(guided) num_threads(thread_num) 
-        for(int k=0;k<hMat_rowNum;k++)
-        {
-
-            ConcurrentModelMap::accessor pos; 
-            int col_id = (int)((hMat_native_mem[k])[0]);
-            col_ids[k] = col_id;
-
-            if(par->_hMat_map->insert(pos, col_id))
-            {
-                pos->second = k;
-            }
-
-            pos.release();
-
-        }
-
-        std::printf("Finish constructing h_map\n");
-        std::fflush(stdout);
-
-    }
-
+    internal::hMat_allocate<interm, cpu>(r, par, dim_r, thread_num, col_ids, hMat_native_mem, hMat_blk_array, copylist);
+    
     if ((static_cast<Parameter*>(_par))->_isTrain)
-        r[2] = NULL;
+        r[3] = NULL;
     else
-        r[2] = static_cast<NumericTable *>(result->get(presRMSE).get());
+        r[3] = static_cast<NumericTable *>(result->get(presRMSE).get());
 
     daal::services::Environment::env &env = *_env;
 
     /* invoke the MF_SGDDistriKernel */
     __DAAL_CALL_KERNEL(env, internal::MF_SGDDistriKernel, __DAAL_KERNEL_ARGUMENTS(interm, method), compute, WPos, HPos, Val, WPosTest, HPosTest, ValTest, r, par, col_ids, hMat_native_mem);
+
+    internal::hMat_release<interm, cpu>(r, par, dim_r, thread_num, hMat_blk_array, copylist);
 
     //clean up the memory space per iteration
     if (col_ids != NULL)
@@ -647,72 +161,6 @@ void DistriContainer<step, interm, method, cpu>::compute()
         delete par->_hMat_map;
         par->_hMat_map = NULL;
     }
-
-    //sequential version
-    // if (par->_sgd2 == 1 && hMat_blk_array != NULL)
-    // {
-    //
-    //     // int hMat_rows_size = r[1]->getNumberOfColumns();
-    //     int hMat_rows_size = par->_Dim_h;
-    //     for(int k=0;k<hMat_rows_size;k++)
-    //     {
-    //         r[1]->releaseBlockOfColumnValues(*(hMat_blk_array[k]));
-    //         hMat_blk_array[k]->~BlockDescriptor();
-    //         delete hMat_blk_array[k];
-    //
-    //     }
-    //
-    // }
-
-    //a parallel verison
-    if (par->_sgd2 == 1 && hMat_blk_array != NULL)
-    {
-
-        // pthread_t thread_id[thread_num];
-        //
-        // for(int k=0;k<thread_num;k++)
-        // {
-        //     pthread_create(&thread_id[k], NULL, internal::SOAReleaseBulkData<interm>, copylist[k]);
-        // }
-        //
-        // for(int k=0;k<thread_num;k++)
-        // {
-        //     pthread_join(thread_id[k], NULL);
-        // }
-
-        clock_gettime(CLOCK_MONOTONIC, &ts1);
-
-        #pragma omp parallel for schedule(static) num_threads(thread_num) 
-        for(int k=0;k<thread_num;k++)
-        {
-            internal::SOAReleaseBulkData<interm>(copylist[k]);
-        }
-
-        // r[1]->releaseBlockOfColumnValues(*(hMat_blk_array[k]));
-        //free up memory space of native column data of hMat
-        // int hMat_rows_size = r[1]->getNumberOfColumns();
-        int hMat_rows_size = par->_Dim_h;
-        for(int k=0;k<hMat_rows_size;k++)
-        {
-            hMat_blk_array[k]->~BlockDescriptor();
-            delete hMat_blk_array[k];
-
-        }
-
-        //free up memory space of pthread copy args
-        for(int k=0;k<thread_num;k++)
-            delete copylist[k];
-
-        delete[] copylist;
-
-        clock_gettime(CLOCK_MONOTONIC, &ts2);
-        diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
-        hMat_time = (double)(diff)/1000000L;
-
-        par->_jniDataConvertTime += (size_t)hMat_time;
-
-    }
-
     
     if (hMat_blk_array != NULL)
         delete[] hMat_blk_array;

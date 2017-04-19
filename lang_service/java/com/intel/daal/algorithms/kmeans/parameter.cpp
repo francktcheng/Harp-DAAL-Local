@@ -98,6 +98,12 @@ JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_kmeans_Parameter_cSetNClus
     ((Parameter *)parameterAddress)->nClusters = nClusters;
 }
 
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_kmeans_Parameter_cSetNThreads
+(JNIEnv *, jobject, jlong parameterAddress, jlong nThds)
+{
+    ((Parameter *)parameterAddress)->nThreads = nThds;
+}
+
 /*
  * Class:     com_intel_daal_algorithms_kmeans_Parameter
  * Method:    cSetMaxIterations

@@ -26,6 +26,7 @@
 #if defined(__DO_TBB_LAYER__)
     #include <tbb/tbb.h>
     #include <tbb/spin_mutex.h>
+    #include "tbb/task_scheduler_init.h"
 #endif
 
 DAAL_EXPORT size_t _setNumberOfThreads(const size_t numThreads, void** init)
@@ -49,6 +50,9 @@ DAAL_EXPORT size_t _setNumberOfThreads(const size_t numThreads, void** init)
 DAAL_EXPORT void _daal_threader_for(int n, int threads_request, const void* a, daal::functype func)
 {
   #if defined(__DO_TBB_LAYER__)
+
+    tbb::task_scheduler_init init(threads_request);
+
     tbb::parallel_for( tbb::blocked_range<int>(0,n,1), [&](tbb::blocked_range<int> r)
     {
         int i;
@@ -57,6 +61,9 @@ DAAL_EXPORT void _daal_threader_for(int n, int threads_request, const void* a, d
             func(i, a);
         }
     } );
+
+    init.terminate();
+
   #elif defined(__DO_SEQ_LAYER__)
     int i;
     for( i = 0; i < n; i++ )

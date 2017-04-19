@@ -44,7 +44,7 @@ namespace interface1
  */
 Parameter::Parameter(size_t _nClusters, size_t _maxIterations) :
     nClusters(_nClusters), maxIterations(_maxIterations), accuracyThreshold(0.0), gamma(1.0),
-    distanceType(euclidean), assignFlag(true) {}
+    distanceType(euclidean), assignFlag(true), nThreads(0) {}
 
 /**
  *  Constructs parameters of the K-Means algorithm by copying another parameters of the K-Means algorithm
@@ -53,8 +53,13 @@ Parameter::Parameter(size_t _nClusters, size_t _maxIterations) :
 Parameter::Parameter(const Parameter &other) :
     nClusters(other.nClusters), maxIterations(other.maxIterations),
     accuracyThreshold(other.accuracyThreshold), gamma(other.gamma),
-    distanceType(other.distanceType), assignFlag(other.assignFlag)
+    distanceType(other.distanceType), assignFlag(other.assignFlag), nThreads(other.nThreads)
 {}
+
+void Parameter::setNThreads(size_t num)
+{
+    nThreads = num;
+}
 
 void Parameter::check() const
 {

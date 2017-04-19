@@ -161,7 +161,7 @@ void * kmeansInitTask(int dim, int clNum, interm * centroids,
 }
 
 template<typename interm, CpuType cpu, int assignFlag>
-void addNTToTaskThreadedDense(void * task_id, const NumericTable * ntData, interm *catCoef, NumericTable * ntAssign = 0 )
+void addNTToTaskThreadedDense(void * task_id, const NumericTable * ntData, interm *catCoef, NumericTable * ntAssign = 0, size_t tbb_thds =0)
 {
     struct task_t<interm,cpu> * t  = static_cast<task_t<interm,cpu> *>(task_id);
 
@@ -172,7 +172,8 @@ void addNTToTaskThreadedDense(void * task_id, const NumericTable * ntData, inter
     size_t nBlocks = n / blockSizeDeafult;
     nBlocks += (nBlocks*blockSizeDeafult != n);
 
-    daal::threader_for( nBlocks, nBlocks, [=](int k)
+    // daal::threader_for( nBlocks, nBlocks, [=](int k)
+    daal::threader_for( nBlocks, tbb_thds, [=](int k)
     {
         struct tls_task_t<interm,cpu> * tt = t->tls_task->local();
         size_t blockSize = blockSizeDeafult;
@@ -371,20 +372,20 @@ void addNTToTaskThreadedCSR(void * task_id, const NumericTable * ntDataGen, inte
 }
 
 template<Method method, typename interm, CpuType cpu, int assignFlag>
-void addNTToTaskThreaded(void * task_id, const NumericTable * ntData, interm *catCoef, NumericTable * ntAssign = 0 )
+void addNTToTaskThreaded(void * task_id, const NumericTable * ntData, interm *catCoef, NumericTable * ntAssign = 0, size_t tbb_thds = 0)
 {
     if(method == lloydDense)
     {
-        addNTToTaskThreadedDense<interm,cpu,assignFlag>( task_id, ntData, catCoef, ntAssign );
+        addNTToTaskThreadedDense<interm,cpu,assignFlag>( task_id, ntData, catCoef, ntAssign, tbb_thds);
     }
     else if(method == lloydCSR)
     {
-        addNTToTaskThreadedCSR<interm,cpu,assignFlag>( task_id, ntData, catCoef, ntAssign );
+        addNTToTaskThreadedCSR<interm,cpu,assignFlag>( task_id, ntData, catCoef, ntAssign);
     }
 }
 
 template<Method method, typename interm, CpuType cpu>
-void getNTAssignmentsThreaded(void * task_id, const NumericTable * ntData, const NumericTable * ntAssign, interm *catCoef )
+void getNTAssignmentsThreaded(void * task_id, const NumericTable * ntData, const NumericTable * ntAssign, interm *catCoef, size_t tbb_thds = 0 )
 {
     struct task_t<interm,cpu> * t  = static_cast<task_t<interm,cpu> *>(task_id);
 
@@ -395,7 +396,8 @@ void getNTAssignmentsThreaded(void * task_id, const NumericTable * ntData, const
     size_t nBlocks = n / blockSizeDeafult;
     nBlocks += (nBlocks*blockSizeDeafult != n);
 
-    daal::threader_for( nBlocks, nBlocks, [=](int k)
+    // daal::threader_for( nBlocks, nBlocks, [=](int k)
+    daal::threader_for( nBlocks, tbb_thds, [=](int k)
     {
         struct tls_task_t<interm,cpu> * tt = t->tls_task->local();
         size_t blockSize = blockSizeDeafult;

@@ -36,7 +36,10 @@ template<> void * kmeansInitTask<DAAL_FPTYPE, avx512_mic>(int dim, int clNum, DA
     t->dim       = dim;
     t->clNum     = clNum;
     t->cCenters  = centroids;
-    t->max_block_size = 448;
+    // t->max_block_size = 448;
+    // t->max_block_size = 64;
+    // t->max_block_size = 32;
+    t->max_block_size = 16;
 
     /* Allocate memory for all arrays inside TLS */
     t->tls_task = new daal::tls<tls_task_t<DAAL_FPTYPE, avx512_mic>*>( [=]()-> tls_task_t<DAAL_FPTYPE, avx512_mic>*
@@ -106,11 +109,12 @@ template<> void * kmeansInitTask<DAAL_FPTYPE, avx512_mic>(int dim, int clNum, DA
     void * task_id;
     *(size_t*)(&task_id) = (size_t)t;
 
+    
     return task_id;
 }
 
 template<> void addNTToTaskThreadedDense<DAAL_FPTYPE, avx512_mic, 0>
-(void * task_id, const NumericTable * ntData, DAAL_FPTYPE *catCoef, NumericTable * ntAssign )
+(void * task_id, const NumericTable * ntData, DAAL_FPTYPE *catCoef, NumericTable * ntAssign, size_t tbb_thds)
 {
 
     struct task_t<DAAL_FPTYPE,avx512_mic> * t  = static_cast<task_t<DAAL_FPTYPE,avx512_mic> *>(task_id);
@@ -122,7 +126,8 @@ template<> void addNTToTaskThreadedDense<DAAL_FPTYPE, avx512_mic, 0>
     size_t nBlocks = n / blockSizeDeafult;
     nBlocks += (nBlocks*blockSizeDeafult != n);
 
-    daal::threader_for( nBlocks, nBlocks, [=](int k)
+    // daal::threader_for( nBlocks, nBlocks, [=](int k)
+    daal::threader_for( nBlocks, tbb_thds, [=](int k)
     {
         struct tls_task_t<DAAL_FPTYPE, avx512_mic> * tt = t->tls_task->local();
         size_t blockSize = blockSizeDeafult;
@@ -159,6 +164,8 @@ template<> void addNTToTaskThreadedDense<DAAL_FPTYPE, avx512_mic, 0>
         MKL_INT ldy = p;
         DAAL_FPTYPE beta = 0.0;
         MKL_INT ldaty = nClusters;
+
+        fpk_serv_set_num_threads(1);
 
         Blas<DAAL_FPTYPE, avx512_mic>::xxgemm(&transa, &transb, &_m, &_n, &_k, &alpha, inClusters,
             &lda, data, &ldy, &beta, x_clusters, &ldaty);
@@ -254,10 +261,12 @@ template<> void addNTToTaskThreadedDense<DAAL_FPTYPE, avx512_mic, 0>
         mtData.release();
 
     } ); /* daal::threader_for( nBlocks, nBlocks, [=](int k) */
+
+    
 }
 
 template<> void getNTAssignmentsThreaded <lloydDense, DAAL_FPTYPE, avx512_mic>
-(void * task_id, const NumericTable * ntData, const NumericTable * ntAssign, DAAL_FPTYPE *catCoef )
+(void * task_id, const NumericTable * ntData, const NumericTable * ntAssign,  DAAL_FPTYPE *catCoef, size_t tbb_thds)
 {
     struct task_t<DAAL_FPTYPE,avx512_mic> * t  = static_cast<task_t<DAAL_FPTYPE,avx512_mic> *>(task_id);
 
@@ -268,7 +277,8 @@ template<> void getNTAssignmentsThreaded <lloydDense, DAAL_FPTYPE, avx512_mic>
     size_t nBlocks = n / blockSizeDeafult;
     nBlocks += (nBlocks*blockSizeDeafult != n);
 
-    daal::threader_for( nBlocks, nBlocks, [=](int k)
+    // daal::threader_for( nBlocks, nBlocks, [=](int k)
+    daal::threader_for( nBlocks, tbb_thds, [=](int k)
     {
         struct tls_task_t<DAAL_FPTYPE, avx512_mic> * tt = t->tls_task->local();
         size_t blockSize = blockSizeDeafult;

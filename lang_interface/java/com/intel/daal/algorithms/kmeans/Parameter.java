@@ -190,6 +190,10 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
         cSetNClusters(this.cObject, nClusters);
     }
 
+    public void setNThreads(long nThds) {
+        cSetNThreads(this.cObject, nThds);
+    }
+
     /**
      * Sets the number of iterations
      * @param max Number of iterations.
@@ -235,6 +239,8 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
     private native boolean cGetAssignFlag(long parameterAddress);
 
     private native void cSetNClusters(long parameterAddress, long nClusters);
+
+    private native void cSetNThreads(long parameterAddress, long nThds);
 
     private native void cSetMaxIterations(long parameterAddress, long maxIterations);
 

@@ -124,11 +124,11 @@ void KMeansDistributedStep1Kernel<method, interm, cpu>::compute( size_t na, cons
 
         if( par->assignFlag )
         {
-            addNTToTaskThreaded<method, interm, cpu, 1>(task, ntData, catCoef, ntAssignments);
+            addNTToTaskThreaded<method, interm, cpu, 1>(task, ntData, catCoef, ntAssignments, par->nThreads);
         }
         else
         {
-            addNTToTaskThreaded<method, interm, cpu, 0>(task, ntData, catCoef);
+            addNTToTaskThreaded<method, interm, cpu, 0>(task, ntData, catCoef, 0, par->nThreads);
         }
 
         for (size_t i = 0; i < nClusters; i++)

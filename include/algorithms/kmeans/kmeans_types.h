@@ -140,7 +140,9 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     double gamma;                                          /*!< Weight used in distance computation for categorical features */
     DistanceType distanceType;                             /*!< Distance used in the algorithm */
     bool assignFlag;                                       /*!< Do data points assignment */
+    size_t nThreads;                                       /*!< specified number of tbb threads */
 
+    void setNThreads(size_t num);
     void check() const DAAL_C11_OVERRIDE;
 };
 /* [Parameter source code] */

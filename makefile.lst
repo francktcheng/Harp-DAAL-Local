@@ -19,15 +19,22 @@
 ##******************************************************************************
 
 CORE.ALGORITHMS     := kmeans                                                    \
-					   mf_sgd														  
+                       implicit_als                                              \
+                       mf_sgd														  
 
 CORE.ALGORITHMS.INC := kmeans                                                    \
+                       implicit_als                                              \
 					   mf_sgd													 
 
 CORE.SERVICES       := compression
 
 JJ.ALGORITHMS       := kmeans                                                    \
                        kmeans/init                                               \
+                       implicit_als                                              \
+                       implicit_als/prediction                                   \
+                       implicit_als/prediction/ratings                           \
+                       implicit_als/training                                     \
+                       implicit_als/training/init                                \
                        mf_sgd                                                    
 
 JJ.DATA_MANAGEMENT  := data                                                      \

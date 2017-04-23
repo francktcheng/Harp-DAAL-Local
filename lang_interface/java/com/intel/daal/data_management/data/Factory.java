@@ -47,15 +47,15 @@ public class Factory {
         // if (objectId == SerializationTag.SERIALIZATION_SVM_MODEL_ID.getValue()) {
         //     return new com.intel.daal.algorithms.svm.Model(context, cObject);
         // }
-        // if (objectId == SerializationTag.SERIALIZATION_IMPLICIT_ALS_PARTIALMODEL_ID.getValue()) {
-        //     return new com.intel.daal.algorithms.implicit_als.PartialModel(context, cObject);
-        // }
-        // if (objectId == SerializationTag.SERIALIZATION_IMPLICIT_ALS_PREDICTION_RATINGS_PARTIAL_RESULT_ID.getValue()) {
-        //     return new com.intel.daal.algorithms.implicit_als.prediction.ratings.RatingsPartialResult(context, cObject);
-        // }
-        // if (objectId == SerializationTag.SERIALIZATION_IMPLICIT_ALS_PREDICTION_RATINGS_RESULT_ID.getValue()) {
-        //     return new com.intel.daal.algorithms.implicit_als.prediction.ratings.RatingsResult(context, cObject);
-        // }
+        if (objectId == SerializationTag.SERIALIZATION_IMPLICIT_ALS_PARTIALMODEL_ID.getValue()) {
+            return new com.intel.daal.algorithms.implicit_als.PartialModel(context, cObject);
+        }
+        if (objectId == SerializationTag.SERIALIZATION_IMPLICIT_ALS_PREDICTION_RATINGS_PARTIAL_RESULT_ID.getValue()) {
+            return new com.intel.daal.algorithms.implicit_als.prediction.ratings.RatingsPartialResult(context, cObject);
+        }
+        if (objectId == SerializationTag.SERIALIZATION_IMPLICIT_ALS_PREDICTION_RATINGS_RESULT_ID.getValue()) {
+            return new com.intel.daal.algorithms.implicit_als.prediction.ratings.RatingsResult(context, cObject);
+        }
         if (objectId == SerializationTag.SERIALIZATION_DATACOLLECTION_ID.getValue()) {
             return new com.intel.daal.data_management.data.DataCollection(context, cObject);
         }

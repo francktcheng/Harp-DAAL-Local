@@ -55,10 +55,10 @@
 //
 // #include "em_gmm_types.h"
 //
-// #include "implicit_als_model.h"
-// #include "implicit_als_training_types.h"
-// #include "implicit_als_predict_ratings_types.h"
-// #include "implicit_als_training_init_types.h"
+#include "implicit_als_model.h"
+#include "implicit_als_training_types.h"
+#include "implicit_als_predict_ratings_types.h"
+#include "implicit_als_training_init_types.h"
 //
 // #include "kernel_function_types.h"
 
@@ -284,17 +284,17 @@ Factory::Factory()
     // registerObject(new Creator<algorithms::em_gmm::init::Result>());
     // registerObject(new Creator<algorithms::em_gmm::Result>());
 
-    // registerObject(new Creator<algorithms::implicit_als::Model>());
-    // registerObject(new Creator<algorithms::implicit_als::PartialModel>());
-    // registerObject(new Creator<algorithms::implicit_als::prediction::ratings::Result>());
-    // registerObject(new Creator<algorithms::implicit_als::prediction::ratings::PartialResult>());
-    // registerObject(new Creator<algorithms::implicit_als::training::init::Result>());
-    // registerObject(new Creator<algorithms::implicit_als::training::init::PartialResult>());
-    // registerObject(new Creator<algorithms::implicit_als::training::Result>());
-    // registerObject(new Creator<algorithms::implicit_als::training::DistributedPartialResultStep1>());
-    // registerObject(new Creator<algorithms::implicit_als::training::DistributedPartialResultStep2>());
-    // registerObject(new Creator<algorithms::implicit_als::training::DistributedPartialResultStep3>());
-    // registerObject(new Creator<algorithms::implicit_als::training::DistributedPartialResultStep4>());
+    registerObject(new Creator<algorithms::implicit_als::Model>());
+    registerObject(new Creator<algorithms::implicit_als::PartialModel>());
+    registerObject(new Creator<algorithms::implicit_als::prediction::ratings::Result>());
+    registerObject(new Creator<algorithms::implicit_als::prediction::ratings::PartialResult>());
+    registerObject(new Creator<algorithms::implicit_als::training::init::Result>());
+    registerObject(new Creator<algorithms::implicit_als::training::init::PartialResult>());
+    registerObject(new Creator<algorithms::implicit_als::training::Result>());
+    registerObject(new Creator<algorithms::implicit_als::training::DistributedPartialResultStep1>());
+    registerObject(new Creator<algorithms::implicit_als::training::DistributedPartialResultStep2>());
+    registerObject(new Creator<algorithms::implicit_als::training::DistributedPartialResultStep3>());
+    registerObject(new Creator<algorithms::implicit_als::training::DistributedPartialResultStep4>());
     //
     // registerObject(new Creator<algorithms::kernel_function::Result>());
 

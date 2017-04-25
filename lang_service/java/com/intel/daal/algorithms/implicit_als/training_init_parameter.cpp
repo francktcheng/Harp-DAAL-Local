@@ -57,6 +57,12 @@ JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_implicit_1als_training_ini
     ((Parameter *)parAddr)->nFactors = nFactors;
 }
 
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_implicit_1als_training_init_InitParameter_cSetNumThreads
+  (JNIEnv *, jobject, jlong parAddr, jlong nThds)
+{
+    ((Parameter *)parAddr)->numThreads = nThds;
+}
+
 /*
  * Class:     com_intel_daal_algorithms_implicit_als_training_init_InitParameter
  * Method:    cGetNFactors
@@ -66,6 +72,12 @@ JNIEXPORT jlong JNICALL Java_com_intel_daal_algorithms_implicit_1als_training_in
   (JNIEnv *, jobject, jlong parAddr)
 {
     return ((Parameter *)parAddr)->nFactors;
+}
+
+JNIEXPORT jlong JNICALL Java_com_intel_daal_algorithms_implicit_1als_training_init_InitParameter_cGetNumThreads
+  (JNIEnv *, jobject, jlong parAddr)
+{
+    return ((Parameter *)parAddr)->numThreads;
 }
 
 /*

@@ -53,6 +53,8 @@ void ImplicitALSInitDistrKernel<algorithmFPType, fastCSR, cpu>::compute(
     algorithmFPType *tdata;
     size_t *rowIndices, *colOffsets;
 
+    size_t nThreads = parameter->numThreads;
+
     size_t nItemsRead = mtData.getSparseBlock(0, nItems, &tdata, &rowIndices, &colOffsets);
     if (nItemsRead < nItems)
     { this->_errors->add(services::ErrorIncorrectNumberOfRowsInInputNumericTable); return; }
@@ -69,7 +71,7 @@ void ImplicitALSInitDistrKernel<algorithmFPType, fastCSR, cpu>::compute(
     }
 
     size_t seed = parameter->seed;
-    computePartialFactors(nUsers, nItems, nFactors, parameter->fullNUsers, seed,
+    computePartialFactors(nThreads, nUsers, nItems, nFactors, parameter->fullNUsers, seed,
                           tdata, rowIndices, colOffsets, itemsFactors);
     mtData.release();
 
@@ -92,7 +94,7 @@ void ImplicitALSInitDistrKernel<algorithmFPType, fastCSR, cpu>::compute(
 }
 
 template <typename algorithmFPType, CpuType cpu>
-void ImplicitALSInitDistrKernel<algorithmFPType, fastCSR, cpu>::computePartialFactors(
+void ImplicitALSInitDistrKernel<algorithmFPType, fastCSR, cpu>::computePartialFactors(size_t nThreads,
             size_t nUsers, size_t nItems, size_t nFactors, size_t fullNUsers, size_t seed,
             algorithmFPType *tdata, size_t *rowIndices, size_t *colOffsets, algorithmFPType *partialFactors)
 {
@@ -116,10 +118,19 @@ void ImplicitALSInitDistrKernel<algorithmFPType, fastCSR, cpu>::computePartialFa
     matdescra[0] = 'G';        // general matrix
     matdescra[3] = 'F';        // 1-based indexing
 
+
+    int oldNumberOfThreads = 0; 
+    if (nThreads > 0)
+        oldNumberOfThreads = fpk_serv_set_num_threads_local(nThreads);
+
     /* Compute sum of columns of input matrix */
     SpBlas<algorithmFPType, cpu>::xcsrmv(&transa, (MKL_INT *)&nItems, (MKL_INT *)&nUsers, &alpha, matdescra,
                         tdata, (MKL_INT *)rowIndices, (MKL_INT *)colOffsets, (MKL_INT *)(colOffsets + 1),
                         ones, &beta, itemsSum);
+
+    if (nThreads > 0)
+        fpk_serv_set_num_threads_local(oldNumberOfThreads);
+
     daal::services::daal_free(ones);
 
     algorithmFPType invFullNUsers = one / (algorithmFPType)fullNUsers;

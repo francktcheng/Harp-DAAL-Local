@@ -79,6 +79,22 @@ JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_implicit_1als_Parameter_cS
     ((Parameter *)parAddr)->alpha = alpha;
 }
 
+/**
+ * @brief set the tbb threads specified by users
+ *
+ * @param 
+ * @param jobject
+ * @param parAddr
+ * @param thds
+ *
+ * @return 
+ */
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_implicit_1als_Parameter_cSetNumThreads
+(JNIEnv *, jobject, jlong parAddr, jlong thds)
+{
+    ((Parameter *)parAddr)->numThreads = thds;
+}
+
 /*
  * Class:     com_intel_daal_algorithms_implicit_als_Parameter
  * Method:    cGetAlpha
@@ -88,6 +104,21 @@ JNIEXPORT jdouble JNICALL Java_com_intel_daal_algorithms_implicit_1als_Parameter
 (JNIEnv *, jobject, jlong parAddr)
 {
     return ((Parameter *)parAddr)->alpha;
+}
+
+/**
+ * @brief get tbb threads 
+ *
+ * @param 
+ * @param jobject
+ * @param parAddr
+ *
+ * @return 
+ */
+JNIEXPORT jlong JNICALL Java_com_intel_daal_algorithms_implicit_1als_Parameter_cGetNumThreads
+(JNIEnv *, jobject, jlong parAddr)
+{
+    return ((Parameter *)parAddr)->numThreads;
 }
 
 /*

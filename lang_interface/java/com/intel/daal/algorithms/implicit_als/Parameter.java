@@ -118,6 +118,21 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
         return cGetPreferenceThreshold(this.cObject);
     }
 
+    /**
+     * @brief get the number of tbb threads 
+     *
+     * @return 
+     */
+    public long getNumThreads() {
+        
+        return cGetNumThreads(this.cObject);
+    }
+
+    public void setNumThreads(long numThreads) {
+        
+        cSetNumThreads(this.cObject, numThreads);
+    }
+
     private native void cSetNFactors(long algAddr, long nFactors);
 
     private native long cGetNFactors(long algAddr);
@@ -133,6 +148,10 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
     private native void cSetLambda(long algAddr, double lambda);
 
     private native double cGetLambda(long algAddr);
+
+    private native void cSetNumThreads(long algAddr, long thd);
+
+    private native long cGetNumThreads(long algAddr);
 
     private native void cSetPreferenceThreshold(long algAddr, double preferenceThreshold);
 

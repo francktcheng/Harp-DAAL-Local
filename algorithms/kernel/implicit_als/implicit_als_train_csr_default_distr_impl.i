@@ -49,6 +49,7 @@ void ImplicitALSTrainDistrStep1Kernel<algorithmFPType, cpu>::compute(
     const size_t maxBlockSize = 100 * 1024 * 1024;
 
     size_t nFactors = parameter->nFactors;
+    size_t nThreads = parameter->numThreads;
     size_t nRowsInBlock = maxBlockSize / nFactors;
 
     daal::internal::BlockMicroTable<algorithmFPType, readOnly,  cpu> mtFactors(partialModel->getFactors().get());
@@ -79,6 +80,9 @@ void ImplicitALSTrainDistrStep1Kernel<algorithmFPType, cpu>::compute(
     algorithmFPType beta  = 1.0;
 
     algorithmFPType *srcFactorsBlock;
+
+    int oldNumberOfThreads = 0; 
+
     for (size_t block = 0; block < nBlocks; block++)
     {
         size_t iStart = block * nRowsInBlock;
@@ -89,8 +93,15 @@ void ImplicitALSTrainDistrStep1Kernel<algorithmFPType, cpu>::compute(
         if (nRowsRead < nRowsToCP)
         { this->_errors->add(services::ErrorIncorrectNumberOfRowsInInputNumericTable); return; }
 
+        if (nThreads > 0)
+            oldNumberOfThreads = fpk_serv_set_num_threads_local(nThreads);
+
         Blas<algorithmFPType, cpu>::xsyrk(&uplo, &trans, (MKL_INT *)&nFactors, (MKL_INT *)&nRowsToCP, &alpha, srcFactorsBlock,
                 (MKL_INT *)&nFactors, &beta, cp, (MKL_INT *)&nFactors);
+
+        if (nThreads > 0)
+            fpk_serv_set_num_threads_local(oldNumberOfThreads);
+
         mtFactors.release();
     }
 
@@ -149,8 +160,10 @@ void ImplicitALSTrainDistrStep3Kernel<algorithmFPType, cpu>::compute(
 
     size_t nBlocks = dstPartialModels->size();
     size_t nFactors = parameter->nFactors;
+    size_t nThreads = parameter->numThreads;
 
-    daal::threader_for(nBlocks, nBlocks, [ & ](size_t i)
+    // daal::threader_for(nBlocks, nBlocks, [ & ](size_t i)
+    daal::threader_for(nBlocks, nThreads, [ & ](size_t i)
     {
         PartialModel *dstPartialModel = static_cast<PartialModel *>((*dstPartialModels)[i].get());
         daal::internal::BlockMicroTable<algorithmFPType, readOnly,  cpu> mtSrcFactors(srcPartialModel->getFactors().get());
@@ -253,6 +266,7 @@ void ImplicitALSTrainDistrStep4Kernel<algorithmFPType, fastCSR, cpu>::compute(
 
     /* Compute resulting partial factors */
     size_t nFactors = parameter->nFactors;
+    size_t nThreads = parameter->numThreads;
     algorithmFPType alpha  = (algorithmFPType)(parameter->alpha);
     algorithmFPType lambda = (algorithmFPType)(parameter->lambda);
 
@@ -276,7 +290,8 @@ void ImplicitALSTrainDistrStep4Kernel<algorithmFPType, fastCSR, cpu>::compute(
     if (nRowsRead < nRows)
     { this->_errors->add(services::ErrorIncorrectNumberOfRowsInInputNumericTable); return; }
 
-    daal::threader_for(nRows, nRows, [ & ](size_t i)
+    // daal::threader_for(nRows, nRows, [ & ](size_t i)
+    daal::threader_for(nRows, nThreads, [ & ](size_t i)
     {
         int oldNumberOfThreads = fpk_serv_set_num_threads_local(1);
         AlsTls<algorithmFPType, cpu> *alsTlsLocal = alsTls.local();

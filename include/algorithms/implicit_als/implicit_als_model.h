@@ -59,7 +59,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     Parameter(size_t nFactors = 10, size_t maxIterations = 5, double alpha = 40.0, double lambda = 0.01,
               double preferenceThreshold = 0.0, size_t seed = 777777) :
         nFactors(nFactors), maxIterations(maxIterations), alpha(alpha), lambda(lambda),
-        preferenceThreshold(preferenceThreshold)
+        preferenceThreshold(preferenceThreshold), numThreads(0)
     {}
 
     size_t nFactors;            /*!< Number of factors */
@@ -67,6 +67,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     double alpha;               /*!< Confidence parameter of the implicit ALS training algorithm */
     double lambda;              /*!< Regularization parameter */
     double preferenceThreshold; /*!< Threshold used to define preference values */
+    size_t numThreads;          /*!< tbb threads specified by users */
 
     void check() const DAAL_C11_OVERRIDE
     {

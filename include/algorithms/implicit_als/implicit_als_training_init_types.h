@@ -104,6 +104,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     size_t nFactors;            /*!< Total number of factors */
     size_t fullNUsers;          /*!< Full number of users */
     size_t seed;                /*!< Seed for generating random numbers in the initialization step */
+    size_t numThreads = 0;
 
     void check() const DAAL_C11_OVERRIDE;
 };

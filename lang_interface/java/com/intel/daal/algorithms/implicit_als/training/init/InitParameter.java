@@ -59,12 +59,20 @@ public class InitParameter extends com.intel.daal.algorithms.Parameter {
         cSetNFactors(this.cObject, nFactors);
     }
 
+    public void setNumThreads(long nThds) {
+        cSetNumThreads(this.cObject, nThds);
+    }
+
     /**
      * Gets the value of the nFactors parameter
      * @return nFactors
      */
     public long getNFactors() {
         return cGetNFactors(this.cObject);
+    }
+
+    public long getNumThreads() {
+        return cGetNumThreads(this.cObject);
     }
 
     /**
@@ -90,6 +98,10 @@ public class InitParameter extends com.intel.daal.algorithms.Parameter {
     private native void cSetNFactors(long algAddr, long nFactors);
 
     private native long cGetNFactors(long algAddr);
+
+    private native void cSetNumThreads(long algAddr, long nThds);
+
+    private native long cGetNumThreads(long algAddr);
 
     private native void cSetSeed(long algAddr, long seed);
 

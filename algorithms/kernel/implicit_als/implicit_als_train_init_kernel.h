@@ -98,7 +98,7 @@ public:
     void compute(const NumericTable *data, NumericTable *partialFactors, const Parameter *parameter);
 
 protected:
-    void computePartialFactors(
+    void computePartialFactors(size_t nThreads,
                 size_t nUsers, size_t nItems, size_t nFactors, size_t fullNUsers, size_t seed,
                 algorithmFPType *tdata, size_t *rowIndices, size_t *colOffsets, algorithmFPType *partialFactors);
 };

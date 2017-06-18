@@ -84,7 +84,7 @@
 // #include "outlier_detection_multivariate_types.h"
 // #include "outlier_detection_univariate_types.h"
 
-// #include "pca_types.h"
+#include "pca_types.h"
 // #include "pivoted_qr_types.h"
 
 // #include "qr_types.h"
@@ -96,7 +96,7 @@
 // #include "stump_model.h"
 // #include "stump_training_types.h"
 
-// #include "svd_types.h"
+#include "svd_types.h"
 
 // #include "svm_model.h"
 // #include "svm_train_types.h"
@@ -325,9 +325,9 @@ Factory::Factory()
     // registerObject(new Creator<algorithms::multivariate_outlier_detection::Result>());
     // registerObject(new Creator<algorithms::univariate_outlier_detection::Result>());
     //
-    // registerObject(new Creator<algorithms::pca::Result>());
-    // registerObject(new Creator<algorithms::pca::PartialResult<algorithms::pca::correlationDense> >());
-    // registerObject(new Creator<algorithms::pca::PartialResult<algorithms::pca::svdDense        > >());
+    registerObject(new Creator<algorithms::pca::Result>());
+    registerObject(new Creator<algorithms::pca::PartialResult<algorithms::pca::correlationDense> >());
+    registerObject(new Creator<algorithms::pca::PartialResult<algorithms::pca::svdDense        > >());
     //
     // registerObject(new Creator<algorithms::pivoted_qr::Result>());
     //
@@ -353,10 +353,10 @@ Factory::Factory()
     // registerObject(new Creator<algorithms::stump::Model>());
     // registerObject(new Creator<algorithms::stump::training::Result>());
     //
-    // registerObject(new Creator<algorithms::svd::Result>());
-    // registerObject(new Creator<algorithms::svd::OnlinePartialResult>());
-    // registerObject(new Creator<algorithms::svd::DistributedPartialResult>());
-    // registerObject(new Creator<algorithms::svd::DistributedPartialResultStep3>());
+    registerObject(new Creator<algorithms::svd::Result>());
+    registerObject(new Creator<algorithms::svd::OnlinePartialResult>());
+    registerObject(new Creator<algorithms::svd::DistributedPartialResult>());
+    registerObject(new Creator<algorithms::svd::DistributedPartialResultStep3>());
     //
     // registerObject(new Creator<algorithms::svm::Model>());
     // registerObject(new Creator<algorithms::svm::training::Result>());

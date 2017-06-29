@@ -107,6 +107,36 @@ public class SOANumericTableImpl extends NumericTableImpl {
     }
 
     /**
+     * @brief Set array without changing features
+     * for harp-daal framework
+     * used in mf_sgd model rotation
+     *
+     * @param arr
+     * @param idx
+     *
+     * @return 
+     */
+    public void setArrayOnly(double[] arr, long idx)
+    {
+        arrays.set((int) idx, arr);
+    }
+
+    public void setArrayOnly(float[] arr, long idx)
+    {
+        arrays.set((int) idx, arr);
+    }
+
+    public void setArrayOnly(long[] arr, long idx)
+    {
+        arrays.set((int) idx, arr);
+    }
+
+    public void setArrayOnly(int[] arr, long idx)
+    {
+        arrays.set((int) idx, arr);
+    }
+
+    /**
      * Returns the data dictionary
      *
      * @return Data dictionary

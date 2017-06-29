@@ -550,6 +550,25 @@ public:
             ReadWriteMode rwflag, BlockDescriptor<int> &block) = 0;
 
     /**
+     * @brief added for harp-daal framework non-pure virtual method, implemented by some types of NumericTable
+     * get block of column values in parallel (multi-threading)
+     * @param feature_start
+     * @param feature_len
+     * @param vector_idx
+     * @param value_num
+     * @param rwflag
+     * @param block
+     */
+    virtual void getBlockOfColumnValuesBM(size_t feature_start, size_t feature_len, size_t vector_idx, size_t value_num,
+                                ReadWriteMode rwflag, BlockDescriptor<double>** block) {} 
+
+    virtual void getBlockOfColumnValuesBM(size_t feature_start, size_t feature_len, size_t vector_idx, size_t value_num,
+                                ReadWriteMode rwflag, BlockDescriptor<float>** block) {} 
+
+    virtual void getBlockOfColumnValuesBM(size_t feature_start, size_t feature_len, size_t vector_idx, size_t value_num,
+                                ReadWriteMode rwflag, BlockDescriptor<int>** block) {} 
+
+    /**
      *  Releases a block of values for a given feature.
      *  \param[in] block       The block of feature values.
      */
@@ -566,6 +585,20 @@ public:
      *  \param[in] block       The block of feature values.
      */
     virtual services::Status releaseBlockOfColumnValues(BlockDescriptor<int> &block) = 0;
+
+    
+    /**
+     * @brief added for harp-daal framework non-pure virtual method, implemented by some types of NumericTable
+     * release block of column values in parallel (multi-threading)
+     *
+     * @param feature_start
+     * @param feature_len
+     * @param block
+     */
+    virtual void releaseBlockOfColumnValuesBM(size_t feature_start, size_t feature_len, BlockDescriptor<double>** block) {} 
+    virtual void releaseBlockOfColumnValuesBM(size_t feature_start, size_t feature_len, BlockDescriptor<float>** block) {} 
+    virtual void releaseBlockOfColumnValuesBM(size_t feature_start, size_t feature_len, BlockDescriptor<int>** block) {} 
+
 };
 
 /**

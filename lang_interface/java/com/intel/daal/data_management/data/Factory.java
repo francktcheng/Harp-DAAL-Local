@@ -48,9 +48,9 @@ public class Factory {
      */
     public SerializableBase createObject(DaalContext context, long cObject) {
         int objectId = cGetSerializationTag(cObject);
-        if (objectId == SerializationTag.SERIALIZATION_SVM_MODEL_ID.getValue()) {
-            return new com.intel.daal.algorithms.svm.Model(context, cObject);
-        }
+        // if (objectId == SerializationTag.SERIALIZATION_SVM_MODEL_ID.getValue()) {
+        //     return new com.intel.daal.algorithms.svm.Model(context, cObject);
+        // }
         if (objectId == SerializationTag.SERIALIZATION_IMPLICIT_ALS_PARTIALMODEL_ID.getValue()) {
             return new com.intel.daal.algorithms.implicit_als.PartialModel(context, cObject);
         }

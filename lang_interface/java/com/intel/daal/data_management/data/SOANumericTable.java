@@ -97,5 +97,34 @@ public class SOANumericTable extends NumericTable {
     public void setArray(int[] arr, long idx) {
         ((SOANumericTableImpl)tableImpl).setArray(arr, idx);
     }
+
+    /**
+     * @brief sets arrays without changing feature types
+     * for harp-daal framework
+     *
+     * @param arr
+     * @param idx
+     *
+     * @return 
+     */
+    public void setArrayOnly(double[] arr, long idx)
+    {
+        ((SOANumericTableImpl)tableImpl).setArrayOnly(arr, idx);
+    }
+
+    public void setArrayOnly(float[] arr, long idx)
+    {
+        ((SOANumericTableImpl)tableImpl).setArrayOnly(arr, idx);
+    }
+
+    public void setArrayOnly(long[] arr, long idx)
+    {
+        ((SOANumericTableImpl)tableImpl).setArrayOnly(arr, idx);
+    }
+
+    public void setArrayOnly(int[] arr, long idx)
+    {
+        ((SOANumericTableImpl)tableImpl).setArrayOnly(arr, idx);
+    }
 }
 /** @} */

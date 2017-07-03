@@ -41,7 +41,17 @@ source /opt/intel/compilers_and_libraries_2017/linux/bin/compilervars.sh intel64
 export JAVA_HOME=/opt/jdk1.8.0_101
 export PATH=$JAVA_HOME/bin:$PATH
 ```
-3. Build Harp-DAAL-Local via the command-line interface with the following commands:
+3. Edit the makefile.lst file, only keeping the algorithms used by Harp-DAAL framework. The current version provides 7 algorithms as follows
+```bash
+implicit_als
+kmeans
+mf_sgd
+pca
+qr
+svd
+neural_networks
+```
+4. Build Harp-DAAL-Local via the command-line interface with the following commands:
 
  *  on Linux\* using Intel(R) C++ Compiler:
 

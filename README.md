@@ -1,59 +1,61 @@
-# DAAL-MF-SGD 
+# Harp-DAAL-Local 
 
-DAAL-MF-SGD is an algorithm that we implemented based on the DAAL2017 version released by Intel. 
-at their github repository: https://github.com/01org/daal
-DAAL2017 is licensed under Apache License 2.0.
+Harp-DAAL-Local is a customized Intel(R) Data Analytics Acceleration Library (Intel(R) DAAL) used by Harp-DAAL framework (https://github.com/DSC-SPIDAL/harp/tree/master/harp-daal-app). 
+Harp-DAAL-Local inherits all of the functionalites of Intel DAAL while having additional data structures and algorithms designed for Harp-DAAL distributed framework. 
+The current Harp-DAAL-Local is forked from Intel DAAL version 2017
 
-This solver could be used to factorize a sparse matrix $V$ into two dense matrices $W$ and $H$, which is widely
+## License
+Harp-DAAL-Local is licensed under Apache License 2.0.
 
-$V = WH$
+## Online Documentation
+Harp-DAAL-Local keeps the same source code structure and APIs with Intel DAAL, thus, users could always refer the Intel DAAL documentation 
+on the [Intel(R) Data Analytics Acceleration Library 2017 Documentation](https://software.intel.com/en-us/intel-daal-support/documentation) web page.
 
-used in the recommender systems, such as the recommended movies provided to users by Netflix. This Matrix Factorization 
-(MF for short) uses a machine learning algorithm, Stochastic Gradient Descent (SGD), to find the two object matrices $W$ and 
-$H$. In this machine learning scenario, matrix $V$ contains two datasets, one is the training set and the other is the 
-test set. Both of matrices $W$ and $H$ are considered to be model data, whose values are updated by the training process of 
-SGD. After the training, we evaluate the result by calculating the difference between the true value of test points and the multiplication
-of that value by model $W$ and $H$. The procedure could be expressed as two stages:
+### Validated Operating Systems
+* Red Hat Enterprise Linux Server release 6.9 (Santiago)
+* CentOS Linux release 7.2.1511
 
-1.Training Stage
+### Validated C/C++ Compilers 
+* Intel(R) C++ Compiler 16.0.1 20151021 for Linux* OS
+* Intel(R) C++ Compiler 17.0.2 20170213 for Linux* OS
+* GNU Compiler 4.8.5 20150623
 
-* $E^{t-1}_{ij} = V^{t-1}_{train,ij} - \sum_{k=0}^r W^{t-1}_{ik} H^{t-1}_{kj}$
-* $W^t_{i*} = W^{t-1}_{i*} - \eta (E^{t-1}_{ij}\cdot H^{t-1}_{*j} - \lambda \cdot W^{t-1}_{i*})$
-* $H^t_{*j} = H^{t-1}_{*j} - \eta (E^{t-1}_{ij}\cdot W^{t-1}_{i*} - \lambda \cdot H^{t-1}_{*j})$
+### Validated Java* Compilers:
+* Java\* SE 8 from Sun Microsystems*
 
-2.Test Stage
+## Installation
+Currently, users can only install Harp-DAAL-Local from sources
 
-* $RMSE = V_{test, ij} - \sum_{k=0}^{r}W_{i,k}H_{k,j}$
+#### Required Software
+* C/C++ compiler 
+* Java\* JDK 
 
-The training process uses an iterative Standard SGD algorithm, which contains one vector inner product and two AXPY updates. In order to 
-improve the performance of these linear algebra computation, we implement these kernels within DAAL's framework by using highly optimized 
-libraries and tools from Intel. 
+#### Installation Steps
+1. Clone the sources from GitHub* as follows:
+```bash
+git clone --recursive https://github.com/francktcheng/Harp-DAAL-Local.git
+```
+2. Set an environment variable for one of the supported C/C++ compilers and Java compilers. For instance
+```bash
+source /opt/intel/compilers_and_libraries_2017/linux/bin/compilervars.sh intel64
+export JAVA_HOME=/opt/jdk1.8.0_101
+export PATH=$JAVA_HOME/bin:$PATH
+```
+3. Edit the makefile.lst file, only keeping the algorithms used by Harp-DAAL framework. The current version provides three algorithms as follows
+```bash
+implicit_als
+kmeans
+mf_sgd
+```
+4. Build Harp-DAAL-Local via the command-line interface with the following commands:
 
-Our delivered package includes a core part of C++ native codes under the following paths of DAAL2017,
+ *  on Linux\* using Intel(R) C++ Compiler:
 
-* daal/include/algorithms/mf_sgd
-* daal/algorithms/mf_sgd
+            make daal PLAT=lnx32e
 
-and it also has a Java interface under the paths 
+ *  on Linux\* using GNU Compiler Collection\*:
 
-* daal/lang_interface/java/com/intel/daal/algorithms/mf_sgd
-* daal/lang_service/java/com/intel/daal/algorithms/mf_sgd
+            make daal PLAT=lnx32e COMPILER=gnu
 
-There are examples of SGD under the paths
-
-* daal/examples/cpp/source/mf_sgd
-* daal/examples/java/com/intel/daal/examples/mf_sgd
-
-To Run the examples, unzip the movielens train and test dataset under *daal/examples/data/batch*.
-Using tar to combine the three split files of movielens-train into one movielens-train.mm file.
-
-Copy the two files:
-
-* movielens-train.mm
-* movielens-test.mm
-
-into *daal/examples/data/distributed* if you would like to test the distributed examples. 
-
-A detailed online documentation could be found at https://github.iu.edu/pages/IU-Big-Data-Lab/DAAL-2017-MF-SGD/
-
+Built libraries are located in the \__release_lnx/daal directory.
 

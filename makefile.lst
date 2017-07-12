@@ -46,6 +46,12 @@ CORE.ALGORITHMS.FULL :=                                                       \
     covariance                                                                \
     implicit_als                                                              \
     kmeans                                                                    \
+    low_order_moments                                                         \
+    linear_model                                                              \
+    classifier                                                                \
+    regression                                                                \
+    linear_regression                                                         \
+    ridge_regression                                                          \
     objective_function                                                        \
     objective_function/mse                                                    \
     optimization_solver                                                       \
@@ -145,6 +151,13 @@ CORE.ALGORITHMS.INC :=                                                        \
     covariance                                                                \
     implicit_als                                                              \
     kmeans                                                                    \
+    linear_model                                                              \
+    classifier                                                                \
+    moments                                                                   \
+    naive_bayes                                                               \
+    regression                                                                \
+    linear_regression                                                         \
+    ridge_regression                                                          \
     optimization_solver                                                       \
     optimization_solver/adagrad                                               \
     optimization_solver/iterative_solver                                      \
@@ -198,8 +211,17 @@ JJ.ALGORITHMS       :=                                                          
                        implicit_als/prediction/ratings                           \
                        implicit_als/training                                     \
                        implicit_als/training/init                                \
+                       classifier                                                \
+                       classifier/prediction                                     \
+                       classifier/quality_metric                                 \
+                       classifier/quality_metric/binary_confusion_matrix         \
+                       classifier/quality_metric/multi_class_confusion_matrix    \
+                       classifier/training                                       \
                        kmeans                                                    \
                        kmeans/init                                               \
+                       quality_metric                                            \
+                       quality_metric_set                                        \
+                       low_order_moments                                         \
                        optimization_solver                                       \
                        optimization_solver/objective_function                    \
                        optimization_solver/sum_of_functions                      \
@@ -209,6 +231,18 @@ JJ.ALGORITHMS       :=                                                          
                        optimization_solver/sgd                                   \
                        optimization_solver/lbfgs                                 \
                        optimization_solver/adagrad                               \
+                       linear_regression                                         \
+                       linear_regression/prediction                              \
+                       linear_regression/quality_metric                          \
+                       linear_regression/quality_metric_set                      \
+                       linear_regression/training                                \
+                       ridge_regression                                          \
+                       ridge_regression/prediction                               \
+                       ridge_regression/training                                 \
+                       multinomial_naive_bayes                                   \
+                       multinomial_naive_bayes/prediction                        \
+                       multinomial_naive_bayes/quality_metric_set                \
+                       multinomial_naive_bayes/training                          \
                        neural_networks                                           \
                        neural_networks/initializers                              \
                        neural_networks/initializers/uniform                      \

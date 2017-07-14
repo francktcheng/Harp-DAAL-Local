@@ -58,6 +58,7 @@ CORE.ALGORITHMS.FULL :=                                                       \
     optimization_solver/sgd                                                   \
     optimization_solver/lbfgs                                                 \
     optimization_solver/adagrad                                               \
+    naivebayes                                                                \
     neural_networks                                                           \
     neural_networks/initializers                                              \
     neural_networks/initializers/uniform                                      \

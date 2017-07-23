@@ -132,8 +132,13 @@ DAALTHRS ?= tbb seq
 DAALAY   ?= a y
 
 DIR:=.
-WORKDIR    ?= $(DIR)/../__work$(CMPLRDIRSUFF.$(COMPILER))/$(PLAT)
+ifeq ($(ENV_ARCH),"")
+WORKDIR    ?= $(DIR)/../__work_$(CMPLRDIRSUFF.$(COMPILER))/$(PLAT)
 RELEASEDIR ?= $(DIR)/../__release_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
+else
+WORKDIR    ?= $(DIR)/../__work_$(ENV_ARCH)_$(CMPLRDIRSUFF.$(COMPILER))/$(PLAT)
+RELEASEDIR ?= $(DIR)/../__release_$(ENV_ARCH)_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
+endif
 RELEASEDIR.daal    := $(RELEASEDIR)/daal
 RELEASEDIR.lib     := $(RELEASEDIR.daal)/lib
 RELEASEDIR.env     := $(RELEASEDIR.daal)/bin

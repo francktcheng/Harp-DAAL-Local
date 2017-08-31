@@ -133,11 +133,15 @@ DAALAY   ?= a y
 
 DIR:=.
 ifeq ($(ENV_ARCH),"")
-WORKDIR    ?= $(DIR)/../__work_$(CMPLRDIRSUFF.$(COMPILER))/$(PLAT)
-RELEASEDIR ?= $(DIR)/../__release_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
+# WORKDIR    ?= $(DIR)/../__work_$(CMPLRDIRSUFF.$(COMPILER))/$(PLAT)
+# RELEASEDIR ?= $(DIR)/../__release_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
+WORKDIR    ?= $(DIR)/../__work_subgraph_$(CMPLRDIRSUFF.$(COMPILER))/$(PLAT)
+RELEASEDIR ?= $(DIR)/../__release_subgraph_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
 else
-WORKDIR    ?= $(DIR)/../__work_$(ENV_ARCH)_$(CMPLRDIRSUFF.$(COMPILER))/$(PLAT)
-RELEASEDIR ?= $(DIR)/../__release_$(ENV_ARCH)_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
+# WORKDIR    ?= $(DIR)/../__work_$(ENV_ARCH)_$(CMPLRDIRSUFF.$(COMPILER))/$(PLAT)
+# RELEASEDIR ?= $(DIR)/../__release_$(ENV_ARCH)_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
+WORKDIR    ?= $(DIR)/../__work_subgraph_$(ENV_ARCH)_$(CMPLRDIRSUFF.$(COMPILER))/$(PLAT)
+RELEASEDIR ?= $(DIR)/../__release_subgraph_$(ENV_ARCH)_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
 endif
 RELEASEDIR.daal    := $(RELEASEDIR)/daal
 RELEASEDIR.lib     := $(RELEASEDIR.daal)/lib

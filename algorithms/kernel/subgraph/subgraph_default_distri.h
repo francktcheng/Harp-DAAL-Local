@@ -24,6 +24,9 @@
 #define __SUBGRAPH_DEFAULT_DISTRI__
 
 #include "subgraph_types.h"
+#include "service_micro_table.h"
+#include <cstdlib> 
+#include <cstdio> 
 
 namespace daal
 {
@@ -40,7 +43,6 @@ namespace interface1
 // 						          subgraph::VPoint<algorithmFPType>* points_Train,  
 // 						          int64_t &row_num_w, 
 // 						          int64_t &col_num_h)
-
 
 
 }// namespace interface1

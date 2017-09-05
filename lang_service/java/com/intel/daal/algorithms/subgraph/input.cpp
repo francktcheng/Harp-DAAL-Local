@@ -38,6 +38,21 @@ JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cSetInputTa
     jniInput<subgraph::Input>::set<subgraph::InputId, NumericTable>(inputAddr, id, ntAddr);
 }
 
+/**
+ * @brief read in graph data from HDFS 
+ *
+ * @param env
+ * @param thisObj
+ * @param inputAddr
+ *
+ * @return 
+ */
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cReadGraph
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	((subgraph::Input*)inputAddr)->readGraph();
+}
+
 /*
  * Class:     com_intel_daal_algorithms_subgraph_Input
  * Method:    cGetInputTable

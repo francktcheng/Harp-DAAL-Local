@@ -67,7 +67,12 @@ public final class Input extends com.intel.daal.algorithms.Input {
     public NumericTable get(InputId id) {
         return new HomogenNumericTable(getContext(), cGetInputTable(cObject, id.getValue()));
     }
+
+    public void readGraph() {
+        cReadGraph(cObject);
+    }
     
     private native void cSetInputTable(long cInput, int id, long ntAddr);
     private native long cGetInputTable(long cInput, int id);
+    private native void cReadGraph(long cInput);
 }

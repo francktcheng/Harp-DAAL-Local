@@ -45,6 +45,7 @@ template DAAL_EXPORT void Result::freeImpl_cache_aligned<DAAL_FPTYPE>(size_t r, 
 template DAAL_EXPORT void Result::allocateImpl_hbw_mem<DAAL_FPTYPE>(size_t r, size_t w, size_t h );
 template DAAL_EXPORT void Result::freeImpl_hbw_mem<DAAL_FPTYPE>(size_t r, size_t w, size_t h );
 
+
 }// namespace interface1
 }// namespace subgraph
 }// namespace algorithms

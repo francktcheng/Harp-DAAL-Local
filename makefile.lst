@@ -46,6 +46,7 @@ CORE.ALGORITHMS.FULL :=                                                       \
     covariance                                                                \
     subgraph
 
+
 CORE.ALGORITHMS := $(if $(CORE.ALGORITHMS.CUSTOM), $(CORE.ALGORITHMS.CUSTOM), $(CORE.ALGORITHMS.FULL))
 CORE.ALGORITHMS := $(sort $(foreach alg,$(CORE.ALGORITHMS),$(foreach alg1,$($(alg)),$($(alg1)) $(alg1)) $(alg)))
 
@@ -53,14 +54,14 @@ CORE.ALGORITHMS.INC :=                                                        \
     covariance                                                                \
     subgraph
 
-
+    
 CORE.SERVICES       := compression            \
                        data_management
 
 JJ.ALGORITHMS       :=                                                           \
                        covariance                                                \
                        subgraph
-                       
+                                              
 
 JJ.DATA_MANAGEMENT  := data                                                      \
                        data_source                                               \

@@ -32,6 +32,9 @@
 #include "data_management/data/numeric_table.h"
 #include "data_management/data/homogen_numeric_table.h"
 #include "services/daal_defines.h"
+#include "services/hdfs.h"
+
+#include <vector>
 
 namespace daal
 {
@@ -52,6 +55,9 @@ namespace algorithms
 /** \brief Contains classes for computing the results of the subgraph algorithm */
 namespace subgraph
 {
+
+    
+
 /**
  * <a name="DAAL-ENUM-ALGORITHMS__subgraph__METHOD"></a>
  * Available methods for computing the subgraph algorithm
@@ -67,14 +73,8 @@ enum Method
  */
 enum InputId
 {
-    dataTrain = 0,		  /*!< Training Dataset */
-	dataTest = 1,	      /*!< Test Dataset */
-	wPos = 2,	          /*!< array of row position in model W of dataset, used in distributed mode */
-	hPos = 3,	          /*!< array of col position in model H of dataset, used in distributed mode */
-	val = 4,				  /*!< array of val of dataset, used in distributed mode */
-    wPosTest = 5,
-    hPosTest = 6,
-    valTest = 7
+    filenames = 0,		  
+	fileoffset = 1	      
 };
 
 /**
@@ -105,6 +105,45 @@ enum DistributedPartialResultId
  */
 namespace interface1
 {
+
+    // struct v_adj_elem{
+    //
+    //     v_adj_elem(int v_id, int* adjs, int adjs_len)
+    //     {
+    //         _v_id = v_id;
+    //         _adjs = adjs;
+    //         _adjs_len = adjs_len;
+    //     }
+    //
+    //     ~v_adj_elem()
+    //     {
+    //         if (_adjs != NULL)
+    //             delete[] _adjs;
+    //     }
+    //
+    //     int _v_id = 0;
+    //     int* _adjs = NULL;
+    //     int _adjs_len = 0;
+    //
+    // };
+
+    struct v_adj_elem{
+
+        v_adj_elem(int v_id)
+        {
+            _v_id = v_id;
+        }
+
+        ~v_adj_elem()
+        {
+            std::vector<int>().swap(_adjs);
+        }
+
+        int _v_id = 0;
+        std::vector<int> _adjs;
+
+    };
+
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__subgraph__INPUT"></a>
  * \brief Input objects for the subgraph algorithm in the batch and distributed modes 
@@ -150,6 +189,29 @@ public:
     size_t getNumberOfRows(InputId id) const;
 
     daal::services::interface1::Status check(const daal::algorithms::Parameter *parameter, int method) const DAAL_C11_OVERRIDE;
+
+    // input func for read in data from HDFS
+    void readGraph();
+
+    void readGraph_Single();
+    // void thd_task_read(int id, void* arg);
+    void free_readgraph_task(int thd_num);
+
+    // template <typename cpu>
+    // void retrieve_filenames();
+    // void retrieve_filenames(data_management::interface1::NumericTablePtr table);
+
+    
+
+private:
+    int vert_num_count = 0;
+    int max_v_id = 0;
+    int adj_len = 0;
+    int** graph_data = NULL;
+    hdfsFS* fs = NULL;
+    int* fileOffsetPtr = NULL;
+    int* fileNamesPtr = NULL;
+    std::vector<v_adj_elem*>* v_adj = NULL;
 
 };
 

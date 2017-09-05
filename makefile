@@ -133,15 +133,11 @@ DAALAY   ?= a y
 
 DIR:=.
 ifeq ($(ENV_ARCH),"")
-# WORKDIR    ?= $(DIR)/../__work_$(CMPLRDIRSUFF.$(COMPILER))/$(PLAT)
-# RELEASEDIR ?= $(DIR)/../__release_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
-WORKDIR    ?= $(DIR)/../__work_subgraph_$(CMPLRDIRSUFF.$(COMPILER))/$(PLAT)
-RELEASEDIR ?= $(DIR)/../__release_subgraph_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
+	WORKDIR    ?= $(DIR)/../__work$(CMPLRDIRSUFF.$(COMPILER))/$(PLAT)
+	RELEASEDIR ?= $(DIR)/../__release_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
 else
-# WORKDIR    ?= $(DIR)/../__work_$(ENV_ARCH)_$(CMPLRDIRSUFF.$(COMPILER))/$(PLAT)
-# RELEASEDIR ?= $(DIR)/../__release_$(ENV_ARCH)_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
-WORKDIR    ?= $(DIR)/../__work_subgraph_$(ENV_ARCH)_$(CMPLRDIRSUFF.$(COMPILER))/$(PLAT)
-RELEASEDIR ?= $(DIR)/../__release_subgraph_$(ENV_ARCH)_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
+	WORKDIR    ?= $(DIR)/../__work$(ENV_ARCH)$(CMPLRDIRSUFF.$(COMPILER))/$(PLAT)
+	RELEASEDIR ?= $(DIR)/../__release_subgraph_$(ENV_ARCH)_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
 endif
 RELEASEDIR.daal    := $(RELEASEDIR)/daal
 RELEASEDIR.lib     := $(RELEASEDIR.daal)/lib
@@ -201,7 +197,8 @@ daaldep.lnx32e.ipp :=
 daaldep.lnx32e.rt  := -L$(TBBDIR.libia) -ltbb -ltbbmalloc -lpthread $(daaldep.lnx32e.rt.$(COMPILER))
 # use openmp and memkind
 # daaldep.lnx32e.rt  := -L$(TBBDIR.libia) -ltbb -ltbbmalloc -liomp5 -L$(HOME)/local/memkind_build/lib -lmemkind -lpthread $(daaldep.lnx32e.rt.$(COMPILER))
-daaldep.lnx32e.rt  := -L$(TBBDIR.libia) -ltbb -ltbbmalloc -liomp5 -lpthread $(daaldep.lnx32e.rt.$(COMPILER))
+# daaldep.lnx32e.rt  := -L$(TBBDIR.libia) -ltbb -ltbbmalloc -liomp5 -lpthread $(daaldep.lnx32e.rt.$(COMPILER))
+daaldep.lnx32e.rt  := -L$(TBBDIR.libia) -ltbb -ltbbmalloc -liomp5 -lpthread -L$(DIR)/externals/hdfs/lib -lhdfs $(daaldep.lnx32e.rt.$(COMPILER))
 
 daaldep.lnx32.mkl.thr := $(MKLFPKDIR.libia)/$(plib)daal_mkl_thread.$a    
 daaldep.lnx32.mkl.seq := $(MKLFPKDIR.libia)/$(plib)daal_mkl_sequential.$a
@@ -381,7 +378,9 @@ $(CORE.objs_a): COPT += $(-fPIC) $(-cxx11) $(-Zl) $(-DEBC)
 $(CORE.objs_a): COPT += -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS -DDAAL_HIDE_DEPRECATED
 $(CORE.objs_a): COPT += @$(CORE.tmpdir_a)/inc_a_folders.txt
 # intel openmp support and O3 optimization
-$(CORE.objs_a): COPT += -qopenmp -D_OPENMP -ansi-alias -O3  
+# $(CORE.objs_a): COPT += -qopenmp -D_OPENMP -ansi-alias -O3  
+$(CORE.objs_a): COPT += -qopenmp -D_OPENMP -I$(DIR)/externals/hdfs/include -ansi-alias -O3 -std=c++11 
+# $(CORE.objs_a): COPT += -qopenmp -D_OPENMP -I$(DIR)/externals/hdfs/include -I$(DIR)/externals/ThdPool/include -ansi-alias -O3
 
 $(filter %threading.$o, $(CORE.objs_a)): COPT += -D__DO_TBB_LAYER__
 $(call containing,_nrh, $(CORE.objs_a)): COPT += $(p4_OPT)   -DDAAL_CPU=sse2
@@ -399,7 +398,10 @@ $(CORE.objs_y): COPT += $(-fPIC) $(-cxx11) $(-Zl) $(-DEBC)
 $(CORE.objs_y): COPT += -D__DAAL_IMPLEMENTATION -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS -DDAAL_HIDE_DEPRECATED $(if $(CHECK_DLL_SIG),-DDAAL_CHECK_DLL_SIG)
 $(CORE.objs_y): COPT += @$(CORE.tmpdir_y)/inc_y_folders.txt
 # intel openmp support and O3 optimization
-$(CORE.objs_y): COPT += -qopenmp -D_OPENMP -ansi-alias -O3 
+# $(CORE.objs_y): COPT += -qopenmp -D_OPENMP -ansi-alias -O3 
+$(CORE.objs_y): COPT += -qopenmp -D_OPENMP -I$(DIR)/externals/hdfs/include -ansi-alias -O3 -std=c++11
+# $(CORE.objs_y): COPT += -qopenmp -D_OPENMP -I$(DIR)/externals/hdfs/include -I$(DIR)/externals/ThdPool/include -ansi-alias -O3
+
 $(filter %threading.$o, $(CORE.objs_y)): COPT += -D__DO_TBB_LAYER__
 $(call containing,_nrh, $(CORE.objs_y)): COPT += $(p4_OPT)   -DDAAL_CPU=sse2
 $(call containing,_mrm, $(CORE.objs_y)): COPT += $(mc_OPT)   -DDAAL_CPU=ssse3

@@ -37,9 +37,11 @@ public final class InputId {
         return _value;
     }
 
-    private static final int dataTrainId = 0;   /* training data in AOSNumericTable */
+    private static final int filenamesId = 0;   
+    private static final int fileoffsetId = 1;   
 
     /** %Input data table */
-    public static final InputId dataTrain = new InputId(dataTrainId);
+    public static final InputId filenames = new InputId(filenamesId);
+    public static final InputId fileoffset = new InputId(fileoffsetId);
 
 }

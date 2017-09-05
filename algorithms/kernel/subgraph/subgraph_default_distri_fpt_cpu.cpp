@@ -34,7 +34,9 @@ namespace subgraph
 {
 namespace interface1
 {
+
 template class DistriContainer<step1Local, DAAL_FPTYPE, daal::algorithms::subgraph::defaultSC, DAAL_CPU>;
+
 }
 namespace internal
 {

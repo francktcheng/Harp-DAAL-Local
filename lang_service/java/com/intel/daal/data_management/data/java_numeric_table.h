@@ -326,7 +326,7 @@ public:
     {
         jint status = JNI_OK;
         _tls local_tls = tls.local();
-        if(block.getRWFlag() == writeOnly)
+        if(block.getRWFlag() == writeOnly || block.getRWFlag() == readWrite)
         {
             /* Get JNI interface pointer for current thread */
             status = jvm->AttachCurrentThread((void **)(&(local_tls.jenv)), NULL);
@@ -513,7 +513,7 @@ public:
     services::Status releaseTFeature(BlockDescriptor<T> &block, const char *javaMethodName)
     {
         jint status = JNI_OK;
-        if(block.getRWFlag() == writeOnly)
+        if(block.getRWFlag() == writeOnly || block.getRWFlag() == readWrite)
         {
             _tls local_tls = tls.local();
             /* Get JNI interface pointer for current thread */

@@ -53,6 +53,47 @@ JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cReadGraph
 	((subgraph::Input*)inputAddr)->readGraph();
 }
 
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cInitGraph
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	((subgraph::Input*)inputAddr)->init_Graph();
+}
+
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cFreeInput
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	((subgraph::Input*)inputAddr)->free_input();
+}
+
+JNIEXPORT jint JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetReadInThd
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	return (jint)(((subgraph::Input*)inputAddr)->getReadInThd());
+}
+
+JNIEXPORT jint JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetLocalVNum
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	return (jint)(((subgraph::Input*)inputAddr)->getLocalVNum());
+}
+
+JNIEXPORT jint JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetLocalMaxV
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	return (jint)(((subgraph::Input*)inputAddr)->getLocalMaxV());
+}
+
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cSetGlobalMaxV
+(JNIEnv *env, jobject thisObj, jlong inputAddr, jint id)
+{
+	((subgraph::Input*)inputAddr)->setGlobalMaxV(id);
+}
+
+JNIEXPORT jint JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetLocalADJLen
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	return (jint)(((subgraph::Input*)inputAddr)->getLocalADJLen());
+}
 /*
  * Class:     com_intel_daal_algorithms_subgraph_Input
  * Method:    cGetInputTable

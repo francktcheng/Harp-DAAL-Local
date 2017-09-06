@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <unistd.h>
 #include <errno.h>
 #include <time.h>
 #if defined(__linux__)
@@ -290,8 +291,23 @@ static int thread_init (thpool_* thpool_p, struct thread** thread_p, int id){
 	(*thread_p)->thpool_p = thpool_p;
 	(*thread_p)->id       = id;
 
+    //setup the thread affinity
+    //logical cpu numbers: haswell node 48
+    int numberOfProcessors = sysconf(_SC_NPROCESSORS_ONLN);
+    int thd_cpu_mask = (id%numberOfProcessors);
+    
+    pthread_attr_t attr;
+    cpu_set_t cpus;
+    pthread_attr_init(&attr);
+
+    CPU_ZERO(&cpus);
+    CPU_SET(thd_cpu_mask, &cpus);
+
+    pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+
 	// pthread_create(&(*thread_p)->pthread, NULL, (void *)thread_do, (*thread_p));
-	pthread_create(&(*thread_p)->pthread, NULL, (void*(*)(void*))thread_do, (*thread_p));
+	// pthread_create(&(*thread_p)->pthread, NULL, (void*(*)(void*))thread_do, (*thread_p));
+	pthread_create(&(*thread_p)->pthread, &attr, (void*(*)(void*))thread_do, (*thread_p));
 	pthread_detach((*thread_p)->pthread);
 	return 0;
 }

@@ -39,9 +39,11 @@ public final class InputId {
 
     private static final int filenamesId = 0;   
     private static final int fileoffsetId = 1;   
+    private static final int localVId = 2;   
 
     /** %Input data table */
     public static final InputId filenames = new InputId(filenamesId);
     public static final InputId fileoffset = new InputId(fileoffsetId);
+    public static final InputId localV = new InputId(localVId);
 
 }

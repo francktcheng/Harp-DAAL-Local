@@ -74,7 +74,8 @@ enum Method
 enum InputId
 {
     filenames = 0,		  
-	fileoffset = 1	      
+	fileoffset = 1,
+    localV = 2
 };
 
 /**
@@ -105,28 +106,6 @@ enum DistributedPartialResultId
  */
 namespace interface1
 {
-
-    // struct v_adj_elem{
-    //
-    //     v_adj_elem(int v_id, int* adjs, int adjs_len)
-    //     {
-    //         _v_id = v_id;
-    //         _adjs = adjs;
-    //         _adjs_len = adjs_len;
-    //     }
-    //
-    //     ~v_adj_elem()
-    //     {
-    //         if (_adjs != NULL)
-    //             delete[] _adjs;
-    //     }
-    //
-    //     int _v_id = 0;
-    //     int* _adjs = NULL;
-    //     int _adjs_len = 0;
-    //
-    // };
-
     struct v_adj_elem{
 
         v_adj_elem(int v_id)
@@ -192,26 +171,43 @@ public:
 
     // input func for read in data from HDFS
     void readGraph();
-
     void readGraph_Single();
-    // void thd_task_read(int id, void* arg);
-    void free_readgraph_task(int thd_num);
+    void free_input();
 
-    // template <typename cpu>
-    // void retrieve_filenames();
-    // void retrieve_filenames(data_management::interface1::NumericTablePtr table);
+    void init_Graph();
 
-    
+    size_t getReadInThd();
+    size_t getLocalVNum();
+    size_t getLocalMaxV();
+    size_t getLocalADJLen();
+
+    void setGlobalMaxV(size_t id);
 
 private:
+
+    // thread in read in graph
+    int thread_num = 0;
     int vert_num_count = 0;
+    int max_v_id_local = 0;
+    //global max_v_id
     int max_v_id = 0;
     int adj_len = 0;
-    int** graph_data = NULL;
+    int num_edges = 0;
+    int max_deg = 0;
+
+    int* adjacency_array = NULL;
+    int* degree_list = NULL;
+
+    // absolute v_id
+    int* vertex_ids = NULL;
+    // mapping from absolute v_id to relative v_id
+    int* vertex_local_ids = NULL;
+    // adjacent vert data
+    std::vector<v_adj_elem*>* v_adj = NULL;
+
     hdfsFS* fs = NULL;
     int* fileOffsetPtr = NULL;
     int* fileNamesPtr = NULL;
-    std::vector<v_adj_elem*>* v_adj = NULL;
 
 };
 

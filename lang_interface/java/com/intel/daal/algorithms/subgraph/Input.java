@@ -71,8 +71,43 @@ public final class Input extends com.intel.daal.algorithms.Input {
     public void readGraph() {
         cReadGraph(cObject);
     }
-    
+
+    public void initGraph() {
+        cInitGraph(cObject);
+    }
+
+    public int getReadInThd() {
+        return cGetReadInThd(cObject);
+    }
+
+    public int getLocalVNum() {
+        return cGetLocalVNum(cObject);
+    }
+
+    public int getLocalMaxV() {
+        return cGetLocalMaxV(cObject);
+    }
+
+    public int getLocalADJLen() {
+        return cGetLocalADJLen(cObject);
+    }
+
+    public void setGlobalMaxV(int id) {
+        cSetGlobalMaxV(cObject, id);
+    }
+
+    public void freeInput() {
+        cFreeInput(cObject);
+    }
+
     private native void cSetInputTable(long cInput, int id, long ntAddr);
     private native long cGetInputTable(long cInput, int id);
     private native void cReadGraph(long cInput);
+    private native void cInitGraph(long cInput);
+    private native void cFreeInput(long cInput);
+    private native int cGetReadInThd(long cInput);
+    private native int cGetLocalVNum(long cInput);
+    private native int cGetLocalMaxV(long cInput);
+    private native int cGetLocalADJLen(long cInput);
+    private native void cSetGlobalMaxV(long cInput, int id);
 }

@@ -25,8 +25,11 @@
 #ifndef __SUBGRAPH_TYPES_H__
 #define __SUBGRAPH_TYPES_H__
 
-#include <string>
+#include <cstdio> 
 #include <vector>
+#include <string>
+#include <cstring>
+#include <set>
 
 #include "algorithms/algorithm.h"
 #include "data_management/data/numeric_table.h"
@@ -34,7 +37,6 @@
 #include "services/daal_defines.h"
 #include "services/hdfs.h"
 
-#include <vector>
 
 namespace daal
 {
@@ -75,7 +77,9 @@ enum InputId
 {
     filenames = 0,		  
 	fileoffset = 1,
-    localV = 2
+    localV = 2,
+    tfilenames =3,
+    tfileoffset = 4
 };
 
 /**
@@ -106,6 +110,10 @@ enum DistributedPartialResultId
  */
 namespace interface1
 {
+    
+    /**
+     * @brief store abs v id and its adj list
+     */
     struct v_adj_elem{
 
         v_adj_elem(int v_id)
@@ -120,6 +128,151 @@ namespace interface1
 
         int _v_id = 0;
         std::vector<int> _adjs;
+
+    };
+
+    struct Graph
+    {
+
+        Graph(){}
+        void initTemplate(int ng, int mg, int* src, int* dst);
+        void freeMem();
+        //copy the graph (templates)
+        Graph& operator= (const Graph& param);
+
+        int* adjacent_vertices(int v){return &(adj_index_table[v]->_adjs)[0];}
+        int* adjacent_vertices_abs(int v)
+        {
+            //from abs id to rel id
+            int rel_id = vertex_local_ids[v];
+            if (rel_id >= 0)
+                return &(adj_index_table[rel_id]->_adjs)[0];
+            else
+                return NULL;
+        }
+
+        int get_relative_v_id(int v_abs){return vertex_local_ids[v_abs];}
+        int out_degree(int v){ return (adj_index_table[v]->_adjs).size();}
+        int out_degree_abs(int v)
+        {
+            //from abs id to rel id
+            int rel_id = vertex_local_ids[v];
+            if (rel_id >=0)
+                return (adj_index_table[rel_id]->_adjs).size();
+            else
+                return -1;
+        }
+
+        int max_degree(){return max_deg;}
+        int* get_abs_v_ids(){return vertex_ids;}
+        
+        int vert_num_count = 0;
+        int max_v_id_local = 0;
+        int max_v_id = 0; //global max_v_id
+        int adj_len = 0;
+        int num_edges = 0;
+        int max_deg = 0;
+        int* vertex_ids = NULL; // absolute v_id
+        int* vertex_local_ids = NULL; // mapping from absolute v_id to relative v_id
+
+        v_adj_elem** adj_index_table = NULL; //a table to index adj list for each local vert
+
+        bool isTemplate = false;
+
+    };
+    
+    class partitioner {
+
+        public:
+            partitioner(){}
+            partitioner(Graph& t, bool label, int* label_map);
+            void sort_subtemplates();
+            void clear_temparrays();
+
+        private:
+
+            void init_arrays(){subtemplates_create = new Graph[create_size];}
+            //Do a bubble sort based on each subtemplate's parents' index
+            //This is a simple way to organize the partition tree for use
+            // with dt.init_sub() and memory management of dynamic table
+            bool sub_count_needed(int s){ return count_needed[s];}
+            Graph* get_subtemplates(){ return subtemplates; }
+            int get_subtemplate_count(){ return subtemplate_count;}
+
+            int* get_labels(int s)
+            {
+                if (labeled)
+                    return label_maps[s];
+                else
+                    return NULL;
+            }
+
+            int get_active_index(int a){ return active_children[a];}
+            int get_passive_index(int p){return passive_children[p];}
+            int get_num_verts_active(int s){return subtemplates[active_children[s]].vert_num_count;}
+            int get_num_verts_passive(int s){return subtemplates[passive_children[s]].vert_num_count;}
+
+            void partition_recursive(int s, int root);
+            int* split(int s, int root);
+            int split_sub(int s, int root, int other_root);
+            void fin_arrays();
+            void check_nums(int root, std::vector<int>& srcs, std::vector<int>& dsts, int* labels, int* labels_sub);
+
+            void set_active_child(int s, int a)
+            {
+                while( active_children.size() <= s)
+                    active_children.push_back(null_val);
+
+                active_children[s] = a;
+            }
+
+            void set_passive_child(int s, int p)
+            {
+                while(passive_children.size() <= s)
+                    passive_children.push_back(null_val);
+
+                passive_children[s] = p;
+            }
+
+            void set_parent(int c, int p)
+            {
+                while(parents.size() <= c )
+                    parents.push_back(null_val);
+
+                parents[c]= p;
+            }
+
+            Graph* subtemplates_create;
+            Graph* subtemplates;
+            Graph subtemplate;
+
+            std::vector<int> active_children;
+            std::vector<int> passive_children;
+            std::vector<int> parents;
+            std::vector<int> cut_edge_labels;
+            std::vector<int*> label_maps;
+
+            int current_creation_index;
+            int subtemplate_count;
+
+            bool* count_needed;
+            bool labeled;
+
+            int null_val = 2147483647;  //integer max 
+            int create_size = 100;
+
+    };
+
+    /**
+     * @brief store sub-template chains for
+     * dynamic programming
+     */
+    struct dynamic_table_array{
+
+        dynamic_table_array()
+        {
+
+        }
 
     };
 
@@ -171,44 +324,45 @@ public:
 
     // input func for read in data from HDFS
     void readGraph();
-    void readGraph_Single();
+    void readTemplate();
     void free_input();
 
     void init_Graph();
+    void init_Template();
 
     size_t getReadInThd();
     size_t getLocalVNum();
     size_t getLocalMaxV();
     size_t getLocalADJLen();
-
+    size_t getTVNum();
+    size_t getTENum();
     void setGlobalMaxV(size_t id);
+
+    
 
 private:
 
     // thread in read in graph
     int thread_num = 0;
-    int vert_num_count = 0;
-    int max_v_id_local = 0;
-    //global max_v_id
-    int max_v_id = 0;
-    int adj_len = 0;
-    int num_edges = 0;
-    int max_deg = 0;
+    std::vector<v_adj_elem*>* v_adj = NULL; //store data from reading data
 
-    int* adjacency_array = NULL;
-    int* degree_list = NULL;
-
-    // absolute v_id
-    int* vertex_ids = NULL;
-    // mapping from absolute v_id to relative v_id
-    int* vertex_local_ids = NULL;
-    // adjacent vert data
-    std::vector<v_adj_elem*>* v_adj = NULL;
+    Graph g; // graph data
+    Graph t; // template data
+    
+    // for template data
+    size_t t_ng = 0;
+    size_t t_mg = 0;
+    std::vector<int> t_src;
+    std::vector<int> t_dst;
 
     hdfsFS* fs = NULL;
     int* fileOffsetPtr = NULL;
     int* fileNamesPtr = NULL;
 
+    // table for dynamic programming
+    partitioner* part = NULL;
+    // dynamic_table_array* dt = NULL;
+   
 };
 
 
@@ -383,6 +537,18 @@ public:
     void deserializeImpl(data_management::OutputDataArchive *arch) DAAL_C11_OVERRIDE
     {serialImpl<data_management::OutputDataArchive, true>(arch);}
 
+
+    void init_model(int threads);
+
+    // member for counts container for threads
+    // must use double to avoid overflow of count num of large datasets/templates
+    // len is thread number
+    int thread_num = 0;
+    double* cc_ato = NULL;
+    double* count_local_root = NULL;
+    double* count_comm_root = NULL;
+
+    
 protected:
     /** \private */
     template<typename Archive, bool onDeserialize>
@@ -437,8 +603,22 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     {
     }
 
-    size_t      _iteration;                       /* the iterations of SGD */
-    size_t      _thread_num;                      /* specify the threads used by TBB */
+    size_t _iteration;                       /* the iterations of SGD */
+    size_t _thread_num;                      /* specify the threads used by TBB */
+
+    int max_abs_id = 0;
+    int thread_num = 0;
+    int core_num = 0;
+    int tpc = 0;
+    int affinity = 0;
+    int do_graphlet_freq = 0;
+    int do_vert_output = 0;
+    int verbose = 0;
+
+    int* labels_g = NULL;
+    int labeled = 0;
+    int num_verts_graph = 0;
+
 };
 /** @} */
 /** @} */

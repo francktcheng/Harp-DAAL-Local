@@ -40,10 +40,14 @@ public final class InputId {
     private static final int filenamesId = 0;   
     private static final int fileoffsetId = 1;   
     private static final int localVId = 2;   
+    private static final int tfilenamesId = 3;   
+    private static final int tfileoffsetId = 4;   
 
     /** %Input data table */
     public static final InputId filenames = new InputId(filenamesId);
     public static final InputId fileoffset = new InputId(fileoffsetId);
+    public static final InputId tfilenames = new InputId(tfilenamesId);
+    public static final InputId tfileoffset = new InputId(tfileoffsetId);
     public static final InputId localV = new InputId(localVId);
 
 }

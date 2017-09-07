@@ -72,8 +72,16 @@ public final class Input extends com.intel.daal.algorithms.Input {
         cReadGraph(cObject);
     }
 
+    public void readTemplate() {
+        cReadTemplate(cObject);
+    }
+
     public void initGraph() {
         cInitGraph(cObject);
+    }
+
+    public void initTemplate() {
+        cInitTemplate(cObject);
     }
 
     public int getReadInThd() {
@@ -82,6 +90,14 @@ public final class Input extends com.intel.daal.algorithms.Input {
 
     public int getLocalVNum() {
         return cGetLocalVNum(cObject);
+    }
+    
+    public int getTVNum() {
+        return cGetTVNum(cObject);
+    }
+
+    public int getTENum() {
+        return cGetTENum(cObject);
     }
 
     public int getLocalMaxV() {
@@ -104,9 +120,14 @@ public final class Input extends com.intel.daal.algorithms.Input {
     private native long cGetInputTable(long cInput, int id);
     private native void cReadGraph(long cInput);
     private native void cInitGraph(long cInput);
+    private native void cReadTemplate(long cInput);
+    private native void cInitTemplate(long cInput);
+
     private native void cFreeInput(long cInput);
     private native int cGetReadInThd(long cInput);
     private native int cGetLocalVNum(long cInput);
+    private native int cGetTVNum(long cInput);
+    private native int cGetTENum(long cInput);
     private native int cGetLocalMaxV(long cInput);
     private native int cGetLocalADJLen(long cInput);
     private native void cSetGlobalMaxV(long cInput, int id);

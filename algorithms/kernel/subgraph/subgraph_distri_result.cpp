@@ -54,6 +54,16 @@ void DistributedPartialResult::set(DistributedPartialResultId id, const NumericT
 daal::services::interface1::Status DistributedPartialResult::check(const daal::algorithms::Parameter *parameter, int method) const {services::Status s; return s;}
 daal::services::interface1::Status DistributedPartialResult::check(const daal::algorithms::Input *input, const daal::algorithms::Parameter *par, int method) const {services::Status s; return s;}
 
+void DistributedPartialResult::init_model(int threads)
+{
+    thread_num = threads;
+
+    cc_ato = new double[thread_num];
+    count_local_root = new double[thread_num];
+    count_comm_root = new double[thread_num];
+
+}
+
 } // namespace interface1
 } // namespace subgraph
 } // namespace algorithm

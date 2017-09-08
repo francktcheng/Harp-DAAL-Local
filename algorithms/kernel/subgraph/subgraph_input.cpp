@@ -52,11 +52,16 @@ namespace interface1
 {
 
 //aux func used in input
-void quicksort(int *arr, const int left, const int right, const int sz);
-int partition(int *arr, const int left, const int right);
-int* dynamic_to_static(std::vector<int>& arr);
-int get_max(std::vector<int> arr1, std::vector<int> arr2);
-
+void util_quicksort(int *arr, const int left, const int right, const int sz);
+int util_partition(int *arr, const int left, const int right);
+int* util_dynamic_to_static(std::vector<int>& arr);
+int util_get_max(std::vector<int> arr1, std::vector<int> arr2);
+int util_choose(int n, int k);
+int** util_init_choose_table(int num_colors);
+int* util_init_permutation(int num_verts);
+void util_next_set(int* current_set, int length, int num_colors);
+int util_get_color_index(int* colorset, int length);
+int util_factorial(int x);
 // input has two numerictables
 // 0: filenames
 // 1: fileoffsets
@@ -113,78 +118,6 @@ struct readG_task{
 
 };
 
-int partition(int *arr, const int left, const int right) 
-{
-    const int mid = left + (right - left) / 2;
-    const int pivot = arr[mid];
-    // move the mid point value to the front.
-    std::swap(arr[mid],arr[left]);
-    int i = left + 1;
-    int j = right;
-    while (i <= j) 
-    {
-        while(i <= j && arr[i] <= pivot) 
-        {
-            i++;
-        }
-
-        while(i <= j && arr[j] > pivot) 
-        {
-            j--;
-        }
-
-        if (i < j) 
-        {
-            std::swap(arr[i], arr[j]);
-        }
-
-    }
-
-    std::swap(arr[i - 1],arr[left]);
-    return i - 1;
-}
-
-void quicksort(int *arr, const int left, const int right, const int sz)
-{
-
-    if (left >= right) {
-        return;
-    }
-
-    int part = partition(arr, left, right);
-    quicksort(arr, left, part - 1, sz);
-    quicksort(arr, part + 1, right, sz);
-
-}
-
-int* dynamic_to_static(std::vector<int>& arr)
-{
-    int* new_array = new int[arr.size()];
-    for (size_t i = 0; i < arr.size(); ++i)
-        new_array[i] = arr[i];
-
-    return new_array;
-}
-
-int get_max(std::vector<int> arr1, std::vector<int> arr2)
-{
-    int maximum = 0; 
-    int size = arr1.size();
-
-    for (int i = 0; i < size; i++)
-    {
-        if (maximum < arr1[i])
-        {
-            maximum = arr1[i];
-        }
-        if (maximum < arr2[i])
-        {
-            maximum = arr2[i];
-        }
-    }
-
-    return maximum;
-}
 /**
  * @brief test thread func for thread pool
  */
@@ -544,9 +477,22 @@ void Input::readTemplate()
 void Input::init_Template()
 {
     t.initTemplate(t_ng, t_mg, &t_src[0], &t_dst[0]);
+    num_colors = t.num_vertices();
+
+    dt = new dynamic_table_array();
+}
+
+void Input::init_Partitioner()
+{
     part = new partitioner(t, false, NULL);
     part->sort_subtemplates();
-    part->clear_temparrays();
+    subtemplate_count = part->get_subtemplate_count();
+    subtemplates = part->get_subtemplates(); 
+}
+
+void Input::init_DTTable()
+{
+    dt->init(subtemplates, subtemplate_count, g.num_vertices(), num_colors, g.max_v_id);
 }
 
 size_t Input::getTVNum()
@@ -639,6 +585,316 @@ size_t Input::getLocalADJLen()
     return g.adj_len;
 }
 
+size_t Input::getSubtemplateCount()
+{
+    if (part != NULL)
+        return part->get_subtemplate_count();
+    else
+        return 0;
+}
+// ------------ for creating hash table ------------
+void Input::create_tables()
+{
+    choose_table = util_init_choose_table(num_colors);
+    //record vertices number of each subtemplate
+    create_num_verts_table();
+    //create color index for each combination of different set size
+    create_all_index_sets();
+    //create color sets for all subtemplates
+    create_all_color_sets();
+    //convert colorset combination into numeric values (hash function)
+    create_comb_num_system_indexes();
+    //free up memory space 
+    delete_all_color_sets();
+    //free up memory space
+    delete_all_index_sets();
+
+}
+
+void Input::create_num_verts_table()
+{
+    num_verts_table = new int[subtemplate_count];
+    for(int s = 0; s < subtemplate_count; ++s){
+        num_verts_table[s] = subtemplates[s].num_vertices();
+    }
+}
+
+//create color index for each combination of different set size
+void Input::create_all_index_sets()
+{
+
+    //first dim (up to) how many colors
+    index_sets = new int***[num_colors];
+
+    for(int i = 0; i < (num_colors -1 ); ++i){
+
+        int num_vals = i + 2;
+
+        index_sets[i] = new int**[num_vals -1];
+
+        // second dim, for up to num_vals colors, has different set sizes
+        for(int j = 0; j < (num_vals - 1); ++j){
+
+            int set_size = j + 1;
+
+            int num_combinations = util_choose(num_vals, set_size);
+            // third dim, for a set size, how many combinations from a given num of colors
+            index_sets[i][j] = new int*[num_combinations];
+
+            //set start from 1 to set_size
+            //init set in increase order
+            int* set = util_init_permutation(set_size);
+
+            for(int k = 0; k < num_combinations; ++k){
+
+                // fourth dim, for a combination, having a set_size of color values
+                index_sets[i][j][k] = new int[set_size];
+
+                for(int p = 0; p < set_size; ++p){
+                    index_sets[i][j][k][p] = set[p] - 1;
+                }
+
+                // permutate the color set
+                util_next_set(set, set_size, num_vals);
+            }
+
+            if (set != NULL)
+                delete[] set;
+
+        }
+    }
+}
+
+//create color sets for all subtemplates
+void Input::create_all_color_sets()
+{
+
+    //first dim, num of subtemplates
+    color_sets = new int****[subtemplate_count];
+
+    for(int s = 0; s < subtemplate_count; ++s){
+
+        int num_verts_sub = subtemplates[s].num_vertices();
+
+        if( num_verts_sub > 1)
+        {
+
+            //determine how many sets in a subtemplate
+            //choose num vertices of subtemplate from colors
+            int num_sets = util_choose(num_colors, num_verts_sub);
+
+            //second dim, num of sets in a subtemplate 
+            color_sets[s] = new int***[num_sets];
+
+            //init permutation in colorset
+            int* colorset = util_init_permutation(num_verts_sub);
+
+            for(int n = 0; n < num_sets; ++n){
+
+                int num_child_combs = num_verts_sub - 1;
+                //third dim, for a subtemplate, a set, how many child combinations
+                color_sets[s][n] = new int**[num_child_combs];
+
+                for(int c = 0; c < num_child_combs; ++c){
+                    int num_verts_1 = c + 1;
+                    int num_verts_2 = num_verts_sub - num_verts_1;
+
+                    int** index_set_1 = index_sets[num_verts_sub-2][num_verts_1-1];
+                    int** index_set_2 = index_sets[num_verts_sub-2][num_verts_2-1];
+
+                    int num_child_sets = util_choose(num_verts_sub, c+1);
+                    color_sets[s][n][c] = new int*[num_child_sets];
+
+                    for(int i = 0; i < num_child_sets; ++i){
+
+                        color_sets[s][n][c][i] = new int[num_verts_sub];
+
+                        for(int j = 0; j < num_verts_1; ++j)
+                            color_sets[s][n][c][i][j] = colorset[index_set_1[i][j]];
+
+                        for(int j = 0; j < num_verts_2; ++j)
+                            color_sets[s][n][c][i][j+num_verts_1] = colorset[index_set_2[i][j]];
+                    }
+                }
+
+                util_next_set(colorset, num_verts_sub, num_colors);
+            }
+
+            if (colorset != NULL)
+                delete[] colorset;
+        }
+    }
+}
+
+
+
+//convert colorset combination into numeric values (hash function)
+void Input::create_comb_num_system_indexes()
+{
+
+    comb_num_indexes = new int***[2];
+    comb_num_indexes[0] = new int**[subtemplate_count];
+    comb_num_indexes[1] = new int**[subtemplate_count];
+
+
+    comb_num_indexes_set = new int*[subtemplate_count];
+
+    // each subtemplate
+    for(int s = 0; s < subtemplate_count; ++s){
+
+        int num_verts_sub = subtemplates[s].num_vertices();
+        int num_combinations_s = util_choose(num_colors, num_verts_sub);
+
+        if( num_verts_sub > 1){
+            //for active and passive children  
+            comb_num_indexes[0][s] = new int*[num_combinations_s];
+            comb_num_indexes[1][s] = new int*[num_combinations_s];
+        }
+
+        comb_num_indexes_set[s] = new int[num_combinations_s];
+
+        int* colorset_set = util_init_permutation(num_verts_sub);
+
+        //loop over each combination instance
+        for(int n = 0; n < num_combinations_s; ++n){
+
+            //get the hash value for a colorset instance
+            //Util.get_color_index the impl of hash function
+            comb_num_indexes_set[s][n] = util_get_color_index(colorset_set, num_verts_sub);
+
+            if( num_verts_sub > 1){
+
+                int num_verts_a = part->get_num_verts_active(s);
+                int num_verts_p = part->get_num_verts_passive(s);
+
+                int* colors_a = NULL;
+                int* colors_p = NULL;
+                int** colorsets = color_sets[s][n][num_verts_a-1];
+
+                int num_combinations_a= util_choose(num_verts_sub, num_verts_a);
+                comb_num_indexes[0][s][n] = new int[num_combinations_a];
+                comb_num_indexes[1][s][n] = new int[num_combinations_a];
+
+                int p = num_combinations_a - 1;
+                for(int a = 0; a < num_combinations_a; ++a, --p){
+                    colors_a = colorsets[a];
+                    colors_p = new int[num_verts_p];
+
+                    // System.arraycopy(colorsets[p], num_verts_a, colors_p, 0, num_verts_p);
+                    std::memcpy(colors_p, colorsets[p]+num_verts_a, num_verts_p*sizeof(int));
+
+                    int color_index_a = util_get_color_index(colors_a, num_verts_a);
+                    int color_index_p = util_get_color_index(colors_p, num_verts_p);
+
+                    comb_num_indexes[0][s][n][a] = color_index_a;
+                    comb_num_indexes[1][s][n][p] = color_index_p;
+
+                    //free colors_p
+                    delete[] colors_p;
+                    colors_p = NULL;
+                }
+            }
+
+            //permutate the colorset_set
+            util_next_set(colorset_set, num_verts_sub, num_colors);
+
+        }
+
+        if (colorset_set != NULL)
+          delete[] colorset_set;
+    }
+}
+
+
+
+//free up memory space 
+void Input::delete_all_color_sets()
+{
+    for(int s = 0; s < subtemplate_count; ++s){
+        int num_verts_sub = subtemplates[s].num_vertices();
+        if( num_verts_sub > 1) {
+            int num_sets = util_choose(num_colors, num_verts_sub);
+
+            for (int n = 0; n < num_sets; ++n) {
+                int num_child_combs = num_verts_sub - 1;
+                for (int c = 0; c < num_child_combs; ++c) {
+                    int num_child_sets = util_choose(num_verts_sub, c + 1);
+                    for (int i = 0; i < num_child_sets; ++i) {
+                        delete[] color_sets[s][n][c][i];
+                    }
+
+                    delete[] color_sets[s][n][c];
+                }
+
+                delete[] color_sets[s][n];
+            }
+
+            delete[] color_sets[s];
+        }
+    }
+
+    delete[] color_sets;
+}
+
+
+
+//free up memory space
+void Input::delete_all_index_sets()
+{
+    for (int i = 0; i < (num_colors-1); ++i) {
+        int num_vals = i + 2;
+        for (int j = 0; j < (num_vals-1); ++j) {
+            int set_size = j + 1;
+            int num_combinations = util_choose(num_vals, set_size);
+            for (int k = 0; k < num_combinations; ++k) {
+                delete[] index_sets[i][j][k];
+            }
+            delete[] index_sets[i][j];
+        }
+        delete[] index_sets[i];
+    }
+    delete[] index_sets;
+}
+
+void Input::delete_comb_num_system_indexes()
+{
+    for(int s = 0; s < subtemplate_count; ++s)
+    {
+        int num_verts_sub = subtemplates[s].num_vertices();
+        int num_combinations_s = util_choose(num_colors, num_verts_sub);
+
+        for(int n = 0; n < num_combinations_s; ++n){
+            if(num_verts_sub > 1){
+                delete[] comb_num_indexes[0][s][n];
+                delete[] comb_num_indexes[1][s][n];
+            }
+        }
+
+        if(num_verts_sub > 1){
+            delete[] comb_num_indexes[0][s];
+            delete[] comb_num_indexes[1][s];
+        }
+
+        delete[] comb_num_indexes_set[s];
+    }
+
+    delete[] comb_num_indexes[0];
+    delete[] comb_num_indexes[1];
+    delete[] comb_num_indexes;
+    delete[] comb_num_indexes_set;
+
+}
+
+void Input::delete_tables()
+{
+    for(int i = 0; i <= num_colors; ++i)
+        delete[] choose_table[i];
+
+    delete[] choose_table;
+    delete_comb_num_system_indexes();
+    delete[] num_verts_table;
+}
+
 void Input::free_input()
 {
     if (fs != NULL)
@@ -663,8 +919,28 @@ void Input::free_input()
         delete[] v_adj;
     }
 
+    if (dt != NULL)
+    {
+        dt->free();
+        dt->clear_table();
+        delete dt;
+        dt = NULL;
+    }
+
+    // delete table will use subtemplates, must execute this before part clear
+    delete_tables();
+
+    if (part != NULL)
+    {
+        part->clear_temparrays();
+        delete part;
+        part = NULL;
+    }
+    
     g.freeMem();
     t.freeMem();
+
+
 }
 
 // ------------------------ func for partitioner------------------------
@@ -790,8 +1066,8 @@ int partitioner::split_sub(int s, int root, int other_root)
         }
     }
 
-    int* srcs_array = dynamic_to_static(srcs);
-    int* dsts_array = dynamic_to_static(dsts);
+    int* srcs_array = util_dynamic_to_static(srcs);
+    int* dsts_array = util_dynamic_to_static(dsts);
 
     //create a subtemplate
     subtemplates_create[current_creation_index].initTemplate(n, m, srcs_array, dsts_array);
@@ -813,7 +1089,7 @@ int partitioner::split_sub(int s, int root, int other_root)
 
 void partitioner::check_nums(int root, std::vector<int>& srcs, std::vector<int>& dsts, int* labels, int* labels_sub)
 {
-    int maximum = get_max(srcs, dsts);
+    int maximum = util_get_max(srcs, dsts);
     int size = srcs.size();
 
     int* mappings = new int[maximum + 1];
@@ -1121,6 +1397,421 @@ Graph& Graph::operator= (const Graph& param)
     isTemplate = param.isTemplate;
     return *this;
 }
+
+// ------------------ Impl of dynamic table ------------------
+dynamic_table_array::dynamic_table_array()
+{
+}
+
+void dynamic_table_array::free()
+{
+
+    if (num_colorsets != NULL)
+    {
+        delete[] num_colorsets;
+        num_colorsets = NULL;
+    }
+
+    if (choose_table != NULL)
+    {
+        for(int i=0;i<num_colors + 1; i++)
+            delete[] choose_table[i];
+
+        delete[] choose_table; 
+        choose_table = NULL;
+    }
+
+}
+
+void dynamic_table_array::init_choose_table()
+{
+    std::printf("init dt table: %d\n", num_colors);
+    std::fflush;
+
+    choose_table = new int*[num_colors + 1];
+    for(int i=0;i<num_colors+1; i++)
+        choose_table[i] = new int[num_colors+1];
+
+    // for(int i = 0; i <= num_colors; ++i){
+    //     for(int j = 0; j <= num_colors; ++j){
+    //         choose_table[i][j] = util_choose(i,j);
+    //     }
+    // }
+}
+
+void dynamic_table_array::init_num_colorsets()
+{
+    num_colorsets = new int[num_subs];
+    for(int s = 0; s < num_subs; ++s){
+        num_colorsets[s] = util_choose(num_colors, subtemplates[s].num_vertices());
+    }
+}
+
+void dynamic_table_array::init(Graph* _subtemplates, int _num_subtemplates, int _num_vertices, int _num_colors, int _max_abs_vid) 
+{
+    subtemplates = _subtemplates;
+    num_subs = _num_subtemplates;
+    //num of vertices of full graph 
+    num_verts = _num_vertices;
+    num_colors = _num_colors;
+    max_abs_vid = _max_abs_vid;
+
+    //obtain the table,choose j color from i color, the num of combinations
+    init_choose_table();
+    //obtain color sets for each subtemplate
+    init_num_colorsets();
+    // the core three-dimensional arrays in algorithm
+    table = new float**[num_subs];
+    is_sub_inited = new bool[num_subs];
+
+    for(int s = 0; s < num_subs; ++s)
+        is_sub_inited[s] = false;
+
+    is_inited = false;
+
+}
+
+void dynamic_table_array::init_sub(int subtemplate) 
+{
+    table[subtemplate] = new float*[num_verts];
+    cur_table = table[subtemplate];
+    cur_sub = subtemplate;
+    is_sub_inited[subtemplate] = true;
+
+}
+
+void dynamic_table_array::init_sub(int subtemplate, int active_child, int passive_child)
+{
+    if( active_child != null_val && passive_child != null_val){
+        cur_table_active = table[active_child];
+        cur_table_passive = table[passive_child];
+    }else{
+
+        cur_table_active = NULL;
+        cur_table_passive = NULL;
+    }
+
+    if(subtemplate != 0){
+        init_sub(subtemplate);
+    }
+
+}
+
+void dynamic_table_array::clear_sub(int subtemplate) 
+{
+
+    if (table[subtemplate] != NULL)
+    {
+        for(int v = 0; v < num_verts; ++v){
+            if( table[subtemplate][v] != NULL){
+                delete[] table[subtemplate][v];
+                table[subtemplate][v] = NULL;
+            }
+        }
+
+        if( is_sub_inited[subtemplate]){
+            delete[] table[subtemplate];
+            table[subtemplate] = NULL;
+        }
+
+        is_sub_inited[subtemplate] = false;
+    }
+}
+
+void dynamic_table_array::clear_table() 
+{
+    for( int s = 0; s < num_subs; s++){
+
+        if( is_sub_inited[s] && table[s] != NULL)
+        {
+            for(int v = 0; v < num_verts; ++v){
+                if ( table[s][v] != NULL){
+                    delete[] table[s][v];
+                }
+            }
+
+            delete[] table[s];
+            is_sub_inited[s] = false;
+        }
+    }
+
+    if (table != NULL)
+        delete[] table;
+
+    if (is_sub_inited != NULL)
+        delete[] is_sub_inited;
+
+}
+
+float dynamic_table_array::get(int subtemplate, int vertex, int comb_num_index)
+{
+    if( table[subtemplate][vertex] != NULL){
+        float retval = table[subtemplate][vertex][comb_num_index];
+        return retval;
+    }else{
+        return 0.0;
+    }
+
+}
+
+float* dynamic_table_array::get_table(int subtemplate, int vertex)
+{
+    return table[subtemplate][vertex];
+}
+
+float dynamic_table_array::get_active(int vertex, int comb_num_index)
+{
+    if( cur_table_active[vertex] != NULL){
+        return cur_table_active[vertex][comb_num_index];
+    }else{
+        return 0.0;
+    }
+}
+
+float* dynamic_table_array::get_active(int vertex)
+{
+    return cur_table_active[vertex];
+}
+
+float* dynamic_table_array::get_passive(int vertex)
+{
+    return cur_table_passive[vertex];
+}
+
+float dynamic_table_array::get_passive(int vertex, int comb_num_index)
+{
+    if( cur_table_passive[vertex] != NULL){
+        return cur_table_passive[vertex][comb_num_index];
+    }else{
+        return 0.0;
+    }
+}
+
+void dynamic_table_array::set(int subtemplate, int vertex, int comb_num_index, float count)
+{
+    if( table[subtemplate][vertex] == NULL){
+
+        table[subtemplate][vertex] = new float[num_colorsets[subtemplate]];
+
+        for(int c = 0; c < num_colorsets[subtemplate]; ++c){
+            table[subtemplate][vertex][c] = 0.0;
+        }
+    }
+
+    table[subtemplate][vertex][comb_num_index]  = count;
+}
+
+void dynamic_table_array::set(int vertex, int comb_num_index, float count)
+{
+    if( cur_table[vertex] == NULL){
+        cur_table[vertex] = new float[num_colorsets[cur_sub]];
+
+        for( int c = 0; c < num_colorsets[cur_sub]; ++c) {
+            cur_table[vertex][c] = 0.0;
+        }
+    }
+
+    cur_table[vertex][comb_num_index] = count;
+}
+
+//shall deal with the uninit vertex in local
+void dynamic_table_array::update_comm(int vertex, int comb_num_index, float count)
+{
+    if( cur_table[vertex] == NULL){
+        cur_table[vertex] = new float[num_colorsets[cur_sub]];
+
+        for( int c = 0; c < num_colorsets[cur_sub]; ++c) {
+            cur_table[vertex][c] = 0.0;
+        }
+    }
+
+    cur_table[vertex][comb_num_index] += count;
+}
+    
+bool dynamic_table_array::is_init() 
+{
+    return is_inited;
+}
+
+bool dynamic_table_array::is_sub_init(int subtemplate) 
+{
+    return is_sub_inited[subtemplate];
+}
+
+bool dynamic_table_array::is_vertex_init_active(int vertex)
+{
+    if( cur_table_active[vertex] != NULL)
+        return true;
+    else
+        return false;
+}
+
+bool dynamic_table_array::is_vertex_init_passive(int vertex)
+{
+    if(cur_table_passive[vertex] != NULL)
+        return true;
+    else
+        return false;
+}
+
+int dynamic_table_array::get_num_color_set(int s) 
+{
+    if (num_colorsets != NULL)
+        return num_colorsets[s];
+    else
+        return 0;
+}
+
+void dynamic_table_array::set_to_table(int s, int d)
+{
+    table[d] = table[s]; 
+}
+
+// --------------------- aux function impl ---------------------
+int util_partition(int *arr, const int left, const int right) 
+{
+    const int mid = left + (right - left) / 2;
+    const int pivot = arr[mid];
+    // move the mid point value to the front.
+    std::swap(arr[mid],arr[left]);
+    int i = left + 1;
+    int j = right;
+    while (i <= j) 
+    {
+        while(i <= j && arr[i] <= pivot) 
+        {
+            i++;
+        }
+
+        while(i <= j && arr[j] > pivot) 
+        {
+            j--;
+        }
+
+        if (i < j) 
+        {
+            std::swap(arr[i], arr[j]);
+        }
+
+    }
+
+    std::swap(arr[i - 1],arr[left]);
+    return i - 1;
+}
+
+void util_quicksort(int *arr, const int left, const int right, const int sz)
+{
+
+    if (left >= right) {
+        return;
+    }
+
+    int part = util_partition(arr, left, right);
+    util_quicksort(arr, left, part - 1, sz);
+    util_quicksort(arr, part + 1, right, sz);
+
+}
+
+int* util_dynamic_to_static(std::vector<int>& arr)
+{
+    int* new_array = new int[arr.size()];
+    for (size_t i = 0; i < arr.size(); ++i)
+        new_array[i] = arr[i];
+
+    return new_array;
+}
+
+int util_get_max(std::vector<int> arr1, std::vector<int> arr2)
+{
+    int maximum = 0; 
+    int size = arr1.size();
+
+    for (int i = 0; i < size; i++)
+    {
+        if (maximum < arr1[i])
+        {
+            maximum = arr1[i];
+        }
+        if (maximum < arr2[i])
+        {
+            maximum = arr2[i];
+        }
+    }
+
+    return maximum;
+}
+
+int util_choose(int n, int k)
+{
+    if( n < k){
+        return 0;
+    }else{
+        return util_factorial(n) / (util_factorial(k) * util_factorial(n - k));
+    }
+}
+
+int util_factorial(int x)
+{
+    if( x <= 0){
+        return 1;
+    }else{
+        return (x == 1 ? x: x * util_factorial(x -1));
+    }
+}
+
+int** util_init_choose_table(int num_colors)
+{
+
+    int** u_choose_table = new int*[num_colors + 1];
+    for(int i=0;i<num_colors + 1;i++)
+        u_choose_table[i] = new int[num_colors + 1];
+
+
+    for(int i = 0; i <= num_colors; ++i){
+        for(int j = 0; j <= num_colors; ++j){
+            u_choose_table[i][j] = util_choose(i,j);
+        }
+    }
+
+    return u_choose_table;
+}
+
+int* util_init_permutation(int num_verts)
+{
+    int* perm = new int[num_verts];
+    for(int i = 0; i < num_verts; ++i){
+        perm[i] = i + 1;
+    }
+    return perm;
+}
+
+void util_next_set(int* current_set, int length, int num_colors)
+{
+    for(int i = length-1; i>=0; --i)
+    {
+        if( current_set[i] < num_colors - (length-i-1))
+        {
+            current_set[i] = current_set[i] + 1;
+            for(int j = i + 1; j < length; ++j){
+                current_set[j] = current_set[j-1] + 1;
+            }
+            break;
+        }
+    }
+}
+
+int util_get_color_index(int* colorset, int length)
+{
+    int count = 0;
+    for(int i = 0; i < length; ++i){
+        int n = colorset[i] - 1;
+        int k = i + 1;
+        count += util_choose(n, k);
+    }
+
+    return count;
+}
+
 } // namespace interface1
 } // namespace subgraph
 } // namespace algorithm

@@ -44,6 +44,9 @@ namespace daal
 //further change the id values
 const int SERIALIZATION_SUBGRAPH_RESULT_ID = 106001; 
 const int SERIALIZATION_SUBGRAPH_DISTRI_PARTIAL_RESULT_ID = 106101; 
+            
+const int null_val = 2147483647;  //integer max 
+const int create_size = 100;
 
 namespace algorithms
 {
@@ -165,7 +168,7 @@ namespace interface1
 
         int max_degree(){return max_deg;}
         int* get_abs_v_ids(){return vertex_ids;}
-        
+        int num_vertices(){ return vert_num_count;}
         int vert_num_count = 0;
         int max_v_id_local = 0;
         int max_v_id = 0; //global max_v_id
@@ -188,6 +191,10 @@ namespace interface1
             partitioner(Graph& t, bool label, int* label_map);
             void sort_subtemplates();
             void clear_temparrays();
+            int get_subtemplate_count(){ return subtemplate_count;}
+            Graph* get_subtemplates(){ return subtemplates; }
+            int get_num_verts_active(int s){return subtemplates[active_children[s]].vert_num_count;}
+            int get_num_verts_passive(int s){return subtemplates[passive_children[s]].vert_num_count;}
 
         private:
 
@@ -196,8 +203,6 @@ namespace interface1
             //This is a simple way to organize the partition tree for use
             // with dt.init_sub() and memory management of dynamic table
             bool sub_count_needed(int s){ return count_needed[s];}
-            Graph* get_subtemplates(){ return subtemplates; }
-            int get_subtemplate_count(){ return subtemplate_count;}
 
             int* get_labels(int s)
             {
@@ -209,8 +214,6 @@ namespace interface1
 
             int get_active_index(int a){ return active_children[a];}
             int get_passive_index(int p){return passive_children[p];}
-            int get_num_verts_active(int s){return subtemplates[active_children[s]].vert_num_count;}
-            int get_num_verts_passive(int s){return subtemplates[passive_children[s]].vert_num_count;}
 
             void partition_recursive(int s, int root);
             int* split(int s, int root);
@@ -258,8 +261,6 @@ namespace interface1
             bool* count_needed;
             bool labeled;
 
-            int null_val = 2147483647;  //integer max 
-            int create_size = 100;
 
     };
 
@@ -267,12 +268,60 @@ namespace interface1
      * @brief store sub-template chains for
      * dynamic programming
      */
-    struct dynamic_table_array{
+    class dynamic_table_array{
 
-        dynamic_table_array()
-        {
+        public:
 
-        }
+            dynamic_table_array();
+            void free();
+            void init(Graph* subtemplates, int num_subtemplates, int num_vertices, int num_colors, int max_abs_vid);
+            void init_sub(int subtemplate); 
+            void init_sub(int subtemplate, int active_child, int passive_child);
+            void clear_sub(int subtemplate); 
+            void clear_table(); 
+            float get(int subtemplate, int vertex, int comb_num_index);
+            float* get_table(int subtemplate, int vertex);
+            float get_active(int vertex, int comb_num_index);
+            float* get_active(int vertex);
+            float* get_passive(int vertex);
+            float get_passive(int vertex, int comb_num_index);
+            void set(int subtemplate, int vertex, int comb_num_index, float count);
+            void set(int vertex, int comb_num_index, float count);
+            void update_comm(int vertex, int comb_num_index, float count);
+            bool is_init(); 
+            bool is_sub_init(int subtemplate); 
+            bool is_vertex_init_active(int vertex);
+            bool is_vertex_init_passive(int vertex);
+            int get_num_color_set(int s); 
+            void set_to_table(int s, int d);
+
+        private:
+
+            void init_choose_table();
+            void init_num_colorsets();
+
+            int** choose_table = NULL;
+            int* num_colorsets = NULL;
+
+            Graph* subtemplates = NULL;
+
+            int num_colors = 0;
+            int num_subs = 0;
+            int num_verts = 0;
+
+            bool is_inited = false;
+            bool* is_sub_inited = NULL;
+
+            float*** table = NULL;
+            // vertex-colorset
+            float** cur_table = NULL;
+            // vertex-colorset
+            float** cur_table_active = NULL;
+            // vertex-colorset
+            float** cur_table_passive = NULL;
+
+            int max_abs_vid = 0;
+            int cur_sub = 0;
 
     };
 
@@ -329,6 +378,8 @@ public:
 
     void init_Graph();
     void init_Template();
+    void init_Partitioner();
+    void init_DTTable();
 
     size_t getReadInThd();
     size_t getLocalVNum();
@@ -337,8 +388,35 @@ public:
     size_t getTVNum();
     size_t getTENum();
     void setGlobalMaxV(size_t id);
+    size_t getSubtemplateCount();
 
-    
+
+    // store vert of each template
+    int* num_verts_table = NULL;
+    int subtemplate_count = 0;
+    Graph* subtemplates = NULL;
+
+    // record comb num values for each subtemplate and each color combination
+    int** comb_num_indexes_set = NULL;
+     //stores the combination of color sets
+    int** choose_table = NULL;
+
+    void create_tables();
+    void delete_tables();
+
+    void create_num_verts_table();
+    //create color index for each combination of different set size
+    void create_all_index_sets();
+    //create color sets for all subtemplates
+    void create_all_color_sets();
+    //convert colorset combination into numeric values (hash function)
+    void create_comb_num_system_indexes();
+    //free up memory space 
+    void delete_all_color_sets();
+    //free up memory space
+    void delete_all_index_sets();
+
+    void delete_comb_num_system_indexes();
 
 private:
 
@@ -348,6 +426,7 @@ private:
 
     Graph g; // graph data
     Graph t; // template data
+    int num_colors = 0; 
     
     // for template data
     size_t t_ng = 0;
@@ -361,8 +440,15 @@ private:
 
     // table for dynamic programming
     partitioner* part = NULL;
-    // dynamic_table_array* dt = NULL;
-   
+    dynamic_table_array* dt = NULL;
+ 
+    // temp index sets to construct comb_num_indexes 
+    int**** index_sets = NULL;
+    // temp index sets to construct comb_num_indexes 
+    int***** color_sets = NULL;
+    // record comb num values for active and passive children 
+    int**** comb_num_indexes = NULL;
+      
 };
 
 

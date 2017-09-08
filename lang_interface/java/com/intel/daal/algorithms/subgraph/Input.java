@@ -84,6 +84,18 @@ public final class Input extends com.intel.daal.algorithms.Input {
         cInitTemplate(cObject);
     }
 
+    public void initPartitioner() {
+        cInitPartitioner(cObject);
+    }
+
+    public void initNumTable() {
+        cInitNumTable(cObject);
+    }
+
+    public void initDTTable() {
+        cInitDTTable(cObject);
+    }
+
     public int getReadInThd() {
         return cGetReadInThd(cObject);
     }
@@ -112,6 +124,10 @@ public final class Input extends com.intel.daal.algorithms.Input {
         cSetGlobalMaxV(cObject, id);
     }
 
+    public int getSubtemplateCount(){
+        return cGetSubtemplateCount(cObject);
+    }
+
     public void freeInput() {
         cFreeInput(cObject);
     }
@@ -122,6 +138,9 @@ public final class Input extends com.intel.daal.algorithms.Input {
     private native void cInitGraph(long cInput);
     private native void cReadTemplate(long cInput);
     private native void cInitTemplate(long cInput);
+    private native void cInitPartitioner(long cInput);
+    private native void cInitNumTable(long cInput);
+    private native void cInitDTTable(long cInput);
 
     private native void cFreeInput(long cInput);
     private native int cGetReadInThd(long cInput);
@@ -130,5 +149,7 @@ public final class Input extends com.intel.daal.algorithms.Input {
     private native int cGetTENum(long cInput);
     private native int cGetLocalMaxV(long cInput);
     private native int cGetLocalADJLen(long cInput);
+    private native int cGetSubtemplateCount(long cInput);
     private native void cSetGlobalMaxV(long cInput, int id);
+
 }

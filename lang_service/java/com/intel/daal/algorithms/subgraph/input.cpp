@@ -71,6 +71,24 @@ JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cInitTempla
 	((subgraph::Input*)inputAddr)->init_Template();
 }
 
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cInitNumTable
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	((subgraph::Input*)inputAddr)->create_tables();
+}
+
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cInitDTTable
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	((subgraph::Input*)inputAddr)->init_DTTable();
+}
+
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cInitPartitioner
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	((subgraph::Input*)inputAddr)->init_Partitioner();
+}
+
 JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cFreeInput
 (JNIEnv *env, jobject thisObj, jlong inputAddr)
 {
@@ -87,6 +105,12 @@ JNIEXPORT jint JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetLocalVN
 (JNIEnv *env, jobject thisObj, jlong inputAddr)
 {
 	return (jint)(((subgraph::Input*)inputAddr)->getLocalVNum());
+}
+
+JNIEXPORT jint JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetSubtemplateCount
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	return (jint)(((subgraph::Input*)inputAddr)->getSubtemplateCount());
 }
 
 JNIEXPORT jint JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetTVNum

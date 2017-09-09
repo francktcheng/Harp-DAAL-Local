@@ -98,6 +98,24 @@ public class Distri extends AnalysisDistributed {
 
     }
 
+    public void computeBottom(int sub_itr) {
+        parameter.setSubItr(sub_itr);
+        parameter.setStage(0);
+        super.compute();
+    }
+
+    public void computeNonBottom(int sub_itr){
+        parameter.setSubItr(sub_itr);
+        parameter.setStage(1);
+        super.compute();
+    }
+
+    // public void computeLast(int sub_itr){
+    //     parameter.setSubItr(sub_itr);
+    //     parameter.setStage(2);
+    //     super.compute();
+    // }
+
     /**
      * Runs the subgraph algorithm
      * @return  Partial Results of the subgraph_distri mode 
@@ -140,6 +158,7 @@ public class Distri extends AnalysisDistributed {
     public Distri clone(DaalContext context) {
         return new Distri(context, this);
     }
+
 
     private native long cInit(int prec, int method);
 

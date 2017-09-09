@@ -112,7 +112,7 @@ private:
  * @tparam cpu
  */
 template<typename interm, daal::algorithms::subgraph::Method method, CpuType cpu>
-class subgraphDistriKernel : public Kernel
+class subgraphDistriKernel: public Kernel
 {
 public:
 
@@ -125,9 +125,11 @@ public:
      * @param[in,out] r[] model W and H
      * @param[in] par
      */
-    daal::services::interface1::Status compute(NumericTable** WPos, NumericTable** HPos, NumericTable** Val, NumericTable** WPosTest, NumericTable** HPosTest, NumericTable** ValTest, 
-            NumericTable *r[], Parameter* &par, int* &col_ids, interm** &hMat_native_mem);
+    daal::services::interface1::Status compute(Parameter* &par, Input* &input);
 
+    void computeBottom(Parameter* &par, Input* &input);
+    void computeNonBottom(Parameter* &par, Input* &input);
+    // void computeLast(Parameter* &par, Input* &input);
 };
 
 /**

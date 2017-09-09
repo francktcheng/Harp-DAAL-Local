@@ -35,20 +35,29 @@ using namespace daal::algorithms::subgraph;
  * Signature:(JIJ)I
  */
 JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Parameter_cSetParameters
-(JNIEnv *env, jobject thisObj, jlong parAddr, jint iteration, jint thread_num)
+(JNIEnv *env, jobject thisObj, jlong parAddr, jint thread_num, jint core_num, jint tpc, jint affinity, jint verbose)
 {
-	((subgraph::Parameter*)parAddr)->_iteration = iteration;
 	((subgraph::Parameter*)parAddr)->_thread_num = thread_num;
+	((subgraph::Parameter*)parAddr)->_core_num = core_num;
+	((subgraph::Parameter*)parAddr)->_tpc = tpc;
+	((subgraph::Parameter*)parAddr)->_affinity = affinity;
+	((subgraph::Parameter*)parAddr)->_verbose = verbose;
 }
 
-JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Parameter_cSetIteration
-(JNIEnv *env, jobject thisObj, jlong parAddr, jint itr)
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Parameter_cSetStage
+(JNIEnv *env, jobject thisObj, jlong parAddr, jint stage)
 {
-	((subgraph::Parameter*)parAddr)->_iteration = itr;
+	((subgraph::Parameter*)parAddr)->_stage = stage;
 }
 
-JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Parameter_cFreeData
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Parameter_cSetSubItr
+(JNIEnv *env, jobject thisObj, jlong parAddr, jint sub_itr)
+{
+	((subgraph::Parameter*)parAddr)->_sub_itr = sub_itr;
+}
+
+JNIEXPORT jdouble JNICALL Java_com_intel_daal_algorithms_subgraph_Parameter_cGetTotalCounts
 (JNIEnv *env, jobject thisObj, jlong parAddr)
 {
-	((subgraph::Parameter*)parAddr)->freeData();
+	return (jdouble)(((subgraph::Parameter*)parAddr)->_total_counts);
 }

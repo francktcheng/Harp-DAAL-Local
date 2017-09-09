@@ -65,14 +65,25 @@ DistriContainer<step, interm, method, cpu>::~DistriContainer()
     __DAAL_DEINITIALIZE_KERNELS();
 }
 
+
 template<ComputeStep step, typename interm, Method method, CpuType cpu>
 daal::services::interface1::Status DistriContainer<step, interm, method, cpu>::compute()
 {
     services::Status status;
-    // // prepare the computation
-    // Input *input = static_cast<Input *>(_in);
-    // DistributedPartialResult *result = static_cast<DistributedPartialResult *>(_pres);
-    // Parameter *par = static_cast<Parameter*>(_par);
+    Input *input = static_cast<Input *>(_in);
+    DistributedPartialResult *result = static_cast<DistributedPartialResult *>(_pres);
+    Parameter *par = static_cast<Parameter*>(_par);
+    daal::services::Environment::env &env = *_env;
+
+    int compute_stage = par->_stage;
+    int sub_itr = par->_sub_itr;
+    std::printf("Sub itr: %d, Compute stage: %d\n", sub_itr, compute_stage);
+    std::fflush;
+
+    //kernel for stage 0 bottom
+    __DAAL_CALL_KERNEL_STATUS(env, internal::subgraphDistriKernel, __DAAL_KERNEL_ARGUMENTS(interm, method), compute, par, input)
+    
+
     //
     // //get the feature dimension
     // size_t dim_r = par->_Dim_r;
@@ -207,6 +218,7 @@ daal::services::interface1::Status DistriContainer<step, interm, method, cpu>::c
 
     return status;
 }
+
 
 
 template<ComputeStep step, typename interm, Method method, CpuType cpu>

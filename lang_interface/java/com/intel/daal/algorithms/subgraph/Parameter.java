@@ -61,8 +61,18 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
 	 *
 	 * @return 
 	 */
-    public void set(int iteration, int thread_num) {
-        cSetParameters(this.cObject,iteration, thread_num);
+
+    public void setParameters(int thread_num,
+                              int core_num,
+                              int tpc,
+                              int affinity,
+                              int verbose) {
+
+        cSetParameters(this.cObject, thread_num, core_num, tpc, affinity, verbose);
+    }
+
+    public void setSubItr(int sub_itr){
+        cSetSubItr(this.cObject, sub_itr);
     }
 
     /**
@@ -72,18 +82,18 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
      *
      * @return 
      */
-    public void setIteration(int itr) {
-        cSetIteration(this.cObject, itr);
+    public void setStage(int stage) {
+        cSetStage(this.cObject, stage);
     }
 
-    public void freeData() {
-        cFreeData(this.cObject);
+    public double getTotalCounts() {
+        return cGetTotalCounts(this.cObject);
     }
 
-    private native void cSetParameters(long parAddr, int iteration, int thread_num);
+    private native void cSetParameters(long parAddr, int thread_num, int core_num, int tpc, int affinity, int verbose);
+    private native void cSetStage(long parAddr, int stage);
+    private native void cSetSubItr(long parAddr, int sub_itr);
+    private native double cGetTotalCounts(long parAddr);
 
-    private native void cSetIteration(long parAddr, int itr);
-
-    private native void cFreeData(long parAddr);
 
 }

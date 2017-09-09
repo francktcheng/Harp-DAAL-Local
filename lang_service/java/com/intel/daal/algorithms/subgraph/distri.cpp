@@ -37,6 +37,13 @@ JNIEXPORT jlong JNICALL Java_com_intel_daal_algorithms_subgraph_Distri_cInit
     return jniDistributed<step1Local, subgraph::Method, Distri, defaultSC>::newObj(prec, method);
 }
 
+// JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Distri_cComputeBottom
+// (JNIEnv *env, jobject thisObj, jlong algAddr)
+// {
+//     // ((subgraph::Distri<step1Local, double, computeBottom>*)algAddr)->computeBottom();
+//     ((subgraph::Distri<step1Local, double, computeBottom>*)algAddr)->compute();
+// }
+
 /*
  * Class:     Java_com_intel_daal_algorithms_subgraph_Distri
  * Method:    cGetInput

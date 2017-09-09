@@ -37,7 +37,14 @@ namespace interface1
 {
 
 /** Default constructor */
-DistributedPartialResult::DistributedPartialResult() : daal::algorithms::PartialResult(4) {}
+    DistributedPartialResult::DistributedPartialResult() : daal::algorithms::PartialResult(4) {
+
+        thread_num = 0;
+        cc_ato = NULL;
+        count_local_root = NULL;
+        count_comm_root = NULL;
+
+    }
 //three partial result ids
 //presWMat, presHMat, presRMSE
 

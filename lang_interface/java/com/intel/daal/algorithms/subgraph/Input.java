@@ -96,6 +96,26 @@ public final class Input extends com.intel.daal.algorithms.Input {
         cInitDTTable(cObject);
     }
 
+    public void initDTSub(int s) {
+        cInitDTSub(cObject, s);
+    }
+
+    public void clearDTSub(int s) {
+        cClearDTSub(cObject, s);
+    }
+
+    public void setToTable(int src, int dst){
+        cSetToTable(cObject, src, dst);
+    }
+
+    public void sampleColors() {
+        cSampleColors(cObject);
+    }
+
+    public int getSubVertN(int sub_itr) {
+        return cGetSubVertN(cObject, sub_itr);
+    }
+
     public int getReadInThd() {
         return cGetReadInThd(cObject);
     }
@@ -128,6 +148,10 @@ public final class Input extends com.intel.daal.algorithms.Input {
         return cGetSubtemplateCount(cObject);
     }
 
+    public int getMorphism(){
+        return cGetMorphism(cObject);
+    }
+
     public void freeInput() {
         cFreeInput(cObject);
     }
@@ -141,7 +165,14 @@ public final class Input extends com.intel.daal.algorithms.Input {
     private native void cInitPartitioner(long cInput);
     private native void cInitNumTable(long cInput);
     private native void cInitDTTable(long cInput);
+    private native void cInitDTSub(long cInput, int s);
+    private native void cClearDTSub(long cInput, int s);
 
+    private native void cSetToTable(long cInput, int src, int dst);
+
+    private native void cSampleColors(long cInput);
+
+    private native int cGetSubVertN(long cInput, int sub_itr);
     private native void cFreeInput(long cInput);
     private native int cGetReadInThd(long cInput);
     private native int cGetLocalVNum(long cInput);
@@ -150,6 +181,7 @@ public final class Input extends com.intel.daal.algorithms.Input {
     private native int cGetLocalMaxV(long cInput);
     private native int cGetLocalADJLen(long cInput);
     private native int cGetSubtemplateCount(long cInput);
+    private native int cGetMorphism(long cInput);
     private native void cSetGlobalMaxV(long cInput, int id);
 
 }

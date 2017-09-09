@@ -35,9 +35,10 @@
 #include <string>
 #include <algorithm>
 #include <utility>
-
+#include <time.h>
 #include <pthread.h>
 #include <unistd.h>
+#include "service_rng.h"
 
 using namespace daal::data_management;
 using namespace daal::services;
@@ -52,20 +53,62 @@ namespace interface1
 {
 
 //aux func used in input
-void util_quicksort(int *arr, const int left, const int right, const int sz);
-int util_partition(int *arr, const int left, const int right);
+void util_quicksort(int*& arr, const int left, const int right, const int sz);
+int util_partition(int*& arr, const int left, const int right);
 int* util_dynamic_to_static(std::vector<int>& arr);
 int util_get_max(std::vector<int> arr1, std::vector<int> arr2);
 int util_choose(int n, int k);
 int** util_init_choose_table(int num_colors);
 int* util_init_permutation(int num_verts);
-void util_next_set(int* current_set, int length, int num_colors);
-int util_get_color_index(int* colorset, int length);
+void util_next_set(int*& current_set, int length, int num_colors);
+int util_get_color_index(int*& colorset, int length);
 int util_factorial(int x);
+int util_test_automorphism(Graph& tp, std::vector<int>& mapping);
+int util_count_all_automorphisms(Graph& tp, std::vector<int>& mapping, std::vector<int>& rest);
+int util_count_automorphisms(Graph& tp);
+
 // input has two numerictables
 // 0: filenames
 // 1: fileoffsets
-Input::Input() : daal::algorithms::Input(5) {}
+Input::Input() : daal::algorithms::Input(5) {
+
+
+    // store vert of each template
+    num_verts_table = NULL;
+    subtemplate_count = 0;
+    subtemplates = NULL;
+
+    // record comb num values for each subtemplate and each color combination
+    comb_num_indexes_set = NULL;
+     //stores the combination of color sets
+    choose_table = NULL;
+
+    thread_num = 0;
+    v_adj = NULL; //store data from reading data
+
+    num_colors = 0; 
+    colors_g = NULL;
+    
+    // for template data
+    t_ng = 0;
+    t_mg = 0;
+
+    fs = NULL;
+    fileOffsetPtr = NULL;
+    fileNamesPtr = NULL;
+
+    // table for dynamic programming
+    part = NULL;
+    dt = NULL;
+ 
+    // temp index sets to construct comb_num_indexes 
+    index_sets = NULL;
+    // temp index sets to construct comb_num_indexes 
+    color_sets = NULL;
+    // record comb num values for active and passive children 
+    comb_num_indexes = NULL;
+
+}
 
 NumericTablePtr Input::get(InputId id) const
 {
@@ -99,7 +142,7 @@ daal::services::interface1::Status Input::check(const daal::algorithms::Paramete
 
 struct readG_task{
 
-    readG_task(int file_id, hdfsFS* handle, int* fileOffsetPtr, int* fileNamesPtr, std::vector<v_adj_elem*>* v_adj, int* max_v_id_local)
+    readG_task(int file_id, hdfsFS*& handle, int*& fileOffsetPtr, int*& fileNamesPtr, std::vector<v_adj_elem*>*& v_adj, int*& max_v_id_local)
     {
         _file_id = file_id;
         _handle = handle;
@@ -476,15 +519,21 @@ void Input::readTemplate()
 
 void Input::init_Template()
 {
-    t.initTemplate(t_ng, t_mg, &t_src[0], &t_dst[0]);
+    int* src = &t_src[0];
+    int* dst = &t_dst[0];
+    // t.initTemplate(t_ng, t_mg, &t_src[0], &t_dst[0]);
+    t.initTemplate(t_ng, t_mg, src, dst);
     num_colors = t.num_vertices();
 
     dt = new dynamic_table_array();
+
+    sampleGraph();
 }
 
 void Input::init_Partitioner()
 {
-    part = new partitioner(t, false, NULL);
+    int* labels = NULL;
+    part = new partitioner(t, false, labels);
     part->sort_subtemplates();
     subtemplate_count = part->get_subtemplate_count();
     subtemplates = part->get_subtemplates(); 
@@ -554,6 +603,9 @@ void Input::init_Graph()
         mtlocalVTable.release();
     }
 
+    // create colrs_g
+    colors_g = new int[g.vert_num_count];
+    std::memset(colors_g, 0, g.vert_num_count*sizeof(int));
     std::printf("Finish init Graph\n");
     std::fflush;
 }
@@ -940,11 +992,86 @@ void Input::free_input()
     g.freeMem();
     t.freeMem();
 
+    if (colors_g != NULL)
+    {
+        delete[] colors_g;
+        colors_g = NULL;
+    }
 
 }
 
+/**
+ * @brief sampling colors_g for each subtemplate computing
+ */
+void Input::sampleGraph()
+{
+    // using openmp
+    daal::internal::BaseRNGs<sse2> base_gen(time(0));
+    daal::internal::RNGs<int, sse2> rand_gen;
+
+    rand_gen.uniform(g.num_vertices(), colors_g, base_gen.getState(), 0, num_colors);
+    
+    for(int i=0;i<10;i++)
+    {
+        std::printf("random color: %d\n", colors_g[i]);
+        std::fflush;
+    }
+
+}
+
+int Input::getSubVertN(int sub_itr)
+{
+    return part->get_num_verts_sub(sub_itr);
+}
+
+void Input::initDtSub(int s)
+{
+    int a = part->get_active_index(s); 
+    int p = part->get_passive_index(s);
+    std::printf("Init Dt sub for s: %d, a: %d, p: %d\n", s, a, p);
+    std::fflush;
+
+    dt->init_sub(s, a, p);
+}
+
+void Input::clearDtSub(int s)
+{
+    int a = part->get_active_index(s); 
+    int p = part->get_passive_index(s);
+
+    std::printf("Clear Dt sub for s: %d, a: %d, p: %d\n", s, a, p);
+    std::fflush;
+
+    if (a != null_val)
+    {
+        if (part->get_num_verts_sub(a) > 1)
+            dt->clear_sub(a);
+    }
+
+    if (p != null_val)
+    {
+        // do not clear soft copied bottom dt node
+        if (part->get_num_verts_sub(p) > 1)
+            dt->clear_sub(p);
+    }
+
+    std::printf("Finish Clear Dt sub for s: %d, a: %d, p: %d\n", s, a, p);
+    std::fflush;
+
+}
+
+void Input::setToTable(int src, int dst)
+{
+    dt->set_to_table(src, dst);
+}
+
+int Input::computeMorphism()
+{
+    return util_count_automorphisms(t);
+}
+
 // ------------------------ func for partitioner------------------------
-partitioner::partitioner(Graph& t, bool label, int* label_map)
+partitioner::partitioner(Graph& t, bool label, int*& label_map)
 {
     //debug printout graph t
     for(int i = 0; i<t.vert_num_count; i++)
@@ -1087,7 +1214,7 @@ int partitioner::split_sub(int s, int root, int other_root)
 
 }
 
-void partitioner::check_nums(int root, std::vector<int>& srcs, std::vector<int>& dsts, int* labels, int* labels_sub)
+void partitioner::check_nums(int root, std::vector<int>& srcs, std::vector<int>& dsts, int*& labels, int*& labels_sub)
 {
     int maximum = util_get_max(srcs, dsts);
     int size = srcs.size();
@@ -1306,7 +1433,7 @@ void partitioner::clear_temparrays()
 }
 
 // -------------------- impl of Graph struct  --------------------
-void Graph::initTemplate(int ng, int mg, int* src, int* dst)
+void Graph::initTemplate(int ng, int mg, int*& src, int*& dst)
 {
     //free memory if the graph is re-init
     freeMem();
@@ -1401,6 +1528,28 @@ Graph& Graph::operator= (const Graph& param)
 // ------------------ Impl of dynamic table ------------------
 dynamic_table_array::dynamic_table_array()
 {
+    choose_table = NULL;
+    num_colorsets = NULL;
+
+    subtemplates = NULL;
+
+    num_colors = 0;
+    num_subs = 0;
+    num_verts = 0;
+
+    is_inited = false;
+    is_sub_inited = NULL;
+
+    table = NULL;
+    // vertex-colorset
+    cur_table = NULL;
+    // vertex-colorset
+    cur_table_active = NULL;
+    // vertex-colorset
+    cur_table_passive = NULL;
+
+    max_abs_vid = 0;
+    cur_sub = 0;
 }
 
 void dynamic_table_array::free()
@@ -1447,7 +1596,7 @@ void dynamic_table_array::init_num_colorsets()
     }
 }
 
-void dynamic_table_array::init(Graph* _subtemplates, int _num_subtemplates, int _num_vertices, int _num_colors, int _max_abs_vid) 
+void dynamic_table_array::init(Graph*& _subtemplates, int _num_subtemplates, int _num_vertices, int _num_colors, int _max_abs_vid) 
 {
     subtemplates = _subtemplates;
     num_subs = _num_subtemplates;
@@ -1462,18 +1611,23 @@ void dynamic_table_array::init(Graph* _subtemplates, int _num_subtemplates, int 
     init_num_colorsets();
     // the core three-dimensional arrays in algorithm
     table = new float**[num_subs];
-    is_sub_inited = new bool[num_subs];
+    for(int s=0;s<num_subs;s++)
+        table[s] = NULL;
 
+    is_sub_inited = new bool[num_subs];
     for(int s = 0; s < num_subs; ++s)
         is_sub_inited[s] = false;
 
-    is_inited = false;
+    is_inited = true;
 
 }
 
 void dynamic_table_array::init_sub(int subtemplate) 
 {
     table[subtemplate] = new float*[num_verts];
+    for(int v=0;v<num_verts; v++)
+        table[subtemplate][v] = NULL;
+
     cur_table = table[subtemplate];
     cur_sub = subtemplate;
     is_sub_inited[subtemplate] = true;
@@ -1500,7 +1654,7 @@ void dynamic_table_array::init_sub(int subtemplate, int active_child, int passiv
 void dynamic_table_array::clear_sub(int subtemplate) 
 {
 
-    if (table[subtemplate] != NULL)
+    if (is_sub_inited[subtemplate] && table[subtemplate] != NULL)
     {
         for(int v = 0; v < num_verts; ++v){
             if( table[subtemplate][v] != NULL){
@@ -1533,6 +1687,9 @@ void dynamic_table_array::clear_table()
             delete[] table[s];
             is_sub_inited[s] = false;
         }
+
+        std::printf("Finish Final clear sub: %d\n", s);
+        std::fflush;
     }
 
     if (table != NULL)
@@ -1668,7 +1825,7 @@ void dynamic_table_array::set_to_table(int s, int d)
 }
 
 // --------------------- aux function impl ---------------------
-int util_partition(int *arr, const int left, const int right) 
+int util_partition(int*& arr, const int left, const int right) 
 {
     const int mid = left + (right - left) / 2;
     const int pivot = arr[mid];
@@ -1699,7 +1856,7 @@ int util_partition(int *arr, const int left, const int right)
     return i - 1;
 }
 
-void util_quicksort(int *arr, const int left, const int right, const int sz)
+void util_quicksort(int*& arr, const int left, const int right, const int sz)
 {
 
     if (left >= right) {
@@ -1785,7 +1942,7 @@ int* util_init_permutation(int num_verts)
     return perm;
 }
 
-void util_next_set(int* current_set, int length, int num_colors)
+void util_next_set(int*& current_set, int length, int num_colors)
 {
     for(int i = length-1; i>=0; --i)
     {
@@ -1800,7 +1957,7 @@ void util_next_set(int* current_set, int length, int num_colors)
     }
 }
 
-int util_get_color_index(int* colorset, int length)
+int util_get_color_index(int*& colorset, int length)
 {
     int count = 0;
     for(int i = 0; i < length; ++i){
@@ -1810,6 +1967,83 @@ int util_get_color_index(int* colorset, int length)
     }
 
     return count;
+}
+
+int util_test_automorphism(Graph& tp, std::vector<int>& mapping)
+{
+    for(int v = 0; v < mapping.size(); ++v){
+
+        if( tp.out_degree(v) != tp.out_degree(mapping[v]))
+            return 0;
+        else{
+
+            int* adjs = tp.adjacent_vertices(v);
+            int* adjs_map = tp.adjacent_vertices(mapping[v]);
+            int end = tp.out_degree(v);
+
+            bool* match = new bool[end];
+
+            for(int i = 0; i < end; ++i){
+                match[i] = false;
+                int u = adjs[i];
+
+                for(int j = 0; j < end; ++j){
+                    int u_map = adjs_map[j];
+                    if( u == mapping[u_map])
+                        match[i] = true;
+                }
+            }
+            for(int i = 0; i < end; ++i){
+                if( !match[i])
+                    return 0;
+            }
+        }
+    }
+
+    return 1;
+}
+
+int util_count_all_automorphisms(Graph& tp, std::vector<int>& mapping, std::vector<int>& rest)
+{
+    int count = 0;
+    if( rest.size() == 0){
+        count = util_test_automorphism(tp, mapping);
+        return count;
+
+    }else{
+
+        for(int i = 0; i < rest.size(); ++i){
+            mapping.push_back(rest[i]);
+
+            std::vector<int> new_rest;
+
+            for(int j = 0; j < rest.size(); ++j){
+                if( i != j)
+                    new_rest.push_back(rest[j]);
+            }
+
+            count += util_count_all_automorphisms(tp, mapping, new_rest);
+            new_rest.clear();
+            // mapping.erase(mapping.size()-1);
+            mapping.pop_back();
+        }
+    }
+
+    return count;
+}
+
+int util_count_automorphisms(Graph& tp)
+{
+    int num_verts = tp.num_vertices();
+
+    std::vector<int> mapping;
+    std::vector<int> rest;
+    for(int i = 0; i < num_verts; ++i){
+        rest.push_back(i);
+    }
+
+    return util_count_all_automorphisms(tp, mapping, rest);
+
 }
 
 } // namespace interface1

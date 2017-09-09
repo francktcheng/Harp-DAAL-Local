@@ -119,6 +119,11 @@ namespace interface1
      */
     struct v_adj_elem{
 
+        v_adj_elem()
+        {
+            _v_id = 0;
+        }
+
         v_adj_elem(int v_id)
         {
             _v_id = v_id;
@@ -129,7 +134,7 @@ namespace interface1
             std::vector<int>().swap(_adjs);
         }
 
-        int _v_id = 0;
+        int _v_id;
         std::vector<int> _adjs;
 
     };
@@ -137,8 +142,21 @@ namespace interface1
     struct Graph
     {
 
-        Graph(){}
-        void initTemplate(int ng, int mg, int* src, int* dst);
+        Graph(){
+
+            vert_num_count = 0;
+            max_v_id_local = 0;
+            max_v_id = 0; //global max_v_id
+            adj_len = 0;
+            num_edges = 0;
+            max_deg = 0;
+            vertex_ids = NULL; // absolute v_id
+            vertex_local_ids = NULL; // mapping from absolute v_id to relative v_id
+            adj_index_table = NULL; //a table to index adj list for each local vert
+            isTemplate = false;
+        }
+
+        void initTemplate(int ng, int mg, int*& src, int*& dst);
         void freeMem();
         //copy the graph (templates)
         Graph& operator= (const Graph& param);
@@ -169,18 +187,18 @@ namespace interface1
         int max_degree(){return max_deg;}
         int* get_abs_v_ids(){return vertex_ids;}
         int num_vertices(){ return vert_num_count;}
-        int vert_num_count = 0;
-        int max_v_id_local = 0;
-        int max_v_id = 0; //global max_v_id
-        int adj_len = 0;
-        int num_edges = 0;
-        int max_deg = 0;
-        int* vertex_ids = NULL; // absolute v_id
-        int* vertex_local_ids = NULL; // mapping from absolute v_id to relative v_id
+        int vert_num_count;
+        int max_v_id_local;
+        int max_v_id; //global max_v_id
+        int adj_len;
+        int num_edges;
+        int max_deg;
+        int* vertex_ids; // absolute v_id
+        int* vertex_local_ids; // mapping from absolute v_id to relative v_id
 
-        v_adj_elem** adj_index_table = NULL; //a table to index adj list for each local vert
+        v_adj_elem** adj_index_table; //a table to index adj list for each local vert
 
-        bool isTemplate = false;
+        bool isTemplate;
 
     };
     
@@ -188,13 +206,16 @@ namespace interface1
 
         public:
             partitioner(){}
-            partitioner(Graph& t, bool label, int* label_map);
+            partitioner(Graph& t, bool label, int*& label_map);
             void sort_subtemplates();
             void clear_temparrays();
             int get_subtemplate_count(){ return subtemplate_count;}
             Graph* get_subtemplates(){ return subtemplates; }
             int get_num_verts_active(int s){return subtemplates[active_children[s]].vert_num_count;}
             int get_num_verts_passive(int s){return subtemplates[passive_children[s]].vert_num_count;}
+            int get_num_verts_sub(int sub) {return subtemplates[sub].vert_num_count;}
+            int get_active_index(int a){ return active_children[a];}
+            int get_passive_index(int p){return passive_children[p];}
 
         private:
 
@@ -212,14 +233,12 @@ namespace interface1
                     return NULL;
             }
 
-            int get_active_index(int a){ return active_children[a];}
-            int get_passive_index(int p){return passive_children[p];}
-
+            
             void partition_recursive(int s, int root);
             int* split(int s, int root);
             int split_sub(int s, int root, int other_root);
             void fin_arrays();
-            void check_nums(int root, std::vector<int>& srcs, std::vector<int>& dsts, int* labels, int* labels_sub);
+            void check_nums(int root, std::vector<int>& srcs, std::vector<int>& dsts, int*& labels, int*& labels_sub);
 
             void set_active_child(int s, int a)
             {
@@ -274,7 +293,7 @@ namespace interface1
 
             dynamic_table_array();
             void free();
-            void init(Graph* subtemplates, int num_subtemplates, int num_vertices, int num_colors, int max_abs_vid);
+            void init(Graph*& subtemplates, int num_subtemplates, int num_vertices, int num_colors, int max_abs_vid);
             void init_sub(int subtemplate); 
             void init_sub(int subtemplate, int active_child, int passive_child);
             void clear_sub(int subtemplate); 
@@ -293,35 +312,35 @@ namespace interface1
             bool is_vertex_init_active(int vertex);
             bool is_vertex_init_passive(int vertex);
             int get_num_color_set(int s); 
-            void set_to_table(int s, int d);
+            void set_to_table(int src, int dst);
 
         private:
 
             void init_choose_table();
             void init_num_colorsets();
 
-            int** choose_table = NULL;
-            int* num_colorsets = NULL;
+            int** choose_table;
+            int* num_colorsets;
 
-            Graph* subtemplates = NULL;
+            Graph* subtemplates;
 
-            int num_colors = 0;
-            int num_subs = 0;
-            int num_verts = 0;
+            int num_colors;
+            int num_subs;
+            int num_verts;
 
-            bool is_inited = false;
-            bool* is_sub_inited = NULL;
+            bool is_inited;
+            bool* is_sub_inited;
 
-            float*** table = NULL;
+            float*** table;
             // vertex-colorset
-            float** cur_table = NULL;
+            float** cur_table;
             // vertex-colorset
-            float** cur_table_active = NULL;
+            float** cur_table_active;
             // vertex-colorset
-            float** cur_table_passive = NULL;
+            float** cur_table_passive;
 
-            int max_abs_vid = 0;
-            int cur_sub = 0;
+            int max_abs_vid;
+            int cur_sub;
 
     };
 
@@ -392,14 +411,16 @@ public:
 
 
     // store vert of each template
-    int* num_verts_table = NULL;
-    int subtemplate_count = 0;
-    Graph* subtemplates = NULL;
+    int* num_verts_table;
+    int subtemplate_count;
+    Graph* subtemplates;
 
     // record comb num values for each subtemplate and each color combination
-    int** comb_num_indexes_set = NULL;
+    int** comb_num_indexes_set;
+    // record comb num values for active and passive children 
+    int**** comb_num_indexes;
      //stores the combination of color sets
-    int** choose_table = NULL;
+    int** choose_table;
 
     void create_tables();
     void delete_tables();
@@ -418,37 +439,56 @@ public:
 
     void delete_comb_num_system_indexes();
 
+    void sampleGraph();
+
+    int getSubVertN(int sub_itr);
+
+    void initDtSub(int s);
+    void clearDtSub(int s);
+
+    void setToTable(int src, int dst);
+    
+    partitioner* getPartitioner() {return part;}
+    dynamic_table_array* getDTTable(){return dt;}
+    int* getColorsG() {return colors_g;}
+
+    int getMaxDeg() {return g.max_deg;}
+    Graph* getGraphPtr() {return &g; }
+    int getColorNum() {return num_colors;}
+
+    int computeMorphism();
+
 private:
 
     // thread in read in graph
-    int thread_num = 0;
-    std::vector<v_adj_elem*>* v_adj = NULL; //store data from reading data
+    int thread_num;
+    std::vector<v_adj_elem*>* v_adj; //store data from reading data
 
     Graph g; // graph data
     Graph t; // template data
-    int num_colors = 0; 
+    int num_colors; 
+
+    int* colors_g;
     
     // for template data
-    size_t t_ng = 0;
-    size_t t_mg = 0;
+    size_t t_ng;
+    size_t t_mg;
     std::vector<int> t_src;
     std::vector<int> t_dst;
 
-    hdfsFS* fs = NULL;
-    int* fileOffsetPtr = NULL;
-    int* fileNamesPtr = NULL;
+    hdfsFS* fs;
+    int* fileOffsetPtr;
+    int* fileNamesPtr;
 
     // table for dynamic programming
-    partitioner* part = NULL;
-    dynamic_table_array* dt = NULL;
+    partitioner* part;
+    dynamic_table_array* dt;
  
     // temp index sets to construct comb_num_indexes 
-    int**** index_sets = NULL;
+    int**** index_sets;
     // temp index sets to construct comb_num_indexes 
-    int***** color_sets = NULL;
-    // record comb num values for active and passive children 
-    int**** comb_num_indexes = NULL;
-      
+    int***** color_sets;
+          
 };
 
 
@@ -629,10 +669,10 @@ public:
     // member for counts container for threads
     // must use double to avoid overflow of count num of large datasets/templates
     // len is thread number
-    int thread_num = 0;
-    double* cc_ato = NULL;
-    double* count_local_root = NULL;
-    double* count_comm_root = NULL;
+    int thread_num;
+    double* cc_ato;
+    double* count_local_root;
+    double* count_comm_root;
 
     
 protected:
@@ -655,8 +695,15 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 	/* default constructor */
     Parameter() 
     {
-        _iteration = 1;
-        _thread_num =10;
+        _thread_num = 1;  //  specify used in computation 
+        _core_num = 1; // the core num used in affinity setting
+        _tpc = 1; // the threads per core
+        _affinity = 0; // the affinity (default 0: compact, 1: scatter)
+        _verbose = 0;
+        _vert_num_sub = 0; // the vert number of current subtemplate
+        _stage = 0; // 0: bottom subtemplate, 1: non-last subtemplate, 2: last subtemplate
+        _sub_itr = 0;
+        _total_counts = 0.0;
     }
 
     virtual ~Parameter() {}
@@ -665,47 +712,41 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 	 * @brief set the parameters in both of batch mode and distributed mode 
 	 *
 	 */
-    void setParameter(size_t iteration, size_t thread_num)
+    void setParameter(size_t thread_num, 
+                      size_t core_num,
+                      size_t tpc,
+                      size_t affinity,
+                      size_t verbose)
     {
-        _iteration = iteration;
         _thread_num = thread_num;
+        _core_num = core_num;
+        _tpc = tpc;
+        _affinity = affinity;
+        _verbose = verbose;
     }
 
-	/**
-	 * @brief set the iteration id, 
-	 * used in distributed mode
-	 *
-	 * @param itr
-	 */
-    void setIteration(size_t itr)
+    void setStage(size_t stage)
     {
-        _iteration = itr;
+        _stage = stage;
     }
 
-    /**
-     * @brief free up the user allocated memory
-     */
-    void freeData()
+    void setSubItr(size_t sub_itr)
     {
+        _sub_itr = sub_itr;
     }
 
-    size_t _iteration;                       /* the iterations of SGD */
-    size_t _thread_num;                      /* specify the threads used by TBB */
-
-    int max_abs_id = 0;
-    int thread_num = 0;
-    int core_num = 0;
-    int tpc = 0;
-    int affinity = 0;
-    int do_graphlet_freq = 0;
-    int do_vert_output = 0;
-    int verbose = 0;
-
-    int* labels_g = NULL;
-    int labeled = 0;
-    int num_verts_graph = 0;
+    size_t _thread_num;  //  specify used in computation 
+    size_t _core_num; // the core num used in affinity setting
+    size_t _tpc; // the threads per core
+    size_t _affinity; // the affinity (default 0: compact, 1: scatter)
+    size_t _verbose;
+    size_t _vert_num_sub; // the vert number of current subtemplate
+    size_t _stage; // 0: bottom subtemplate, 1: non-bottom subtemplate
+    size_t _sub_itr;
+    double _total_counts;
 
 };
+
 /** @} */
 /** @} */
 } // namespace interface1

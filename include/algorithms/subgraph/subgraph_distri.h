@@ -73,6 +73,7 @@ public:
     virtual daal::services::interface1::Status compute() DAAL_C11_OVERRIDE;
 
     virtual daal::services::interface1::Status finalizeCompute() DAAL_C11_OVERRIDE;
+
 };
 
 /**

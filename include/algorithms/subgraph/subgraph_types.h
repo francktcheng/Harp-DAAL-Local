@@ -162,6 +162,12 @@ namespace interface1
         Graph& operator= (const Graph& param);
 
         int* adjacent_vertices(int v){return &(adj_index_table[v]->_adjs)[0];}
+        // int* adjacent_vertices(int v)
+        // {
+        //     int v_abs = vertex_ids[v];
+        //     return adjacent_vertices_abs(v_abs);
+        // }
+
         int* adjacent_vertices_abs(int v)
         {
             //from abs id to rel id
@@ -174,6 +180,12 @@ namespace interface1
 
         int get_relative_v_id(int v_abs){return vertex_local_ids[v_abs];}
         int out_degree(int v){ return (adj_index_table[v]->_adjs).size();}
+        // int out_degree(int v)
+        // { 
+        //     int v_abs = vertex_ids[v];
+        //     return out_degree_abs(v_abs);
+        // }
+
         int out_degree_abs(int v)
         {
             //from abs id to rel id
@@ -704,6 +716,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _stage = 0; // 0: bottom subtemplate, 1: non-last subtemplate, 2: last subtemplate
         _sub_itr = 0;
         _total_counts = 0.0;
+        _count_time = 0.0;
     }
 
     virtual ~Parameter() {}
@@ -744,6 +757,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     size_t _stage; // 0: bottom subtemplate, 1: non-bottom subtemplate
     size_t _sub_itr;
     double _total_counts;
+    double _count_time;
 
 };
 

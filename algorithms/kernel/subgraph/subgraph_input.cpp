@@ -36,6 +36,7 @@
 #include <algorithm>
 #include <utility>
 #include <time.h>
+#include <ctime>        
 #include <pthread.h>
 #include <unistd.h>
 #include "service_rng.h"
@@ -592,6 +593,10 @@ void Input::init_Graph()
         }
     }
 
+    //shuffle to sort g.vert_ids
+    //debug
+    // util_quicksort(g.vertex_ids, 0, g.vert_num_count-1, g.vert_num_count);
+
     // load vertex_ids into daal table
     NumericTablePtr localVTable = get(localV);
     if (localVTable != NULL)
@@ -1005,17 +1010,30 @@ void Input::free_input()
  */
 void Input::sampleGraph()
 {
+    struct timespec ts1;
+	struct timespec ts2;
+    int64_t diff = 0;
+    double sample_time = 0;
+
     // using openmp
     daal::internal::BaseRNGs<sse2> base_gen(time(0));
     daal::internal::RNGs<int, sse2> rand_gen;
 
+    clock_gettime(CLOCK_MONOTONIC, &ts1);
     rand_gen.uniform(g.num_vertices(), colors_g, base_gen.getState(), 0, num_colors);
     
-    for(int i=0;i<10;i++)
-    {
-        std::printf("random color: %d\n", colors_g[i]);
-        std::fflush;
-    }
+    clock_gettime(CLOCK_MONOTONIC, &ts2);
+    diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
+    sample_time = (double)(diff)/1000000L;
+
+    std::printf("Finish sampling in time: %f ms\n", sample_time);
+    std::fflush;
+
+    // for(int i=0;i<10;i++)
+    // {
+    //     std::printf("random color: %d\n", colors_g[i]);
+    //     std::fflush;
+    // }
 
 }
 

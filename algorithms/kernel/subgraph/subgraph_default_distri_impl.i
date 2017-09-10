@@ -35,6 +35,7 @@
 #include <ctime>        
 #include <omp.h>
 #include <immintrin.h>
+#include <stdlib.h>
 
 #include "service_lapack.h"
 #include "service_memory.h"
@@ -126,6 +127,23 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottom(Parameter* &par
     std::printf("Start Distrikernel compute nonlast\n");
     std::fflush;
 
+    //setup omp affinity
+    // setenv("KMP_AFFINITY","granularity=core,compact",1);
+    int set_flag = setenv("KMP_AFFINITY","granularity=fine,compact",1);
+    if (set_flag == 0)
+    {
+        std::printf("omp affinity bind successful\n");
+        std::fflush;
+    }
+    
+    struct timespec ts1;
+	struct timespec ts2;
+    int64_t diff = 0;
+    double compute_time = 0;
+
+
+    clock_gettime(CLOCK_MONOTONIC, &ts1);
+
     daal::algorithms::subgraph::interface1::dynamic_table_array* dt = input->getDTTable();
     daal::algorithms::subgraph::interface1::partitioner* part = input->getPartitioner();
 
@@ -153,10 +171,12 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottom(Parameter* &par
     for(int v=0;v<num_vert_g;v++)
     {
         // v is relative v_id from 0 to num_verts -1 
-        std::vector<int> valid_nbrs;
-
+        // std::vector<int> valid_nbrs;
         if( dt->is_vertex_init_active(v))
         {
+            int* valid_nbrs = new int[g->out_degree(v)];
+            int valid_nbrs_count = 0;
+
             //adjs is absolute v_id
             int* adjs_abs = g->adjacent_vertices(v);
             int end = g->out_degree(v);
@@ -173,7 +193,8 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottom(Parameter* &par
                 //how to determine whether adj_i is in the current passive table
                 if( adj_i >=0 && dt->is_vertex_init_passive(adj_i))
                 {
-                    valid_nbrs.push_back(adj_i);
+                    // valid_nbrs.push_back(adj_i);
+                    valid_nbrs[valid_nbrs_count++] = adj_i;
                 }
                 // if (this.mapper_num > 1 && adj_i < 0)
                 //     this.update_map[v][nbr_comm_itr++] = adjs_abs[i];
@@ -181,7 +202,8 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottom(Parameter* &par
             // if (this.mapper_num > 1)
                 // this.update_map_size[v] = nbr_comm_itr;
 
-            if(valid_nbrs.size() != 0)
+            // if(valid_nbrs.size() != 0)
+            if(valid_nbrs_count != 0)
             {
                 // for a specific vertex v initialized on active child
                 // first loop on different color_combs of cur subtemplate
@@ -202,7 +224,8 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottom(Parameter* &par
                         if( count_a > 0)
                         {
                             //third loop on different valid nbrs
-                            for(int i = 0; i < valid_nbrs.size(); ++i)
+                            // for(int i = 0; i < valid_nbrs.size(); ++i)
+                            for(int i = 0; i < valid_nbrs_count; ++i)
                             {
                                 //validated nbrs already checked to be on passive child
                                 color_count += (double)count_a * dt->get_passive(valid_nbrs[i], comb_indexes_p[p]);
@@ -223,14 +246,27 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottom(Parameter* &par
                     }
                 }
             }
+
+            delete[] valid_nbrs;
         }
     }
 
-    std::printf("Finish Distrikernel compute nonlast with total count %e\n", total_count_cursub);
+    std::printf("Finish Distrikernel compute for s: %d\n", s);
     std::fflush;
 
+    clock_gettime(CLOCK_MONOTONIC, &ts2);
+    diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
+    compute_time = (double)(diff)/1000000L;
+
+    par->_count_time += compute_time;
+
     if (s == 0)
+    {
         par->_total_counts = total_count_cursub;
+        std::printf("Finish Final compute with total count %e\n", total_count_cursub);
+        std::printf("Omp total compute time: %f ms\n", par->_count_time);
+        std::fflush;
+    }
 
 }
 

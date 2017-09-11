@@ -31,6 +31,7 @@
 #include <cstring> 
 #include <sstream>
 #include <iostream>
+#include <omp.h>
 #include <vector>
 #include <string>
 #include <algorithm>
@@ -71,7 +72,7 @@ int util_count_automorphisms(Graph& tp);
 // input has two numerictables
 // 0: filenames
 // 1: fileoffsets
-Input::Input() : daal::algorithms::Input(5) {
+Input::Input() : daal::algorithms::Input(7) {
 
 
     // store vert of each template
@@ -108,7 +109,153 @@ Input::Input() : daal::algorithms::Input(5) {
     color_sets = NULL;
     // record comb num values for active and passive children 
     comb_num_indexes = NULL;
+    isTableCreated = false;
 
+    // for comm
+    mapper_num = 1;
+    local_mapper_id = 0;
+    send_array_limit = 1000;
+    rotation_pipeline = false;
+    abs_v_to_mapper = NULL;
+    abs_v_to_queue = NULL;
+    comm_mapper_vertex = NULL;
+    update_map = NULL;
+    update_map_size = NULL;
+
+    update_queue_pos = NULL;
+    update_queue_counts = NULL;
+    update_queue_index = NULL;
+    update_mapper_len = NULL;
+
+    map_ids_cache_pip = NULL;
+    chunk_ids_cache_pip = NULL;
+    chunk_internal_offsets_cache_pip = NULL;
+
+    update_mapper_id = -1;
+    daal_table_size = -1; // -1 means no need to do data copy 
+    daal_table_int_ptr = NULL; // tmp array to hold int data
+    daal_table_float_ptr = NULL; //tmp array to hold float data
+
+}
+
+void Input::init_comm(int mapper_num_par, int local_mapper_id_par, long send_array_limit_par, bool rotation_pipeline_par)
+{
+    mapper_num = mapper_num_par;
+    local_mapper_id = local_mapper_id_par;
+    send_array_limit = send_array_limit_par;
+    rotation_pipeline = rotation_pipeline_par;
+
+    NumericTablePtr abs_v_to_mapper_table = get(VMapperId);
+    // daal::internal::BlockMicroTable<int, readWrite, sse2> mtVMapperId(abs_v_to_mapper_table.get());
+    // mtVMapperId.getBlockOfRows(0, 1, &abs_v_to_mapper);
+    size_t table_dim = abs_v_to_mapper_table->getNumberOfRows();
+    daal::internal::FeatureMicroTable<int, readOnly, sse2> mtVMapperId(abs_v_to_mapper_table.get());
+    mtVMapperId.getBlockOfColumnValues(0, 0, table_dim, &abs_v_to_mapper);
+
+    //retrieve the abs v id to mapper mapping
+    //length max_v_id+1 
+    //debug check abs_v_to_mapper val
+    for(int i=0; i<10;i++)
+    {
+        int v_id = g.vertex_ids[i]; 
+        std::printf("Check abs_v_to_mapper v_id: %d, mapper id: %d\n", v_id, abs_v_to_mapper[v_id]);
+    }
+
+    int abs_len = g.max_v_id + 1;
+    abs_v_to_queue = new int[abs_len];
+    // comm_mapper_vertex = new std::unordered_set<int>[mapper_num];
+    // comm_mapper_vertex = new int*[mapper_num];
+    comm_mapper_vertex = new std::vector<int>[mapper_num];
+    int* comm_mapper_tmp = new int[abs_len*mapper_num];
+    std::memset(comm_mapper_tmp, 0, abs_len*mapper_num*sizeof(int));
+
+    int thread_num_max = omp_get_max_threads();
+
+    #pragma omp parallel for schedule(guided) num_threads(thread_num_max) 
+    for(int i=0;i<g.vert_num_count;i++)
+    {
+        v_adj_elem* elem_adj = g.adj_index_table[i];
+        int* elem_adj_ptr = &(elem_adj->_adjs)[0];
+        int list_size = elem_adj->_adjs.size();
+        for(int j=0;j<list_size;j++)
+        {
+            int adj_abs_id = elem_adj_ptr[j];
+            int adj_mapper_id = abs_v_to_mapper[adj_abs_id];
+            #pragma omp atomic
+            comm_mapper_tmp[adj_mapper_id*abs_len + adj_abs_id]++;
+        }
+    }
+
+    for(int i=0;i<abs_len*mapper_num;i++)
+    {
+        if (comm_mapper_tmp[i] > 0)
+        {
+            int adj_mapper_id = i/abs_len;
+            int adj_abs_id = i%abs_len;
+            comm_mapper_vertex[adj_mapper_id].push_back(adj_abs_id);
+        }
+    }
+
+    delete[] comm_mapper_tmp;
+
+    update_map = new int*[g.vert_num_count];
+    for(int i=0;i<g.vert_num_count;i++)
+        update_map[i] = new int[g.out_degree(i)];
+
+    update_map_size = new int[g.vert_num_count];
+
+    update_queue_pos = new int**[mapper_num];
+    update_queue_counts = new float**[mapper_num];
+    update_queue_index = new int16_t**[mapper_num];
+    update_mapper_len = new int[mapper_num];
+
+    map_ids_cache_pip = new int*[g.vert_num_count];
+    chunk_ids_cache_pip = new int*[g.vert_num_count];
+    chunk_internal_offsets_cache_pip = new int*[g.vert_num_count];
+
+}
+
+void Input::init_comm_prepare(int update_id)
+{
+    if (update_id != local_mapper_id && comm_mapper_vertex[update_id].size() > 0)
+    {
+        //retrieve send array
+        daal_table_size = (long)comm_mapper_vertex[update_id].size();
+
+        // daal_table_int_ptr = new int[(int)daal_table_size];
+        // int loop_itr = 0;
+        // std::set<int>::iterator it;
+        // for(it = comm_mapper_vertex[update_id].begin(); it != comm_mapper_vertex[update_id].end(); it++)
+        //     daal_table_int_ptr[loop_itr++] = (*it);
+
+        daal_table_int_ptr = &(comm_mapper_vertex[update_id])[0];
+        update_mapper_len[update_id] = (int)daal_table_size; 
+
+        for(int i=0;i<(int)daal_table_size;i++)
+            abs_v_to_queue[daal_table_int_ptr[i]] = i;
+    }
+    else
+        daal_table_size = -1;
+
+}
+
+void Input::upload_prep_comm()
+{
+    if (daal_table_size > 0)
+    {
+        //javaTable
+        NumericTablePtr upload_prep_comm_table = get(CommDataId);
+        // size_t table_dim = abs_v_to_mapper_table->getNumberOfRows();
+        // daal::internal::FeatureMicroTable<int, writeOnly, sse2> mtUpload(upload_prep_comm_table.get());
+        // int* daal_tmp_ptr = NULL
+        // mtUpload.getBlockOfColumnValues(0, 0, daal_table_size, &daal_tmp_ptr);
+        BlockDescriptor<int> upload_block;
+        upload_block.setPtr(daal_table_int_ptr, 1, daal_table_size);
+        upload_block.setDetails(0, 0, writeOnly);
+
+        (upload_prep_comm_table.get())->releaseBlockOfColumnValues( upload_block );
+        upload_block.reset();
+    }
 }
 
 NumericTablePtr Input::get(InputId id) const
@@ -666,6 +813,7 @@ void Input::create_tables()
     //free up memory space
     delete_all_index_sets();
 
+    isTableCreated = true;
 }
 
 void Input::create_num_verts_table()
@@ -944,12 +1092,15 @@ void Input::delete_comb_num_system_indexes()
 
 void Input::delete_tables()
 {
-    for(int i = 0; i <= num_colors; ++i)
-        delete[] choose_table[i];
+    if (isTableCreated)
+    {
+        for(int i = 0; i <= num_colors; ++i)
+            delete[] choose_table[i];
 
-    delete[] choose_table;
-    delete_comb_num_system_indexes();
-    delete[] num_verts_table;
+        delete[] choose_table;
+        delete_comb_num_system_indexes();
+        delete[] num_verts_table;
+    }
 }
 
 void Input::free_input()

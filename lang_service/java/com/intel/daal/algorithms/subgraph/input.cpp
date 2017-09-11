@@ -83,6 +83,30 @@ JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cInitDTTabl
 	((subgraph::Input*)inputAddr)->init_DTTable();
 }
 
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cInitComm
+(JNIEnv *env, jobject thisObj, jlong inputAddr, jint mapper_num, jint local_mapper_id, jlong send_array_limit, jboolean rotation_pipeline)
+{
+	((subgraph::Input*)inputAddr)->init_comm(mapper_num, local_mapper_id, send_array_limit, rotation_pipeline);
+}
+
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cInitCommPrepare
+(JNIEnv *env, jobject thisObj, jlong inputAddr, jint mapperid)
+{
+	((subgraph::Input*)inputAddr)->init_comm_prepare(mapperid);
+}
+
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cUploadCommPrepare
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	((subgraph::Input*)inputAddr)->upload_prep_comm();
+}
+
+JNIEXPORT jlong JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetDaalTableSize
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	return (jlong)(((subgraph::Input*)inputAddr)->daal_table_size);
+}
+
 JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cInitDTSub
 (JNIEnv *env, jobject thisObj, jlong inputAddr, jint s)
 {

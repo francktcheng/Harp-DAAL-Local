@@ -130,6 +130,7 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottom(Parameter* &par
     //setup omp affinity
     // setenv("KMP_AFFINITY","granularity=core,compact",1);
     int set_flag = setenv("KMP_AFFINITY","granularity=fine,compact",1);
+    // int set_flag = setenv("KMP_AFFINITY","granularity=core,scatter",1);
     if (set_flag == 0)
     {
         std::printf("omp affinity bind successful\n");

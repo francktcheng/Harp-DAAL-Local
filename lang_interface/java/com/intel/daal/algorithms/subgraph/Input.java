@@ -156,6 +156,27 @@ public final class Input extends com.intel.daal.algorithms.Input {
         cFreeInput(cObject);
     }
 
+    // for comm
+    public void initComm(int mapper_num, int local_mapper_id, 
+            long send_array_limit, boolean rotation_pipeline) 
+    {
+        cInitComm(cObject, mapper_num, local_mapper_id, send_array_limit, rotation_pipeline);
+    }
+
+    public void initCommPrepare(int mapper_id)
+    {
+        cInitCommPrepare(cObject, mapper_id);
+    }
+
+    public long getDaalTableSize() {
+        return cGetDaalTableSize(cObject);
+    }
+
+    public void uploadCommPrepare()
+    {
+        cUploadCommPrepare(cObject);
+    }
+
     private native void cSetInputTable(long cInput, int id, long ntAddr);
     private native long cGetInputTable(long cInput, int id);
     private native void cReadGraph(long cInput);
@@ -168,8 +189,13 @@ public final class Input extends com.intel.daal.algorithms.Input {
     private native void cInitDTSub(long cInput, int s);
     private native void cClearDTSub(long cInput, int s);
 
-    private native void cSetToTable(long cInput, int src, int dst);
+    // for comm
+    private native void cInitComm(long cInput, int mapper_num, int local_mapper_id, long send_array_limit, boolean rotation_pipeline);
+    private native void cInitCommPrepare(long cInput, int mapper_id);
+    private native void cUploadCommPrepare(long cInput);
+    private native long cGetDaalTableSize(long cInput);
 
+    private native void cSetToTable(long cInput, int src, int dst);
     private native void cSampleColors(long cInput);
 
     private native int cGetSubVertN(long cInput, int sub_itr);

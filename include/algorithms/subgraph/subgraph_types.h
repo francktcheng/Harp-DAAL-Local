@@ -30,6 +30,7 @@
 #include <string>
 #include <cstring>
 #include <set>
+#include <unordered_set>
 
 #include "algorithms/algorithm.h"
 #include "data_management/data/numeric_table.h"
@@ -82,7 +83,9 @@ enum InputId
 	fileoffset = 1,
     localV = 2,
     tfilenames =3,
-    tfileoffset = 4
+    tfileoffset = 4,
+    VMapperId = 5,
+    CommDataId = 6
 };
 
 /**
@@ -162,12 +165,6 @@ namespace interface1
         Graph& operator= (const Graph& param);
 
         int* adjacent_vertices(int v){return &(adj_index_table[v]->_adjs)[0];}
-        // int* adjacent_vertices(int v)
-        // {
-        //     int v_abs = vertex_ids[v];
-        //     return adjacent_vertices_abs(v_abs);
-        // }
-
         int* adjacent_vertices_abs(int v)
         {
             //from abs id to rel id
@@ -180,12 +177,6 @@ namespace interface1
 
         int get_relative_v_id(int v_abs){return vertex_local_ids[v_abs];}
         int out_degree(int v){ return (adj_index_table[v]->_adjs).size();}
-        // int out_degree(int v)
-        // { 
-        //     int v_abs = vertex_ids[v];
-        //     return out_degree_abs(v_abs);
-        // }
-
         int out_degree_abs(int v)
         {
             //from abs id to rel id
@@ -436,7 +427,6 @@ public:
 
     void create_tables();
     void delete_tables();
-
     void create_num_verts_table();
     //create color index for each combination of different set size
     void create_all_index_sets();
@@ -448,16 +438,13 @@ public:
     void delete_all_color_sets();
     //free up memory space
     void delete_all_index_sets();
-
     void delete_comb_num_system_indexes();
 
     void sampleGraph();
-
     int getSubVertN(int sub_itr);
 
     void initDtSub(int s);
     void clearDtSub(int s);
-
     void setToTable(int src, int dst);
     
     partitioner* getPartitioner() {return part;}
@@ -467,8 +454,18 @@ public:
     int getMaxDeg() {return g.max_deg;}
     Graph* getGraphPtr() {return &g; }
     int getColorNum() {return num_colors;}
-
     int computeMorphism();
+
+    // for comm
+    void init_comm(int mapper_num_par, int local_mapper_id_par, long send_array_limit_par, bool rotation_pipeline_par);
+    void init_comm_prepare(int update_id);
+    void upload_prep_comm();
+
+    // for comm
+    int update_mapper_id;
+    long daal_table_size; // -1 means no need to do data copy 
+    int* daal_table_int_ptr; // tmp array to hold int data
+    float* daal_table_float_ptr; //tmp array to hold float data
 
 private:
 
@@ -500,7 +497,32 @@ private:
     int**** index_sets;
     // temp index sets to construct comb_num_indexes 
     int***** color_sets;
-          
+
+    bool isTableCreated;
+
+    // for comm of mappers
+    int mapper_num;
+    int local_mapper_id;
+    long send_array_limit;
+    bool rotation_pipeline;
+    // std::set<int>* comm_mapper_vertex;
+    // std::unordered_set<int>* comm_mapper_vertex;
+    std::vector<int>* comm_mapper_vertex;
+    int* abs_v_to_mapper;
+    int* abs_v_to_queue;
+    // for update comm data
+    int** update_map;
+    int* update_map_size;
+
+    int*** update_queue_pos;
+    float*** update_queue_counts;
+    int16_t*** update_queue_index;
+    int* update_mapper_len;
+
+    int** map_ids_cache_pip;
+    int** chunk_ids_cache_pip;
+    int** chunk_internal_offsets_cache_pip;
+
 };
 
 

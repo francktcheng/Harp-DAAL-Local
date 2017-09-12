@@ -95,10 +95,77 @@ JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cInitCommPr
 	((subgraph::Input*)inputAddr)->init_comm_prepare(mapperid);
 }
 
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cInitCommFinal
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	((subgraph::Input*)inputAddr)->init_comm_final();
+}
+
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cSetSendVertexSize
+(JNIEnv *env, jobject thisObj, jlong inputAddr, jint size)
+{
+	((subgraph::Input*)inputAddr)->setSendVertexSize(size);
+}
+
+
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cSetSendVertexArray
+(JNIEnv *env, jobject thisObj, jlong inputAddr, jint dstID)
+{
+	((subgraph::Input*)inputAddr)->setSendVertexArray(dstID);
+}
+
+JNIEXPORT jint JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cSendCommParcelInit
+(JNIEnv *env, jobject thisObj, jlong inputAddr, jint sub_id, jint send_id)
+{
+	return (jint)(((subgraph::Input*)inputAddr)->sendCommParcelInit(sub_id, send_id));
+}
+
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cSendCommParcelPrep
+(JNIEnv *env, jobject thisObj, jlong inputAddr, jint parcel_id)
+{
+	((subgraph::Input*)inputAddr)->sendCommParcelPrep(parcel_id);
+}
+
+JNIEXPORT jint JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetCommParcelPrepVNum
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	return (jint)(((subgraph::Input*)inputAddr)->cur_parcel_v_num);
+}
+
+JNIEXPORT jint JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetCommParcelPrepCountLen
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	return (jint)(((subgraph::Input*)inputAddr)->cur_parcel_count_num);
+}
+
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cSendCommParcelLoad
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	((subgraph::Input*)inputAddr)->sendCommParcelLoad();
+}
+
 JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cUploadCommPrepare
 (JNIEnv *env, jobject thisObj, jlong inputAddr)
 {
 	((subgraph::Input*)inputAddr)->upload_prep_comm();
+}
+
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cUpdateRecvParcelInit
+(JNIEnv *env, jobject thisObj, jlong inputAddr, jint comm_id)
+{
+	((subgraph::Input*)inputAddr)->updateRecvParcelInit(comm_id);
+}
+
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cUpdateRecvParcel
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	((subgraph::Input*)inputAddr)->updateRecvParcel();
+}
+
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cFreeRecvParcel
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	((subgraph::Input*)inputAddr)->freeRecvParcel();
 }
 
 JNIEXPORT jlong JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetDaalTableSize

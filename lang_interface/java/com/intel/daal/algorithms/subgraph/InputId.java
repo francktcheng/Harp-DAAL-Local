@@ -44,6 +44,9 @@ public final class InputId {
     private static final int tfileoffsetId = 4;   
     private static final int vMapperId = 5;   
     private static final int commDataId = 6;   
+    private static final int ParcelOffsetId = 7;   
+    private static final int ParcelDataId = 8;   
+    private static final int ParcelIdxId = 9;   
 
     /** %Input data table */
     public static final InputId filenames = new InputId(filenamesId);
@@ -53,5 +56,8 @@ public final class InputId {
     public static final InputId localV = new InputId(localVId);
     public static final InputId vMapper = new InputId(vMapperId);
     public static final InputId commData = new InputId(commDataId);
+    public static final InputId ParcelOffset = new InputId(ParcelOffsetId);
+    public static final InputId ParcelData = new InputId(ParcelDataId);
+    public static final InputId ParcelIdx = new InputId(ParcelIdxId);
 
 }

@@ -31,6 +31,7 @@
 #include <cstring>
 #include <set>
 #include <unordered_set>
+#include <unordered_map>
 
 #include "algorithms/algorithm.h"
 #include "data_management/data/numeric_table.h"
@@ -85,7 +86,10 @@ enum InputId
     tfilenames =3,
     tfileoffset = 4,
     VMapperId = 5,
-    CommDataId = 6
+    CommDataId = 6,
+    ParcelOffsetId = 7,
+    ParcelDataId = 8,
+    ParcelIdxId = 9
 };
 
 /**
@@ -153,7 +157,7 @@ namespace interface1
             adj_len = 0;
             num_edges = 0;
             max_deg = 0;
-            vertex_ids = NULL; // absolute v_id
+            // vertex_ids = NULL; // absolute v_id
             vertex_local_ids = NULL; // mapping from absolute v_id to relative v_id
             adj_index_table = NULL; //a table to index adj list for each local vert
             isTemplate = false;
@@ -188,7 +192,7 @@ namespace interface1
         }
 
         int max_degree(){return max_deg;}
-        int* get_abs_v_ids(){return vertex_ids;}
+        int* get_abs_v_ids(){return vertex_ids.get();}
         int num_vertices(){ return vert_num_count;}
         int vert_num_count;
         int max_v_id_local;
@@ -196,7 +200,8 @@ namespace interface1
         int adj_len;
         int num_edges;
         int max_deg;
-        int* vertex_ids; // absolute v_id
+        // int* vertex_ids; // absolute v_id
+        services::SharedPtr<int> vertex_ids; // absolute v_id
         int* vertex_local_ids; // mapping from absolute v_id to relative v_id
 
         v_adj_elem** adj_index_table; //a table to index adj list for each local vert
@@ -460,12 +465,44 @@ public:
     void init_comm(int mapper_num_par, int local_mapper_id_par, long send_array_limit_par, bool rotation_pipeline_par);
     void init_comm_prepare(int update_id);
     void upload_prep_comm();
+    void setSendVertexSize(int size);
+    void setSendVertexArray(int dst);
+
+    void init_comm_final();
+    int sendCommParcelInit(int sub_id, int send_id);
+    void sendCommParcelPrep(int parcel_id);
+    void sendCommParcelLoad();
+
+    void updateRecvParcelInit(int comm_id); 
+    void updateRecvParcel();
+    void freeRecvParcel();
 
     // for comm
     int update_mapper_id;
     long daal_table_size; // -1 means no need to do data copy 
     int* daal_table_int_ptr; // tmp array to hold int data
     float* daal_table_float_ptr; //tmp array to hold float data
+
+    int cur_sub_id_comm;
+    int cur_comb_len_comm;
+    long cur_parcel_num;
+    std::vector<int>* cur_send_id_data;
+    std::vector<int>* cur_send_chunks;
+    int cur_parcel_id;
+    int cur_parcel_v_num;
+    int cur_parcel_count_num;
+    int* cur_parcel_v_offset; // v_num+1
+    float* cur_parcel_v_counts_data; //count_num
+    int* cur_parcel_v_counts_index; //count_num
+    int cur_upd_mapper_id;
+    int cur_upd_parcel_id;
+
+    int cur_sub_id_compute;
+    int cur_comb_len_compute;
+
+    int send_vertex_array_size;
+    std::vector<int> send_vertex_array_dst;
+    std::unordered_map<int, std::vector<int> > send_vertex_array;
 
 private:
 
@@ -486,8 +523,10 @@ private:
     std::vector<int> t_dst;
 
     hdfsFS* fs;
-    int* fileOffsetPtr;
-    int* fileNamesPtr;
+    // int* fileOffsetPtr;
+    // int* fileNamesPtr;
+    services::SharedPtr<int> fileOffsetPtr;
+    services::SharedPtr<int> fileNamesPtr;
 
     // table for dynamic programming
     partitioner* part;
@@ -508,15 +547,20 @@ private:
     // std::set<int>* comm_mapper_vertex;
     // std::unordered_set<int>* comm_mapper_vertex;
     std::vector<int>* comm_mapper_vertex;
-    int* abs_v_to_mapper;
+    // int* abs_v_to_mapper;
+    services::SharedPtr<int> abs_v_to_mapper;
     int* abs_v_to_queue;
     // for update comm data
     int** update_map;
     int* update_map_size;
 
-    int*** update_queue_pos;
-    float*** update_queue_counts;
-    int16_t*** update_queue_index;
+    // int*** update_queue_pos;
+    services::SharedPtr<int>** update_queue_pos;
+    // float*** update_queue_counts;
+    services::SharedPtr<float>** update_queue_counts;
+    // int*** update_queue_index;
+    services::SharedPtr<int>** update_queue_index;
+
     int* update_mapper_len;
 
     int** map_ids_cache_pip;

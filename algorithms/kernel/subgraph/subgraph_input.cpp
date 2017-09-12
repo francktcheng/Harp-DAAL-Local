@@ -68,11 +68,12 @@ int util_factorial(int x);
 int util_test_automorphism(Graph& tp, std::vector<int>& mapping);
 int util_count_all_automorphisms(Graph& tp, std::vector<int>& mapping, std::vector<int>& rest);
 int util_count_automorphisms(Graph& tp);
-
+int* util_divide_chunks_comm(int total, int partition);
 // input has two numerictables
 // 0: filenames
 // 1: fileoffsets
-Input::Input() : daal::algorithms::Input(7) {
+Input::Input() : daal::algorithms::Input(10) {
+
 
 
     // store vert of each template
@@ -96,8 +97,8 @@ Input::Input() : daal::algorithms::Input(7) {
     t_mg = 0;
 
     fs = NULL;
-    fileOffsetPtr = NULL;
-    fileNamesPtr = NULL;
+    // fileOffsetPtr = NULL;
+    // fileNamesPtr = NULL;
 
     // table for dynamic programming
     part = NULL;
@@ -116,7 +117,7 @@ Input::Input() : daal::algorithms::Input(7) {
     local_mapper_id = 0;
     send_array_limit = 1000;
     rotation_pipeline = false;
-    abs_v_to_mapper = NULL;
+    // abs_v_to_mapper = NULL;
     abs_v_to_queue = NULL;
     comm_mapper_vertex = NULL;
     update_map = NULL;
@@ -135,6 +136,25 @@ Input::Input() : daal::algorithms::Input(7) {
     daal_table_size = -1; // -1 means no need to do data copy 
     daal_table_int_ptr = NULL; // tmp array to hold int data
     daal_table_float_ptr = NULL; //tmp array to hold float data
+    
+    // send_vertex_array = NULL;
+    send_vertex_array_size = 0;
+
+    cur_sub_id_comm = 0;
+    cur_comb_len_comm = 0;
+    cur_parcel_num = 0;
+    cur_send_id_data = NULL; // no need to free
+    cur_send_chunks = NULL;
+
+    cur_sub_id_compute = 0;
+    cur_comb_len_compute = 0;
+
+    cur_parcel_id = 0;
+    cur_parcel_v_num = 0;
+    cur_parcel_count_num = 0;
+    cur_parcel_v_offset = NULL; // v_num+1
+    cur_parcel_v_counts_data = NULL; //count_num
+    cur_parcel_v_counts_index = NULL; //count_num
 
 }
 
@@ -146,31 +166,33 @@ void Input::init_comm(int mapper_num_par, int local_mapper_id_par, long send_arr
     rotation_pipeline = rotation_pipeline_par;
 
     NumericTablePtr abs_v_to_mapper_table = get(VMapperId);
-    // daal::internal::BlockMicroTable<int, readWrite, sse2> mtVMapperId(abs_v_to_mapper_table.get());
-    // mtVMapperId.getBlockOfRows(0, 1, &abs_v_to_mapper);
-    size_t table_dim = abs_v_to_mapper_table->getNumberOfRows();
-    daal::internal::FeatureMicroTable<int, readOnly, sse2> mtVMapperId(abs_v_to_mapper_table.get());
-    mtVMapperId.getBlockOfColumnValues(0, 0, table_dim, &abs_v_to_mapper);
+    BlockDescriptor<int> mtVMapperId;
+    abs_v_to_mapper_table->getBlockOfColumnValues(0, 0, abs_v_to_mapper_table->getNumberOfRows(), readOnly, mtVMapperId);
+    abs_v_to_mapper = mtVMapperId.getBlockSharedPtr();
 
     //retrieve the abs v id to mapper mapping
     //length max_v_id+1 
     //debug check abs_v_to_mapper val
     for(int i=0; i<10;i++)
     {
-        int v_id = g.vertex_ids[i]; 
-        std::printf("Check abs_v_to_mapper v_id: %d, mapper id: %d\n", v_id, abs_v_to_mapper[v_id]);
+        int v_id = g.vertex_ids.get()[i]; 
+        std::printf("Check abs_v_to_mapper v_id: %d, mapper id: %d\n", v_id, abs_v_to_mapper.get()[v_id]);
     }
 
     int abs_len = g.max_v_id + 1;
     abs_v_to_queue = new int[abs_len];
+    std::memset(abs_v_to_queue, 0, abs_len*sizeof(int));
+
     // comm_mapper_vertex = new std::unordered_set<int>[mapper_num];
     // comm_mapper_vertex = new int*[mapper_num];
     comm_mapper_vertex = new std::vector<int>[mapper_num];
+
     int* comm_mapper_tmp = new int[abs_len*mapper_num];
     std::memset(comm_mapper_tmp, 0, abs_len*mapper_num*sizeof(int));
 
     int thread_num_max = omp_get_max_threads();
 
+    int* abs_v_to_mapper_ptr = abs_v_to_mapper.get();
     #pragma omp parallel for schedule(guided) num_threads(thread_num_max) 
     for(int i=0;i<g.vert_num_count;i++)
     {
@@ -180,7 +202,7 @@ void Input::init_comm(int mapper_num_par, int local_mapper_id_par, long send_arr
         for(int j=0;j<list_size;j++)
         {
             int adj_abs_id = elem_adj_ptr[j];
-            int adj_mapper_id = abs_v_to_mapper[adj_abs_id];
+            int adj_mapper_id = abs_v_to_mapper_ptr[adj_abs_id];
             #pragma omp atomic
             comm_mapper_tmp[adj_mapper_id*abs_len + adj_abs_id]++;
         }
@@ -203,15 +225,35 @@ void Input::init_comm(int mapper_num_par, int local_mapper_id_par, long send_arr
         update_map[i] = new int[g.out_degree(i)];
 
     update_map_size = new int[g.vert_num_count];
+    std::memset(update_map_size, 0, g.vert_num_count*sizeof(int));
 
-    update_queue_pos = new int**[mapper_num];
-    update_queue_counts = new float**[mapper_num];
-    update_queue_index = new int16_t**[mapper_num];
+    // update_queue_pos = new int**[mapper_num];
+    // update_queue_counts = new float**[mapper_num];
+    // update_queue_index = new int**[mapper_num];
+    update_queue_pos = new services::SharedPtr<int>*[mapper_num];
+    update_queue_counts = new services::SharedPtr<float>*[mapper_num];
+    update_queue_index = new services::SharedPtr<int>*[mapper_num];
+
+    for(int i=0;i<mapper_num;i++)
+    {
+        update_queue_pos[i] = NULL;
+        update_queue_counts[i] = NULL;
+        update_queue_index[i] = NULL;
+    }
+
     update_mapper_len = new int[mapper_num];
+    std::memset(update_mapper_len, 0, mapper_num*sizeof(int));
 
     map_ids_cache_pip = new int*[g.vert_num_count];
     chunk_ids_cache_pip = new int*[g.vert_num_count];
     chunk_internal_offsets_cache_pip = new int*[g.vert_num_count];
+
+    for(int i=0;i<g.vert_num_count;i++)
+    {
+        map_ids_cache_pip[i] = NULL;
+        chunk_ids_cache_pip[i] = NULL;
+        chunk_internal_offsets_cache_pip[i] = NULL;
+    }
 
 }
 
@@ -245,10 +287,6 @@ void Input::upload_prep_comm()
     {
         //javaTable
         NumericTablePtr upload_prep_comm_table = get(CommDataId);
-        // size_t table_dim = abs_v_to_mapper_table->getNumberOfRows();
-        // daal::internal::FeatureMicroTable<int, writeOnly, sse2> mtUpload(upload_prep_comm_table.get());
-        // int* daal_tmp_ptr = NULL
-        // mtUpload.getBlockOfColumnValues(0, 0, daal_table_size, &daal_tmp_ptr);
         BlockDescriptor<int> upload_block;
         upload_block.setPtr(daal_table_int_ptr, 1, daal_table_size);
         upload_block.setDetails(0, 0, writeOnly);
@@ -256,6 +294,350 @@ void Input::upload_prep_comm()
         (upload_prep_comm_table.get())->releaseBlockOfColumnValues( upload_block );
         upload_block.reset();
     }
+}
+
+void Input::setSendVertexSize(int size)
+{
+    send_vertex_array_size = size;
+    // if (send_vertex_array != NULL)
+        // send_vertex_array = new std::vector<int>[size];
+
+}
+
+void Input::setSendVertexArray(int dst)
+{
+    send_vertex_array_dst.push_back(dst);
+    NumericTablePtr download_send_vertex_table = get(CommDataId);
+
+    BlockDescriptor<int> mtDownload;
+    download_send_vertex_table->getBlockOfColumnValues(0,0, download_send_vertex_table->getNumberOfRows(), readOnly, mtDownload);
+    services::SharedPtr<int> daal_tmp_ptr = mtDownload.getBlockSharedPtr();
+
+    // implicit data copy to vec
+    std::vector<int> daal_tmp_vec(daal_tmp_ptr.get(), daal_tmp_ptr.get() + download_send_vertex_table->getNumberOfRows());
+    //debug 
+    for(int i=0;i<10;i++)
+    {
+        std::printf("Check send vertex array: %d\n", daal_tmp_vec[i]);
+        std::fflush;
+    }
+
+    send_vertex_array.insert({dst, daal_tmp_vec});
+}
+
+void Input::init_comm_final()
+{
+    // free 
+    if (comm_mapper_vertex != NULL)
+    {
+        delete[] comm_mapper_vertex;
+        comm_mapper_vertex = NULL;
+    }
+}
+
+int Input::sendCommParcelInit(int sub_id, int send_id)
+{
+    cur_sub_id_comm = sub_id;
+    cur_comb_len_comm = dt->get_num_color_set(part->get_passive_index(sub_id)); 
+
+    // find the send id vector in map
+    auto search = send_vertex_array.find(send_id);
+    if (search != send_vertex_array.end())
+    {
+        //debug
+        
+        cur_send_id_data = &(search->second);
+        //use long to avoid size overflow
+        cur_parcel_num = (cur_send_id_data->size()*((long)cur_comb_len_comm)+ send_array_limit - 1)/send_array_limit;
+
+        // prepare chunks
+        // send_chunks.length == send_divid_num + 1
+        // call the util function
+        int* chunk_tmp_ptr = util_divide_chunks_comm(cur_send_id_data->size(), (int)cur_parcel_num);
+        cur_send_chunks = new std::vector<int>(chunk_tmp_ptr, chunk_tmp_ptr+((int)cur_parcel_num + 1));
+
+        std::printf("Find sender id: %d, cur_comb_len_comm: %d, parcel num: %d\n", search->first, cur_comb_len_comm, (int)cur_parcel_num);
+        std::fflush;
+
+        return (int)cur_parcel_num; 
+    }
+    else
+        return 0;
+}
+
+
+/**
+ * @brief compress data for parcel id
+ * feedback v_num, count_num
+ *
+ * @param parcel_id
+ */
+void Input::sendCommParcelPrep(int parcel_id)
+{
+    int parcel_len = cur_send_chunks->at(parcel_id+1) - cur_send_chunks->at(parcel_id);
+    //debug
+    std::printf("parcel id: %d; parcel size: %d\n", parcel_id, parcel_len);
+    std::fflush;
+
+    int* send_parcel_buf = new int[parcel_len];
+    int* send_total_buf = &(*cur_send_id_data)[0];
+    std::memcpy(send_parcel_buf, send_total_buf+cur_send_chunks->at(parcel_id), parcel_len*sizeof(int));
+
+
+    // int v_num = vert_list.length;
+    int* v_offset = new int[parcel_len + 1];
+    //to be trimed
+    float* counts_data_tmp = new float[cur_comb_len_comm*parcel_len];
+    float* compress_array = new float[cur_comb_len_comm];
+
+    // compress index uses short to save memory, support up to 32767 as max_comb_len
+    // use int instead of short here
+    int* counts_index_tmp = new int[cur_comb_len_comm*parcel_len];
+    int* compress_index = new int[cur_comb_len_comm];
+
+    int count_num = 0;
+    int effective_v = 0;
+
+    for(int i = 0; i< parcel_len; i++)
+    {
+        v_offset[i] = count_num;
+        //get the abs vert id
+        int comm_vert_id = send_parcel_buf[i];
+        int rel_vert_id = g.get_relative_v_id(comm_vert_id); 
+
+        //if comm_vert_id is not in local graph
+        if (rel_vert_id < 0 || (dt->is_vertex_init_passive(rel_vert_id) == false))
+            continue;
+
+        //compress the sending counts and index
+        float* counts_raw = dt->get_passive(rel_vert_id);
+        if (counts_raw == NULL)
+        {
+            std::printf("ERROR: null passive counts array\n");
+            std::fflush;
+            continue;
+        }
+
+        //check length 
+        // if (counts_raw.length != num_comb_max)
+        // {
+        //     LOG.info("ERROR: comb_max and passive counts len not matched");
+        //     continue;
+        // }
+
+        int compress_itr = 0;
+        for(int j=0; j<cur_comb_len_comm; j++)
+        {
+            if (counts_raw[j] > 0.0)
+            {
+                compress_array[compress_itr] = counts_raw[j];
+                compress_index[compress_itr] = j;
+                compress_itr++;
+            }
+        }
+
+        effective_v++;
+
+        std::memcpy(counts_data_tmp+count_num, compress_array, compress_itr*sizeof(float));
+        std::memcpy(counts_index_tmp+count_num, compress_index, compress_itr*sizeof(int));
+        // System.arraycopy(compress_array, 0, counts_data_tmp, count_num, compress_itr);
+        // System.arraycopy(compress_index, 0, counts_index_tmp, count_num, compress_itr);
+        count_num += compress_itr;
+    }
+
+    v_offset[parcel_len] = count_num;
+
+    //trim the tmp array
+    cur_parcel_v_offset = v_offset;
+    cur_parcel_v_num = parcel_len;
+    cur_parcel_count_num = count_num;
+
+    cur_parcel_v_counts_data = new float[count_num];
+    cur_parcel_v_counts_index = new int[count_num];
+    std::memcpy(cur_parcel_v_counts_data, counts_data_tmp, count_num*sizeof(float));
+    std::memcpy(cur_parcel_v_counts_index, counts_index_tmp, count_num*sizeof(int));
+    // System.arraycopy(counts_data_tmp, 0, counts_data, 0, count_num);
+    // System.arraycopy(counts_index_tmp, 0, counts_index, 0, count_num);
+
+    delete[] counts_data_tmp;
+    delete[] counts_index_tmp;
+    delete[] compress_array;
+    delete[] compress_index;
+
+    delete[] send_parcel_buf;
+
+    //delete cur_send_chunks
+    if (parcel_id == cur_parcel_num - 1)
+    {
+        if (cur_send_chunks != NULL)
+        {
+            delete cur_send_chunks;
+            cur_send_chunks = NULL;
+        }
+    }
+
+}
+
+void Input::sendCommParcelLoad()
+{
+
+    BlockDescriptor<int> up_block_int;
+    BlockDescriptor<float> up_block_float;
+
+    //upload parcel offset 
+    NumericTablePtr parceloffset = get(ParcelOffsetId);
+    up_block_int.setPtr(cur_parcel_v_offset, 1, parceloffset->getNumberOfRows());
+    up_block_int.setDetails(0, 0, writeOnly);
+
+    (parceloffset.get())->releaseBlockOfColumnValues(up_block_int);
+    up_block_int.reset();
+
+    // upload parcel data
+    NumericTablePtr parceldata = get(ParcelDataId);
+    up_block_float.setPtr(cur_parcel_v_counts_data, 1, parceldata->getNumberOfRows());
+    up_block_float.setDetails(0, 0, writeOnly);
+
+    (parceldata.get())->releaseBlockOfColumnValues(up_block_float);
+    up_block_float.reset();
+
+    //upload parcel index data
+    NumericTablePtr parcelindex = get(ParcelIdxId);
+    up_block_int.setPtr(cur_parcel_v_counts_index, 1, parcelindex->getNumberOfRows());
+    up_block_int.setDetails(0, 0, writeOnly);
+
+    (parcelindex.get())->releaseBlockOfColumnValues(up_block_int);
+    up_block_int.reset();
+
+    //free cur parcel realted data
+    if (cur_parcel_v_offset != NULL)
+    {
+        delete[] cur_parcel_v_offset;
+        cur_parcel_v_offset = NULL;
+    }
+
+    if (cur_parcel_v_counts_data != NULL)
+    {
+        delete[] cur_parcel_v_counts_data;
+        cur_parcel_v_counts_data = NULL;
+    }
+
+    if (cur_parcel_v_counts_index != NULL)
+    {
+        delete[] cur_parcel_v_counts_index;
+        cur_parcel_v_counts_index = NULL;
+    }
+}
+
+void Input::updateRecvParcelInit(int comm_id)
+{
+    int update_id_tmp = ( comm_id & ( (1 << 20) -1 ) );
+    cur_upd_mapper_id =  (update_id_tmp >> 8);
+    cur_upd_parcel_id = ( update_id_tmp & ( (1 << 8) -1 ) );
+    // create update_queue 
+    if (update_queue_pos[cur_upd_mapper_id] == NULL)
+    {
+        long recv_divid_num = (update_mapper_len[cur_upd_mapper_id]*((long)cur_comb_len_comm)+ send_array_limit - 1)/send_array_limit;
+        //debug
+        std::printf("Update create size of id %d: %d\n",cur_upd_mapper_id,  (int)recv_divid_num);
+        std::fflush;
+
+        // update_queue_pos[cur_upd_mapper_id] = new int*[(int)recv_divid_num];
+        // update_queue_counts[cur_upd_mapper_id] = new float*[(int)recv_divid_num];
+        // update_queue_index[cur_upd_mapper_id] = new int*[(int)recv_divid_num];
+        update_queue_pos[cur_upd_mapper_id] = new services::SharedPtr<int>[(int)recv_divid_num];
+        update_queue_counts[cur_upd_mapper_id] = new services::SharedPtr<float>[(int)recv_divid_num];
+        update_queue_index[cur_upd_mapper_id] = new services::SharedPtr<int>[(int)recv_divid_num];
+
+        // for(int i=0;i<(int)recv_divid_num;i++)
+        // {
+        //     update_queue_pos[cur_upd_mapper_id][i] = NULL;
+        //     update_queue_counts[cur_upd_mapper_id][i] = NULL;
+        //     update_queue_index[cur_upd_mapper_id][i] = NULL;
+        // }
+    }
+
+}
+
+void Input::updateRecvParcel()
+{
+
+    NumericTablePtr recv_v_offset_table = get(ParcelOffsetId);
+    BlockDescriptor<int> mtOffset;
+    recv_v_offset_table->getBlockOfColumnValues(0, 0, recv_v_offset_table->getNumberOfRows(), readOnly, mtOffset);
+    update_queue_pos[cur_upd_mapper_id][cur_upd_parcel_id] = mtOffset.getBlockSharedPtr();
+
+    NumericTablePtr recv_v_data_table = get(ParcelDataId);
+    BlockDescriptor<float> mtData;
+    recv_v_data_table->getBlockOfColumnValues(0, 0, recv_v_data_table->getNumberOfRows(), readOnly, mtData);
+    update_queue_counts[cur_upd_mapper_id][cur_upd_parcel_id] = mtData.getBlockSharedPtr();
+
+    NumericTablePtr recv_v_index_table = get(ParcelIdxId);
+    BlockDescriptor<int> mtIndex;
+    recv_v_index_table->getBlockOfColumnValues(0, 0, recv_v_index_table->getNumberOfRows(), readOnly, mtIndex);
+    update_queue_index[cur_upd_mapper_id][cur_upd_parcel_id] = mtIndex.getBlockSharedPtr();
+
+}
+
+void Input::freeRecvParcel()
+{
+    //free mem space of update_queue_pos/counts/index
+    for (int i = 0; i < mapper_num; i++) 
+    {
+
+        int parcel_num = (update_mapper_len[i]*((long)cur_comb_len_comm)+ send_array_limit - 1)/send_array_limit; 
+        //debug
+        std::printf("Update free size of id %d: %d\n", i,  parcel_num);
+        std::fflush;
+
+        if (update_queue_pos[i] != NULL)
+        {
+            
+            for (int j = 0; j <parcel_num ; j++) {
+
+            std::printf("Update free i %d: j: %d\n", i,  j);
+            std::fflush;
+
+                // if (update_queue_pos[i][j] != NULL)
+                // {
+                    // delete[] update_queue_pos[i][j];
+                    update_queue_pos[i][j] = services::SharedPtr<int>();
+                // }
+            }
+
+            delete[] update_queue_pos[i];
+            update_queue_pos[i] = NULL;
+        }
+
+        if (update_queue_counts[i] != NULL)
+        {
+            for (int j = 0; j <parcel_num ; j++) {
+                // if (update_queue_counts[i][j] != NULL)
+                // {
+                    // delete[] update_queue_counts[i][j];
+                    update_queue_counts[i][j] = services::SharedPtr<float>(); 
+                // }
+            }
+
+            delete[] update_queue_counts[i];
+            update_queue_counts[i] = NULL;
+        }
+
+        if (update_queue_index[i] != NULL)
+        {
+            for (int j = 0; j <parcel_num ; j++) {
+                // if (update_queue_index[i][j] != NULL)
+                // {
+                    // delete[] update_queue_index[i][j];
+                    update_queue_index[i][j] = services::SharedPtr<int>(); 
+                // }
+            }
+
+            delete[] update_queue_index[i];
+            update_queue_index[i] = NULL;
+        }
+
+    }
+
 }
 
 NumericTablePtr Input::get(InputId id) const
@@ -290,7 +672,7 @@ daal::services::interface1::Status Input::check(const daal::algorithms::Paramete
 
 struct readG_task{
 
-    readG_task(int file_id, hdfsFS*& handle, int*& fileOffsetPtr, int*& fileNamesPtr, std::vector<v_adj_elem*>*& v_adj, int*& max_v_id_local)
+    readG_task(int file_id, hdfsFS*& handle, int* fileOffsetPtr, int* fileNamesPtr, std::vector<v_adj_elem*>*& v_adj, int*& max_v_id_local)
     {
         _file_id = file_id;
         _handle = handle;
@@ -467,11 +849,16 @@ void Input::readGraph()
 
     int file_num = filenames_offset->getNumberOfColumns() - 1;
 
-    daal::internal::BlockMicroTable<int, readWrite, sse2> mtFileOffset(filenames_offset.get());
-    mtFileOffset.getBlockOfRows(0, 1, &fileOffsetPtr);
 
-    daal::internal::BlockMicroTable<int, readWrite, sse2> mtFileNames(filenames_array.get());
-    mtFileNames.getBlockOfRows(0, 1, &fileNamesPtr);
+    BlockDescriptor<int> mtFileOffset;
+    filenames_offset->getBlockOfRows(0, 1, readOnly, mtFileOffset);
+    fileOffsetPtr = mtFileOffset.getBlockSharedPtr();
+
+
+    BlockDescriptor<int> mtFileNames;
+    filenames_array->getBlockOfRows(0, 1, readOnly, mtFileNames);
+    fileNamesPtr = mtFileNames.getBlockSharedPtr();
+
 
     std::printf("Finish create hdfsFS files\n");
     std::fflush;
@@ -482,7 +869,7 @@ void Input::readGraph()
 
     for(int i=0;i<file_num;i++)
     {
-        task_queue[i] = new readG_task(i, fs, fileOffsetPtr, fileNamesPtr, v_adj, max_v_id_thdl);
+        task_queue[i] = new readG_task(i, fs, fileOffsetPtr.get(), fileNamesPtr.get(), v_adj, max_v_id_thdl);
         std::printf("Finish create taskqueue %d\n", i);
         std::fflush;
 
@@ -528,23 +915,27 @@ void Input::readTemplate()
 
     int file_num = filenames_offset->getNumberOfColumns() - 1;
 
-    int* tfileOffsetPtr = NULL;
-    daal::internal::BlockMicroTable<int, readWrite, sse2> mtFileOffset(filenames_offset.get());
-    mtFileOffset.getBlockOfRows(0, 1, &tfileOffsetPtr);
+    services::SharedPtr<int> tfileOffsetPtr;
+    BlockDescriptor<int> mtFileOffset;
+    filenames_offset->getBlockOfRows(0, 1, readOnly, mtFileOffset);
+    tfileOffsetPtr =  mtFileOffset.getBlockSharedPtr();
 
-    int* tfileNamesPtr = NULL;
-    daal::internal::BlockMicroTable<int, readWrite, sse2> mtFileNames(filenames_array.get());
-    mtFileNames.getBlockOfRows(0, 1, &tfileNamesPtr);
+
+    services::SharedPtr<int> tfileNamesPtr;
+    BlockDescriptor<int> mtFileNames;
+    filenames_array->getBlockOfRows(0, 1, readOnly, mtFileNames);
+    tfileNamesPtr =  mtFileNames.getBlockSharedPtr();
+
 
     std::printf("Finish create hdfsFS files for template\n");
     std::fflush;
 
     // for single template
     int file_id = 0;
-    int len = tfileOffsetPtr[file_id+1] - tfileOffsetPtr[file_id];
+    int len = tfileOffsetPtr.get()[file_id+1] - tfileOffsetPtr.get()[file_id];
     char* file = new char[len+1];
     for(int j=0;j<len;j++)
-        file[j] = (char)(tfileNamesPtr[tfileOffsetPtr[file_id] + j]);
+        file[j] = (char)(tfileNamesPtr.get()[tfileOffsetPtr.get()[file_id] + j]);
 
     // terminate char buf
     file[len] = '\0';
@@ -718,7 +1109,8 @@ void Input::init_Graph()
     g.num_edges = g.adj_len;
 
     //global abs vertex ids
-    g.vertex_ids = new int[g.vert_num_count];
+    // g.vertex_ids = new int[g.vert_num_count];
+    g.vertex_ids = services::SharedPtr<int>(new int[g.vert_num_count]);
     g.max_deg = 0;
 
     //load v ids from v_adj to vertex_ids
@@ -729,8 +1121,8 @@ void Input::init_Graph()
     {
         for(int j=0; j<v_adj[i].size(); j++)
         {
-            g.vertex_ids[itr] = ((v_adj[i])[j])->_v_id;
-            int v_id = g.vertex_ids[itr];
+            g.vertex_ids.get()[itr] = ((v_adj[i])[j])->_v_id;
+            int v_id = g.vertex_ids.get()[itr];
             g.vertex_local_ids[v_id] = itr;
             g.adj_index_table[itr] = ((v_adj[i])[j]);
 
@@ -740,19 +1132,16 @@ void Input::init_Graph()
         }
     }
 
-    //shuffle to sort g.vert_ids
-    //debug
-    // util_quicksort(g.vertex_ids, 0, g.vert_num_count-1, g.vert_num_count);
 
     // load vertex_ids into daal table
     NumericTablePtr localVTable = get(localV);
     if (localVTable != NULL)
     {
-        daal::internal::BlockMicroTable<int, writeOnly, sse2> mtlocalVTable(localVTable.get());
-        int* localVTablePtr = NULL;
-        mtlocalVTable.getBlockOfRows(0, 1, &localVTablePtr);
-        memcpy(localVTablePtr, g.vertex_ids, g.vert_num_count*sizeof(int));
-        mtlocalVTable.release();
+        BlockDescriptor<int> mtlocalVTable;
+        mtlocalVTable.setDetails(0, 0, writeOnly);
+        mtlocalVTable.setPtr(g.vertex_ids.get(), g.vert_num_count, 1);
+        localVTable->releaseBlockOfRows(mtlocalVTable);
+        mtlocalVTable.reset();
     }
 
     // create colrs_g
@@ -1245,7 +1634,7 @@ partitioner::partitioner(Graph& t, bool label, int*& label_map)
     //debug printout graph t
     for(int i = 0; i<t.vert_num_count; i++)
     {
-        std::printf("t vert: %d\n", t.vertex_ids[i]);
+        std::printf("t vert: %d\n", t.vertex_ids.get()[i]);
         std::fflush;
         int* adj_list = t.adjacent_vertices(i);
         int deg = t.out_degree(i);
@@ -1613,7 +2002,8 @@ void Graph::initTemplate(int ng, int mg, int*& src, int*& dst)
     max_deg = 0;
 
     vertex_local_ids = new int[vert_num_count+1];
-    vertex_ids = new int[vert_num_count];
+    // vertex_ids = new int[vert_num_count];
+    vertex_ids = services::SharedPtr<int>(new int[vert_num_count]);
     adj_index_table = new v_adj_elem*[vert_num_count];
     //initialize adj table
     for(int i=0; i<vert_num_count;i++)
@@ -1633,7 +2023,7 @@ void Graph::initTemplate(int ng, int mg, int*& src, int*& dst)
 
     for(int i = 0; i < vert_num_count; ++i)
     {
-        vertex_ids[i] = i;
+        vertex_ids.get()[i] = i;
         max_deg = adj_index_table[i]->_adjs.size() > max_deg? adj_index_table[i]->_adjs.size() : max_deg;
     }
 
@@ -1642,11 +2032,11 @@ void Graph::initTemplate(int ng, int mg, int*& src, int*& dst)
 
 void Graph::freeMem()
 {
-    if (vertex_ids != NULL)
-    {
-        delete[] vertex_ids; // absolute v_id
-        vertex_ids = NULL;
-    }
+    // if (vertex_ids != NULL)
+    // {
+    //     delete[] vertex_ids; // absolute v_id
+    //     vertex_ids = NULL;
+    // }
 
     if (vertex_local_ids != NULL)
     {
@@ -1677,8 +2067,9 @@ Graph& Graph::operator= (const Graph& param)
     num_edges = param.num_edges;
     max_deg = param.max_deg;
 
-    vertex_ids = new int[vert_num_count];
-    std::memcpy(vertex_ids, param.vertex_ids, vert_num_count*sizeof(int));
+    // vertex_ids = new int[vert_num_count];
+    // std::memcpy(vertex_ids, param.vertex_ids, vert_num_count*sizeof(int));
+    vertex_ids = param.vertex_ids;
 
     vertex_local_ids = new int[vert_num_count+1];
     std::memcpy(vertex_local_ids, param.vertex_local_ids, (vert_num_count+1)*sizeof(int));
@@ -2213,6 +2604,22 @@ int util_count_automorphisms(Graph& tp)
 
     return util_count_all_automorphisms(tp, mapping, rest);
 
+}
+
+int* util_divide_chunks_comm(int total, int partition)
+{
+    int* chunks = new int[partition+1];
+    chunks[0] = 0;
+    int remainder = total % partition;
+    int basic_size = total / partition;
+
+    for(int i = 1; i <= partition-1; ++i) {
+        chunks[i] = chunks[i - 1] + basic_size;
+    }
+
+    // for last chunk
+    chunks[partition] = chunks[partition - 1] + basic_size + remainder;
+    return chunks;
 }
 
 } // namespace interface1

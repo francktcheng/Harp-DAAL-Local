@@ -168,6 +168,50 @@ public final class Input extends com.intel.daal.algorithms.Input {
         cInitCommPrepare(cObject, mapper_id);
     }
 
+    public void initCommFinal()
+    {
+        cInitCommFinal(cObject);
+    }
+
+    public int sendCommParcelInit(int sub_id, int send_id)
+    {
+        return cSendCommParcelInit(cObject, sub_id, send_id);
+    }
+
+    public void sendCommParcelPrep(int parcel_id)
+    {
+        cSendCommParcelPrep(cObject, parcel_id);
+    }
+
+    public int getCommParcelPrepVNum()
+    {
+        return cGetCommParcelPrepVNum(cObject);
+    }
+
+    public int getCommParcelPrepCountLen()
+    {
+        return cGetCommParcelPrepCountLen(cObject);
+    }
+    public void updateRecvParcelInit(int comm_id)
+    {
+        cUpdateRecvParcelInit(cObject, comm_id);
+    }
+
+    public void updateRecvParcel()
+    {
+        cUpdateRecvParcel(cObject);
+    }
+
+    public void freeRecvParcel()
+    {
+        cFreeRecvParcel(cObject);
+    }
+
+    public void sendCommParcelLoad()
+    {
+        cSendCommParcelLoad(cObject);
+    }
+
     public long getDaalTableSize() {
         return cGetDaalTableSize(cObject);
     }
@@ -175,6 +219,16 @@ public final class Input extends com.intel.daal.algorithms.Input {
     public void uploadCommPrepare()
     {
         cUploadCommPrepare(cObject);
+    }
+
+    public void setSendVertexSize(int size)
+    {
+        cSetSendVertexSize(cObject, size);
+    }
+
+    public void setSendVertexArray(int dstId)
+    {
+        cSetSendVertexArray(cObject, dstId);
     }
 
     private native void cSetInputTable(long cInput, int id, long ntAddr);
@@ -192,8 +246,21 @@ public final class Input extends com.intel.daal.algorithms.Input {
     // for comm
     private native void cInitComm(long cInput, int mapper_num, int local_mapper_id, long send_array_limit, boolean rotation_pipeline);
     private native void cInitCommPrepare(long cInput, int mapper_id);
+    private native void cInitCommFinal(long cInput);
+
     private native void cUploadCommPrepare(long cInput);
     private native long cGetDaalTableSize(long cInput);
+    private native void cSetSendVertexSize(long cInput, int size);
+    private native void cSetSendVertexArray(long cInput, int dstID);
+
+    private native int cSendCommParcelInit(long cInput, int sub_id, int send_id);
+    private native void cSendCommParcelPrep(long cInput, int parcel_id);
+    private native int cGetCommParcelPrepVNum(long cInput);
+    private native int cGetCommParcelPrepCountLen(long cInput);
+    private native void cSendCommParcelLoad(long cInput);
+    private native void cUpdateRecvParcelInit(long cInput, int comm_id);
+    private native void cUpdateRecvParcel(long cInput);
+    private native void cFreeRecvParcel(long cInput);
 
     private native void cSetToTable(long cInput, int src, int dst);
     private native void cSampleColors(long cInput);

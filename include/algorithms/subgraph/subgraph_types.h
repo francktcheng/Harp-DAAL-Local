@@ -39,6 +39,8 @@
 #include "services/daal_defines.h"
 #include "services/hdfs.h"
 
+using namespace daal::data_management;
+using namespace daal::services;
 
 namespace daal
 {
@@ -476,12 +478,21 @@ public:
     void updateRecvParcelInit(int comm_id); 
     void updateRecvParcel();
     void freeRecvParcel();
+    void calculate_update_ids(int sub_id);
+    void release_update_ids();
+    double compute_update_comm(int sub_id);
 
     // for comm
+    int mapper_num;
+    int local_mapper_id;
+    long send_array_limit;
+    bool rotation_pipeline;
     int update_mapper_id;
     long daal_table_size; // -1 means no need to do data copy 
     int* daal_table_int_ptr; // tmp array to hold int data
     float* daal_table_float_ptr; //tmp array to hold float data
+    services::SharedPtr<int>* update_map;
+    services::SharedPtr<int> update_map_size;
 
     int cur_sub_id_comm;
     int cur_comb_len_comm;
@@ -523,8 +534,6 @@ private:
     std::vector<int> t_dst;
 
     hdfsFS* fs;
-    // int* fileOffsetPtr;
-    // int* fileNamesPtr;
     services::SharedPtr<int> fileOffsetPtr;
     services::SharedPtr<int> fileNamesPtr;
 
@@ -539,33 +548,37 @@ private:
 
     bool isTableCreated;
 
-    // for comm of mappers
-    int mapper_num;
-    int local_mapper_id;
-    long send_array_limit;
-    bool rotation_pipeline;
     // std::set<int>* comm_mapper_vertex;
     // std::unordered_set<int>* comm_mapper_vertex;
     std::vector<int>* comm_mapper_vertex;
     // int* abs_v_to_mapper;
-    services::SharedPtr<int> abs_v_to_mapper;
+    // services::SharedPtr<int> abs_v_to_mapper;
+    BlockDescriptor<int> abs_v_to_mapper;
+
     int* abs_v_to_queue;
+    // daal::data_management::interface1::BlockDescriptor<int> mtVMapperId;
     // for update comm data
-    int** update_map;
-    int* update_map_size;
+    // int** update_map;
+    // int* update_map_size;
+    
 
     // int*** update_queue_pos;
-    services::SharedPtr<int>** update_queue_pos;
+    BlockDescriptor<int>** update_queue_pos;
     // float*** update_queue_counts;
-    services::SharedPtr<float>** update_queue_counts;
+    BlockDescriptor<float>** update_queue_counts;
     // int*** update_queue_index;
-    services::SharedPtr<int>** update_queue_index;
+    BlockDescriptor<int>** update_queue_index;
 
-    int* update_mapper_len;
+    // int* update_mapper_len;
+    services::SharedPtr<int> update_mapper_len;
 
-    int** map_ids_cache_pip;
-    int** chunk_ids_cache_pip;
-    int** chunk_internal_offsets_cache_pip;
+    services::SharedPtr<int>* map_ids_cache_pip;
+    services::SharedPtr<int>* chunk_ids_cache_pip;
+    services::SharedPtr<int>* chunk_internal_offsets_cache_pip;
+
+    // int** map_ids_cache_pip;
+    // int** chunk_ids_cache_pip;
+    // int** chunk_internal_offsets_cache_pip;
 
 };
 

@@ -159,6 +159,9 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottom(Parameter* &par
     int active_sub_vert = part->get_num_verts_active(s);
     int cur_a_comb_num = input->choose_table[cur_sub_vert][active_sub_vert];
     int cur_comb_num = input->choose_table[color_num][cur_sub_vert];
+    int mapper_num = input->mapper_num;
+    services::SharedPtr<int>* update_map = input->update_map;
+    services::SharedPtr<int> update_map_size = input->update_map_size;
 
     daal::algorithms::subgraph::interface1::Graph* g = input->getGraphPtr();
 
@@ -187,7 +190,7 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottom(Parameter* &par
             float* counts_a = dt->get_active(v);
 
             //loop overall its neighbours
-            // int nbr_comm_itr = 0;
+            int nbr_comm_itr = 0;
             for(int i = 0; i < end; ++i)
             {
                 int adj_i = g->get_relative_v_id(adjs_abs[i]);
@@ -197,11 +200,11 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottom(Parameter* &par
                     // valid_nbrs.push_back(adj_i);
                     valid_nbrs[valid_nbrs_count++] = adj_i;
                 }
-                // if (this.mapper_num > 1 && adj_i < 0)
-                //     this.update_map[v][nbr_comm_itr++] = adjs_abs[i];
+                if (mapper_num > 1 && adj_i < 0)
+                    update_map[v].get()[nbr_comm_itr++] = adjs_abs[i];
             }
-            // if (this.mapper_num > 1)
-                // this.update_map_size[v] = nbr_comm_itr;
+            if (mapper_num > 1)
+                update_map_size.get()[v] = nbr_comm_itr;
 
             // if(valid_nbrs.size() != 0)
             if(valid_nbrs_count != 0)
@@ -238,7 +241,11 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottom(Parameter* &par
                     if( color_count > 0.0)
                     {
                         if(s != 0)
+                        {
                             dt->set(v, comb_idx_set[s][n], (float)color_count);
+                            #pragma omp atomic
+                            total_count_cursub += color_count;
+                        }
                         else
                         {
                             #pragma omp atomic
@@ -260,10 +267,10 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottom(Parameter* &par
     compute_time = (double)(diff)/1000000L;
 
     par->_count_time += compute_time;
+    par->_total_counts = total_count_cursub;
 
     if (s == 0)
     {
-        par->_total_counts = total_count_cursub;
         std::printf("Finish Final compute with total count %e\n", total_count_cursub);
         std::printf("Omp total compute time: %f ms\n", par->_count_time);
         std::fflush;

@@ -206,6 +206,12 @@ public final class Input extends com.intel.daal.algorithms.Input {
     {
         cFreeRecvParcel(cObject);
     }
+
+    public void freeRecvParcelPip(int pipId)
+    {
+        cFreeRecvParcelPip(cObject, pipId);
+    }
+
     public void calculateUpdateIds(int sub_id)
     {
         cCalculateUpdateIds(cObject, sub_id);
@@ -217,6 +223,10 @@ public final class Input extends com.intel.daal.algorithms.Input {
     public double computeUpdateComm(int sub_id)
     {
         return cComputeUpdateComm(cObject, sub_id);
+    }
+    public double computeUpdateCommPip(int sub_id, int update_id)
+    {
+        return cComputeUpdateCommPip(cObject, sub_id, update_id);
     }
 
     public void sendCommParcelLoad()
@@ -273,9 +283,11 @@ public final class Input extends com.intel.daal.algorithms.Input {
     private native void cUpdateRecvParcelInit(long cInput, int comm_id);
     private native void cUpdateRecvParcel(long cInput);
     private native void cFreeRecvParcel(long cInput);
+    private native void cFreeRecvParcelPip(long cInput, int pipId);
     private native void cCalculateUpdateIds(long cInput, int sub_id);
     private native void cReleaseUpdateIds(long cInput);
     private native double cComputeUpdateComm(long cInput, int sub_id);
+    private native double cComputeUpdateCommPip(long cInput, int sub_id, int update_id);
 
     private native void cSetToTable(long cInput, int src, int dst);
     private native void cSampleColors(long cInput);

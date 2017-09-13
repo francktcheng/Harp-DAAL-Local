@@ -478,9 +478,11 @@ public:
     void updateRecvParcelInit(int comm_id); 
     void updateRecvParcel();
     void freeRecvParcel();
+    void freeRecvParcelPip(int pipId);
     void calculate_update_ids(int sub_id);
     void release_update_ids();
     double compute_update_comm(int sub_id);
+    double compute_update_comm_pip(int sub_id, int update_id);
 
     // for comm
     int mapper_num;

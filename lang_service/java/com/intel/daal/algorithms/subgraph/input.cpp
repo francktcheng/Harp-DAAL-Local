@@ -168,6 +168,12 @@ JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cFreeRecvPa
 	((subgraph::Input*)inputAddr)->freeRecvParcel();
 }
 
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cFreeRecvParcelPip
+(JNIEnv *env, jobject thisObj, jlong inputAddr, jint pipId)
+{
+	((subgraph::Input*)inputAddr)->freeRecvParcelPip(pipId);
+}
+
 JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cCalculateUpdateIds
 (JNIEnv *env, jobject thisObj, jlong inputAddr, jint sub_id)
 {
@@ -184,6 +190,12 @@ JNIEXPORT jdouble JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cCompute
 (JNIEnv *env, jobject thisObj, jlong inputAddr, jint sub_id)
 {
 	return (double)(((subgraph::Input*)inputAddr)->compute_update_comm(sub_id));
+}
+
+JNIEXPORT jdouble JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cComputeUpdateCommPip
+(JNIEnv *env, jobject thisObj, jlong inputAddr, jint sub_id, jint update_id)
+{
+	return (double)(((subgraph::Input*)inputAddr)->compute_update_comm_pip(sub_id, update_id));
 }
 
 JNIEXPORT jlong JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetDaalTableSize

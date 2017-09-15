@@ -492,7 +492,7 @@ void Input::sendCommParcelPrep(int parcel_id)
 
 }
 
-void Input::sendCommParcelLoad()
+void Input::sendCommParcelLoadOld()
 {
 
     BlockDescriptor<int> up_block_int;
@@ -542,6 +542,61 @@ void Input::sendCommParcelLoad()
     }
 }
 
+void Input::sendCommParcelLoad()
+{
+
+    // virtual void releaseBlockOfColumnValuesBM(size_t feature_start, size_t feature_len, BlockDescriptor<double>** block) {} 
+    BlockDescriptor<int>* up_block_int =  new BlockDescriptor<int>();
+    BlockDescriptor<float>* up_block_float = new BlockDescriptor<float>();
+
+    //upload parcel offset 
+    NumericTablePtr parceloffset = get(ParcelOffsetId);
+    up_block_int->setPtr(cur_parcel_v_offset, 1, parceloffset->getNumberOfRows());
+    up_block_int->setDetails(0, 0, writeOnly);
+
+    (parceloffset.get())->releaseBlockOfColumnValuesBM(0, 1, &up_block_int);
+    up_block_int->reset();
+
+    // upload parcel data
+    NumericTablePtr parceldata = get(ParcelDataId);
+    up_block_float->setPtr(cur_parcel_v_counts_data, 1, parceldata->getNumberOfRows());
+    up_block_float->setDetails(0, 0, writeOnly);
+
+    (parceldata.get())->releaseBlockOfColumnValuesBM(0, 1, &up_block_float);
+    up_block_float->reset();
+
+    //upload parcel index data
+    NumericTablePtr parcelindex = get(ParcelIdxId);
+    up_block_int->setPtr(cur_parcel_v_counts_index, 1, parcelindex->getNumberOfRows());
+    up_block_int->setDetails(0, 0, writeOnly);
+
+    (parcelindex.get())->releaseBlockOfColumnValuesBM(0, 1, &up_block_int);
+    up_block_int->reset();
+
+    //free cur parcel realted data
+    if (cur_parcel_v_offset != NULL)
+    {
+        delete[] cur_parcel_v_offset;
+        cur_parcel_v_offset = NULL;
+    }
+
+    if (cur_parcel_v_counts_data != NULL)
+    {
+        delete[] cur_parcel_v_counts_data;
+        cur_parcel_v_counts_data = NULL;
+    }
+
+    if (cur_parcel_v_counts_index != NULL)
+    {
+        delete[] cur_parcel_v_counts_index;
+        cur_parcel_v_counts_index = NULL;
+    }
+
+    delete up_block_int;
+    delete up_block_float;
+
+}
+
 void Input::updateRecvParcelInit(int comm_id)
 {
     int update_id_tmp = ( comm_id & ( (1 << 20) -1 ) );
@@ -562,7 +617,7 @@ void Input::updateRecvParcelInit(int comm_id)
 
 }
 
-void Input::updateRecvParcel()
+void Input::updateRecvParcelOld()
 {
     NumericTablePtr recv_v_offset_table = get(ParcelOffsetId);
     recv_v_offset_table->getBlockOfColumnValues(0, 0, recv_v_offset_table->getNumberOfRows(), readOnly, update_queue_pos[cur_upd_mapper_id][cur_upd_parcel_id]);
@@ -572,6 +627,25 @@ void Input::updateRecvParcel()
 
     NumericTablePtr recv_v_index_table = get(ParcelIdxId);
     recv_v_index_table->getBlockOfColumnValues(0, 0, recv_v_index_table->getNumberOfRows(), readOnly, update_queue_index[cur_upd_mapper_id][cur_upd_parcel_id]);
+}
+
+void Input::updateRecvParcel()
+{
+    // virtual void getBlockOfColumnValuesBM(size_t feature_start, size_t feature_len, size_t vector_idx, size_t value_num,
+                                // ReadWriteMode rwflag, BlockDescriptor<double>** block) {} 
+
+    BlockDescriptor<int>* recv_offset_ptr = &(update_queue_pos[cur_upd_mapper_id][cur_upd_parcel_id]); 
+    NumericTablePtr recv_v_offset_table = get(ParcelOffsetId);
+    recv_v_offset_table->getBlockOfColumnValuesBM(0, 1, 0, recv_v_offset_table->getNumberOfRows(), readOnly, &recv_offset_ptr);
+
+    BlockDescriptor<float>* recv_data_ptr = &(update_queue_counts[cur_upd_mapper_id][cur_upd_parcel_id]);
+    NumericTablePtr recv_v_data_table = get(ParcelDataId);
+    recv_v_data_table->getBlockOfColumnValuesBM(0, 1, 0, recv_v_data_table->getNumberOfRows(), readOnly, &recv_data_ptr);
+
+    BlockDescriptor<int>* recv_index_ptr = &(update_queue_index[cur_upd_mapper_id][cur_upd_parcel_id]);
+    NumericTablePtr recv_v_index_table = get(ParcelIdxId);
+    recv_v_index_table->getBlockOfColumnValuesBM(0, 1, 0, recv_v_index_table->getNumberOfRows(), readOnly, &recv_index_ptr);
+
 }
 
 void Input::freeRecvParcel()

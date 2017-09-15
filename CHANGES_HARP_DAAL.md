@@ -128,5 +128,18 @@ There are two classes: 1) A class BaseRNGs, 2) class RNGs
 2. RNGs provides template for float or double type, it owns different types of distribution generators 
 3. DAAL team shall add another constructor for BaseRNGs with a user defined seed (e.g., time(0));
 
+In File lang_interface/java/com/intel/daal/data_management/data/HomogenNumericTableArrayImpl.java
+```java
+
+    /** @copydoc NumericTable::freeDataMemory() */
+    @Override
+    public void freeDataMemory() {
+        jData = null;
+    }
+
+```
+Add jData = null to member function freeDataMemory, otherwise the allocated HomogenNumericTable with data at JVM heap may not be
+recycled by JVM
+
 
 

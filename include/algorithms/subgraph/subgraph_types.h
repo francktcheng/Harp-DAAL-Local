@@ -474,9 +474,11 @@ public:
     int sendCommParcelInit(int sub_id, int send_id);
     void sendCommParcelPrep(int parcel_id);
     void sendCommParcelLoad();
+    void sendCommParcelLoadOld();
 
     void updateRecvParcelInit(int comm_id); 
     void updateRecvParcel();
+    void updateRecvParcelOld();
     void freeRecvParcel();
     void freeRecvParcelPip(int pipId);
     void calculate_update_ids(int sub_id);

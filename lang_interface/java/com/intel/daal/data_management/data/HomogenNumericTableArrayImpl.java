@@ -507,6 +507,7 @@ class HomogenNumericTableArrayImpl extends HomogenNumericTableImpl {
     /** @copydoc NumericTable::freeDataMemory() */
     @Override
     public void freeDataMemory() {
+        jData = null;
     }
 
     /** @copydoc NumericTableImpl::getNumberOfColumns() */

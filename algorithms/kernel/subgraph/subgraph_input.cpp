@@ -816,8 +816,8 @@ double Input::compute_update_comm(int sub_id)
         std::fflush;
     }
 
-    // #pragma omp parallel for schedule(guided) num_threads(thread_num_max) 
-    #pragma omp parallel for schedule(static) num_threads(thread_num_max) 
+    // #pragma omp parallel for schedule(static) num_threads(thread_num_max) 
+    #pragma omp parallel for schedule(guided) num_threads(thread_num_max) 
     for (int v = 0; v < g.vert_num_count; ++v) 
     {
 
@@ -990,8 +990,8 @@ double Input::compute_update_comm_pip(int sub_id, int update_id)
 
     int update_pip_id = update_id;
 
-    // #pragma omp parallel for schedule(guided) num_threads(thread_num_max) 
-    #pragma omp parallel for schedule(static) num_threads(thread_num_max) 
+    // #pragma omp parallel for schedule(static) num_threads(thread_num_max) 
+    #pragma omp parallel for schedule(guided) num_threads(thread_num_max) 
     for (int v = 0; v < g.vert_num_count; ++v) 
     {
 

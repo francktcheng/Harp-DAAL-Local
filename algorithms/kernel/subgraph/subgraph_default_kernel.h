@@ -129,7 +129,8 @@ public:
 
     void computeBottom(Parameter* &par, Input* &input);
     void computeNonBottom(Parameter* &par, Input* &input);
-    // void computeLast(Parameter* &par, Input* &input);
+    void updateRemoteCounts(Parameter* &par, Input* &input);
+    void updateRemoteCountsPip(Parameter* &par, Input* &input);
 };
 
 /**

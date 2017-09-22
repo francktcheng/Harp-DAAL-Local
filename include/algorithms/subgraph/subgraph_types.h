@@ -519,6 +519,21 @@ public:
     std::vector<int> send_vertex_array_dst;
     std::unordered_map<int, std::vector<int> > send_vertex_array;
 
+    // int* update_mapper_len;
+    services::SharedPtr<int> update_mapper_len;
+    services::SharedPtr<int>* map_ids_cache_pip;
+    services::SharedPtr<int>* chunk_ids_cache_pip;
+    services::SharedPtr<int>* chunk_internal_offsets_cache_pip;
+    // int** map_ids_cache_pip;
+    // int** chunk_ids_cache_pip;
+    // int** chunk_internal_offsets_cache_pip;
+    
+    // int*** update_queue_pos;
+    BlockDescriptor<int>** update_queue_pos;
+    // float*** update_queue_counts;
+    BlockDescriptor<float>** update_queue_counts;
+    // int*** update_queue_index;
+    BlockDescriptor<int>** update_queue_index;
 private:
 
     // thread in read in graph
@@ -566,23 +581,9 @@ private:
     // int* update_map_size;
     
 
-    // int*** update_queue_pos;
-    BlockDescriptor<int>** update_queue_pos;
-    // float*** update_queue_counts;
-    BlockDescriptor<float>** update_queue_counts;
-    // int*** update_queue_index;
-    BlockDescriptor<int>** update_queue_index;
+    
 
-    // int* update_mapper_len;
-    services::SharedPtr<int> update_mapper_len;
-
-    services::SharedPtr<int>* map_ids_cache_pip;
-    services::SharedPtr<int>* chunk_ids_cache_pip;
-    services::SharedPtr<int>* chunk_internal_offsets_cache_pip;
-
-    // int** map_ids_cache_pip;
-    // int** chunk_ids_cache_pip;
-    // int** chunk_internal_offsets_cache_pip;
+    
 
 };
 
@@ -798,7 +799,9 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _vert_num_sub = 0; // the vert number of current subtemplate
         _stage = 0; // 0: bottom subtemplate, 1: non-last subtemplate, 2: last subtemplate
         _sub_itr = 0;
+        _pip_id=0;
         _total_counts = 0.0;
+        _update_counts = 0.0;
         _count_time = 0.0;
     }
 
@@ -831,6 +834,11 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _sub_itr = sub_itr;
     }
 
+    void setPipId(size_t pip_id)
+    {
+        _pip_id = pip_id;
+    }
+
     size_t _thread_num;  //  specify used in computation 
     size_t _core_num; // the core num used in affinity setting
     size_t _tpc; // the threads per core
@@ -839,7 +847,9 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     size_t _vert_num_sub; // the vert number of current subtemplate
     size_t _stage; // 0: bottom subtemplate, 1: non-bottom subtemplate
     size_t _sub_itr;
+    size_t _pip_id;
     double _total_counts;
+    double _update_counts;
     double _count_time;
 
 };

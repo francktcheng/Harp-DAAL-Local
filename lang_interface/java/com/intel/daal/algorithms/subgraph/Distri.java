@@ -110,11 +110,18 @@ public class Distri extends AnalysisDistributed {
         super.compute();
     }
 
-    // public void computeLast(int sub_itr){
-    //     parameter.setSubItr(sub_itr);
-    //     parameter.setStage(2);
-    //     super.compute();
-    // }
+    public void updateRemoteCounts(int sub_itr){
+        parameter.setSubItr(sub_itr);
+        parameter.setStage(2);
+        super.compute();
+    }
+
+    public void updateRemoteCountsPip(int sub_itr, int pipId){
+        parameter.setSubItr(sub_itr);
+        parameter.setPipId(pipId);
+        parameter.setStage(3);
+        super.compute();
+    }
 
     /**
      * Runs the subgraph algorithm

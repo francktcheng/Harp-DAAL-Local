@@ -56,8 +56,20 @@ JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Parameter_cSetSub
 	((subgraph::Parameter*)parAddr)->_sub_itr = sub_itr;
 }
 
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Parameter_cSetPipId
+(JNIEnv *env, jobject thisObj, jlong parAddr, jint id)
+{
+	((subgraph::Parameter*)parAddr)->_pip_id = id;
+}
+
 JNIEXPORT jdouble JNICALL Java_com_intel_daal_algorithms_subgraph_Parameter_cGetTotalCounts
 (JNIEnv *env, jobject thisObj, jlong parAddr)
 {
 	return (jdouble)(((subgraph::Parameter*)parAddr)->_total_counts);
+}
+
+JNIEXPORT jdouble JNICALL Java_com_intel_daal_algorithms_subgraph_Parameter_cGetUpdateCounts
+(JNIEnv *env, jobject thisObj, jlong parAddr)
+{
+	return (jdouble)(((subgraph::Parameter*)parAddr)->_update_counts);
 }

@@ -86,14 +86,24 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
         cSetStage(this.cObject, stage);
     }
 
+    public void setPipId(int id) {
+        cSetPipId(this.cObject, id);
+    }
+
     public double getTotalCounts() {
         return cGetTotalCounts(this.cObject);
     }
 
+    public double getUpdateCounts() {
+        return cGetUpdateCounts(this.cObject);
+    }
+
     private native void cSetParameters(long parAddr, int thread_num, int core_num, int tpc, int affinity, int verbose);
     private native void cSetStage(long parAddr, int stage);
+    private native void cSetPipId(long parAddr, int id);
     private native void cSetSubItr(long parAddr, int sub_itr);
     private native double cGetTotalCounts(long parAddr);
+    private native double cGetUpdateCounts(long parAddr);
 
 
 }

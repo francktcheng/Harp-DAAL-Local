@@ -59,7 +59,6 @@
 using namespace tbb;
 using namespace daal::internal;
 using namespace daal::services::internal;
-// using namespace daal::algorithms::subgraph;
 
 namespace daal
 {
@@ -81,10 +80,12 @@ daal::services::interface1::Status subgraphDistriKernel<interm, method, cpu>::co
         computeBottom(par, input);
     else if (stage == 1)
         computeNonBottom(par, input);
+    else if (stage == 2)
+        updateRemoteCounts(par, input);
+    else if (stage == 3)
+        updateRemoteCountsPip(par, input);
     else
-    {
-
-    }
+        ;   
 
     return status;
 }
@@ -278,12 +279,426 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottom(Parameter* &par
 
 }
 
-// template <typename interm, daal::algorithms::subgraph::Method method, CpuType cpu>
-// void subgraphDistriKernel<interm, method, cpu>::computeLast(Parameter* &par, Input* &input)
-// {
-//     std::printf("Distrikernel compute last\n");
-//     std::fflush;
-// }
+template <typename interm, daal::algorithms::subgraph::Method method, CpuType cpu>
+void subgraphDistriKernel<interm, method, cpu>::updateRemoteCounts(Parameter* &par, Input* &input)
+{
+    std::printf("Distrikernel updateRemoteCounts\n");
+    std::fflush;
+
+    //setup omp affinity
+    // setenv("KMP_AFFINITY","granularity=core,compact",1);
+    int set_flag = setenv("KMP_AFFINITY","granularity=fine,compact",1);
+    // int set_flag = setenv("KMP_AFFINITY","granularity=core,scatter",1);
+    if (set_flag == 0)
+    {
+        std::printf("omp affinity bind successful\n");
+        std::fflush;
+    }
+    
+    struct timespec ts1;
+	struct timespec ts2;
+    int64_t diff = 0;
+    double compute_time = 0;
+
+    daal::algorithms::subgraph::interface1::dynamic_table_array* dt = input->getDTTable();
+    daal::algorithms::subgraph::interface1::partitioner* part = input->getPartitioner();
+
+    int thread_num = par->_thread_num;
+    int num_vert_g = input->getLocalVNum();
+    int sub_id = par->_sub_itr;
+    int num_colors = input->getColorNum();
+
+    services::SharedPtr<int>* update_map = input->update_map;
+    services::SharedPtr<int> update_map_size = input->update_map_size;
+
+    services::SharedPtr<int>* map_ids_cache_pip = input->map_ids_cache_pip;
+    services::SharedPtr<int>* chunk_ids_cache_pip = input->chunk_ids_cache_pip;
+    services::SharedPtr<int>* chunk_internal_offsets_cache_pip = input->chunk_internal_offsets_cache_pip;
+
+    BlockDescriptor<int>** update_queue_pos = input->update_queue_pos;
+    BlockDescriptor<float>** update_queue_counts = input->update_queue_counts;
+    BlockDescriptor<int>** update_queue_index = input->update_queue_index;
+
+    int**** comb_num_indexes = input->comb_num_indexes;
+    int** comb_num_indexes_set = input->comb_num_indexes_set;
+
+    daal::algorithms::subgraph::interface1::Graph* g = input->getGraphPtr();
+
+    //move the kernel from input class to here
+    int active_child = part->get_active_index(sub_id);
+    int passive_child = part->get_passive_index(sub_id);
+
+    int num_combinations_verts_sub = input->choose_table[num_colors][input->num_verts_table[sub_id]];
+    int active_index = part->get_active_index(sub_id);
+    int num_verts_a = input->num_verts_table[active_index];
+
+    // colorset combinations from active child
+    // combination of colors for active child
+    int num_combinations_active_ato = input->choose_table[input->num_verts_table[sub_id]][num_verts_a];
+
+    // to calculate chunk size
+    int comb_len = dt->get_num_color_set(part->get_passive_index(sub_id)); 
+
+    std::printf("Update Comb len: %d\n", comb_len);
+    std::fflush;
+
+    // start update 
+    // first loop over local v
+    int effect_count = 0;
+    double total_update_counts = 0.0;
+
+    float** decompress_counts = new float*[thread_num];
+    double** update_at_n = new double*[thread_num];
+
+    for(int i = 0; i<thread_num; i++)
+    {
+        decompress_counts[i] = new float[comb_len];
+        update_at_n[i] = new double[num_combinations_verts_sub];
+    }
+
+    // #pragma omp parallel for schedule(static) num_threads(thread_num) 
+    #pragma omp parallel for schedule(guided) num_threads(thread_num) 
+    for (int v = 0; v < num_vert_g; ++v) 
+    {
+
+        if (dt->is_vertex_init_active(v))
+        {
+            int thread_id = omp_get_thread_num(); 
+            // clean update container
+            std::memset(update_at_n[thread_id], 0, num_combinations_verts_sub*sizeof(double));
+
+            int adj_list_size = update_map_size.get()[v];
+            if (adj_list_size == 0)
+                continue;
+
+            // store the abs adj id for v
+            int* adj_list = update_map[v].get(); 
+            float* counts_a = dt->get_active(v);
+
+            int* map_ids = map_ids_cache_pip[v].get();
+            int* chunk_ids = chunk_ids_cache_pip[v].get(); 
+            int* chunk_internal_offsets = chunk_internal_offsets_cache_pip[v].get();
+
+            int compress_interval = 0;
+
+            //second loop over nbrs, decompress adj from Scset
+            for(int i = 0; i< adj_list_size; i++)
+            {
+                int* adj_offset_list = (update_queue_pos[map_ids[i]][chunk_ids[i]]).getBlockPtr();
+
+                // get the offset pos
+                int start_pos = adj_offset_list[chunk_internal_offsets[i]];
+                int end_pos = adj_offset_list[chunk_internal_offsets[i] + 1];
+
+                if (start_pos != end_pos)
+                {
+
+                    // the num of compressed counts
+                    compress_interval = end_pos - start_pos;
+
+                    // get the compressed counts list, all nonzero elements
+                    float* adj_counts_list = (update_queue_counts[map_ids[i]][chunk_ids[i]]).getBlockPtr();
+                    int* adj_index_list = (update_queue_index[map_ids[i]][chunk_ids[i]]).getBlockPtr();
+
+                    // ----------- start decompress process -----------
+                    std::memset(decompress_counts[thread_id], 0, comb_len*sizeof(float));
+
+                    for(int x = 0; x< compress_interval; x++)
+                        decompress_counts[thread_id][(int)adj_index_list[start_pos + x]] = adj_counts_list[start_pos + x];
+
+                    // ----------- Finish decompress process -----------
+                    //third loop over comb_num for cur subtemplate
+                    for(int n = 0; n< num_combinations_verts_sub; n++)
+                    {
+                        // more details
+                        int* comb_indexes_a = comb_num_indexes[0][sub_id][n];
+                        int* comb_indexes_p = comb_num_indexes[1][sub_id][n];
+
+                        // for passive 
+                        int p = num_combinations_active_ato -1;
+
+                        // fourth loop over comb_num for active/passive subtemplates
+                        for(int a = 0; a < num_combinations_active_ato; ++a, --p)
+                        {
+                            float count_a = counts_a[comb_indexes_a[a]];
+                            if (count_a > 0)
+                            {
+                                update_at_n[thread_id][n] += ((double)count_a*decompress_counts[thread_id][comb_indexes_p[p]]);
+                            }
+
+                        }
+
+                    } // finish all combination sets for cur template
+
+                } // finish all nonzero adj
+
+            } // finish all adj of a v
+
+            //write upated value 
+            double partial_local_counts = 0.0;
+            for(int n = 0; n< num_combinations_verts_sub; n++)
+            {
+                if (sub_id != 0)
+                {
+                    dt->update_comm(v, comb_num_indexes_set[sub_id][n], (float)update_at_n[thread_id][n]);
+                }
+                else
+                {
+                    partial_local_counts += update_at_n[thread_id][n];
+                }
+            }
+
+            if (sub_id == 0)
+            {
+                #pragma omp atomic
+                total_update_counts += partial_local_counts; 
+            }
+
+        } // finishe an active v
+
+    } // finish all the v on thread
+
+    if (decompress_counts != NULL)
+    {
+        for(int i=0;i<thread_num;i++)
+            delete[] decompress_counts[i];
+
+        delete[] decompress_counts;
+    }
+
+    if (update_at_n != NULL)
+    {
+        for(int i=0;i<thread_num;i++)
+            delete[] update_at_n[i];
+
+        delete[] update_at_n;
+    }
+
+    if (sub_id == 0)
+    {
+        std::printf("Final updated counts is %e\n", total_update_counts);
+        std::fflush;
+    }
+
+    par->_update_counts = total_update_counts;
+
+}
+
+template <typename interm, daal::algorithms::subgraph::Method method, CpuType cpu>
+void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPip(Parameter* &par, Input* &input)
+{
+    std::printf("Distrikernel updateRemoteCounts\n");
+    std::fflush;
+
+    //setup omp affinity
+    // setenv("KMP_AFFINITY","granularity=core,compact",1);
+    int set_flag = setenv("KMP_AFFINITY","granularity=fine,compact",1);
+    // int set_flag = setenv("KMP_AFFINITY","granularity=core,scatter",1);
+    if (set_flag == 0)
+    {
+        std::printf("omp affinity bind successful\n");
+        std::fflush;
+    }
+    
+    struct timespec ts1;
+	struct timespec ts2;
+    int64_t diff = 0;
+    double compute_time = 0;
+
+    daal::algorithms::subgraph::interface1::dynamic_table_array* dt = input->getDTTable();
+    daal::algorithms::subgraph::interface1::partitioner* part = input->getPartitioner();
+
+    int update_pip_id = par->_pip_id;
+
+    int thread_num = par->_thread_num;
+    int num_vert_g = input->getLocalVNum();
+    int sub_id = par->_sub_itr;
+    int num_colors = input->getColorNum();
+
+    services::SharedPtr<int>* update_map = input->update_map;
+    services::SharedPtr<int> update_map_size = input->update_map_size;
+
+    services::SharedPtr<int>* map_ids_cache_pip = input->map_ids_cache_pip;
+    services::SharedPtr<int>* chunk_ids_cache_pip = input->chunk_ids_cache_pip;
+    services::SharedPtr<int>* chunk_internal_offsets_cache_pip = input->chunk_internal_offsets_cache_pip;
+
+    BlockDescriptor<int>** update_queue_pos = input->update_queue_pos;
+    BlockDescriptor<float>** update_queue_counts = input->update_queue_counts;
+    BlockDescriptor<int>** update_queue_index = input->update_queue_index;
+
+    int**** comb_num_indexes = input->comb_num_indexes;
+    int** comb_num_indexes_set = input->comb_num_indexes_set;
+
+    daal::algorithms::subgraph::interface1::Graph* g = input->getGraphPtr();
+
+    //move the kernel from input class to here
+    int active_child = part->get_active_index(sub_id);
+    int passive_child = part->get_passive_index(sub_id);
+
+    int num_combinations_verts_sub = input->choose_table[num_colors][input->num_verts_table[sub_id]];
+    int active_index = part->get_active_index(sub_id);
+    int num_verts_a = input->num_verts_table[active_index];
+
+    // colorset combinations from active child
+    // combination of colors for active child
+    int num_combinations_active_ato = input->choose_table[input->num_verts_table[sub_id]][num_verts_a];
+
+    // to calculate chunk size
+    int comb_len = dt->get_num_color_set(part->get_passive_index(sub_id)); 
+
+    std::printf("Update Comb len: %d\n", comb_len);
+    std::fflush;
+
+    // start update 
+    // first loop over local v
+    int effect_count = 0;
+    double total_update_counts = 0.0;
+
+    float** decompress_counts = new float*[thread_num];
+    double** update_at_n = new double*[thread_num];
+
+    for(int i = 0; i<thread_num; i++)
+    {
+        decompress_counts[i] = new float[comb_len];
+        update_at_n[i] = new double[num_combinations_verts_sub];
+    }
+
+    // #pragma omp parallel for schedule(static) num_threads(thread_num) 
+    #pragma omp parallel for schedule(guided) num_threads(thread_num) 
+    for (int v = 0; v < num_vert_g; ++v) 
+    {
+
+        if (dt->is_vertex_init_active(v))
+        {
+            int thread_id = omp_get_thread_num(); 
+            // clean update container
+            std::memset(update_at_n[thread_id], 0, num_combinations_verts_sub*sizeof(double));
+
+            int adj_list_size = update_map_size.get()[v];
+            if (adj_list_size == 0)
+                continue;
+
+            // store the abs adj id for v
+            int* adj_list = update_map[v].get(); 
+            float* counts_a = dt->get_active(v);
+
+            int* map_ids = map_ids_cache_pip[v].get();
+            int* chunk_ids = chunk_ids_cache_pip[v].get(); 
+            int* chunk_internal_offsets = chunk_internal_offsets_cache_pip[v].get();
+
+            int compress_interval = 0;
+
+            //second loop over nbrs, decompress adj from Scset
+            for(int i = 0; i< adj_list_size; i++)
+            {
+
+                //check if the adj is within the update pipeline
+                if (map_ids[i] != update_pip_id || update_queue_pos[map_ids[i]] == NULL)
+                {
+                    continue;
+                }
+
+                int* adj_offset_list = (update_queue_pos[map_ids[i]][chunk_ids[i]]).getBlockPtr();
+
+                // get the offset pos
+                int start_pos = adj_offset_list[chunk_internal_offsets[i]];
+                int end_pos = adj_offset_list[chunk_internal_offsets[i] + 1];
+
+                if (start_pos != end_pos)
+                {
+
+                    // the num of compressed counts
+                    compress_interval = end_pos - start_pos;
+
+                    // get the compressed counts list, all nonzero elements
+                    float* adj_counts_list = (update_queue_counts[map_ids[i]][chunk_ids[i]]).getBlockPtr();
+                    int* adj_index_list = (update_queue_index[map_ids[i]][chunk_ids[i]]).getBlockPtr();
+
+                    // ----------- start decompress process -----------
+                    std::memset(decompress_counts[thread_id], 0, comb_len*sizeof(float));
+
+                    for(int x = 0; x< compress_interval; x++)
+                        decompress_counts[thread_id][(int)adj_index_list[start_pos + x]] = adj_counts_list[start_pos + x];
+
+                    // ----------- Finish decompress process -----------
+                    //third loop over comb_num for cur subtemplate
+                    for(int n = 0; n< num_combinations_verts_sub; n++)
+                    {
+                        // more details
+                        int* comb_indexes_a = comb_num_indexes[0][sub_id][n];
+                        int* comb_indexes_p = comb_num_indexes[1][sub_id][n];
+
+                        // for passive 
+                        int p = num_combinations_active_ato -1;
+
+                        // fourth loop over comb_num for active/passive subtemplates
+                        for(int a = 0; a < num_combinations_active_ato; ++a, --p)
+                        {
+                            float count_a = counts_a[comb_indexes_a[a]];
+                            if (count_a > 0)
+                            {
+                                update_at_n[thread_id][n] += ((double)count_a*decompress_counts[thread_id][comb_indexes_p[p]]);
+                            }
+
+                        }
+
+                    } // finish all combination sets for cur template
+
+                } // finish all nonzero adj
+
+            } // finish all adj of a v
+
+            //write upated value 
+            double partial_local_counts = 0.0;
+            for(int n = 0; n< num_combinations_verts_sub; n++)
+            {
+                if (sub_id != 0)
+                {
+                    dt->update_comm(v, comb_num_indexes_set[sub_id][n], (float)update_at_n[thread_id][n]);
+                }
+                else
+                {
+                    partial_local_counts += update_at_n[thread_id][n];
+                }
+            }
+
+            if (sub_id == 0)
+            {
+                #pragma omp atomic
+                total_update_counts += partial_local_counts; 
+            }
+
+        } // finishe an active v
+
+    } // finish all the v on thread
+
+    if (decompress_counts != NULL)
+    {
+        for(int i=0;i<thread_num;i++)
+            delete[] decompress_counts[i];
+
+        delete[] decompress_counts;
+    }
+
+    if (update_at_n != NULL)
+    {
+        for(int i=0;i<thread_num;i++)
+            delete[] update_at_n[i];
+
+        delete[] update_at_n;
+    }
+
+    if (sub_id == 0)
+    {
+        std::printf("Final updated counts is %e\n", total_update_counts);
+        std::fflush;
+    }
+
+    par->_update_counts = total_update_counts;
+
+}
+
+
 
 } // namespace daal::internal
 }

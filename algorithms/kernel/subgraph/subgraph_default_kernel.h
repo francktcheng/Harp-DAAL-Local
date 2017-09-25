@@ -129,8 +129,9 @@ public:
 
     void computeBottom(Parameter* &par, Input* &input);
     void computeNonBottom(Parameter* &par, Input* &input);
-    void updateRemoteCounts(Parameter* &par, Input* &input);
-    void updateRemoteCountsPip(Parameter* &par, Input* &input);
+    void computeNonBottomNbrSplit(Parameter* &par, Input* &input);
+    void updateRemoteCountsNbrSplit(Parameter* &par, Input* &input);
+    void updateRemoteCountsPipNbrSplit(Parameter* &par, Input* &input);
 };
 
 /**

@@ -220,6 +220,12 @@ public final class Input extends com.intel.daal.algorithms.Input {
     {
         cReleaseUpdateIds(cObject);
     }
+
+    public void clearTaskUpdateList()
+    {
+        cClearTaskUpdateList(cObject);
+    }
+
     public double computeUpdateComm(int sub_id)
     {
         return cComputeUpdateComm(cObject, sub_id);
@@ -286,6 +292,8 @@ public final class Input extends com.intel.daal.algorithms.Input {
     private native void cFreeRecvParcelPip(long cInput, int pipId);
     private native void cCalculateUpdateIds(long cInput, int sub_id);
     private native void cReleaseUpdateIds(long cInput);
+    private native void cClearTaskUpdateList(long cInput);
+
     private native double cComputeUpdateComm(long cInput, int sub_id);
     private native double cComputeUpdateCommPip(long cInput, int sub_id, int update_id);
 

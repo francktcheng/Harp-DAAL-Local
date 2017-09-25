@@ -148,6 +148,90 @@ namespace interface1
 
     };
 
+	struct task_nbr{
+
+		task_nbr()
+		{
+			_vertex = -1;
+			_nbr_ptr = NULL;
+			_nbr_size = 0;
+		}
+
+		task_nbr(int vertex, int nbr_size, int* nbr_ptr) 
+		{
+			_vertex = vertex;
+			_nbr_size = nbr_size;
+			_nbr_ptr = nbr_ptr;
+			// _nbr_ptr = new int[_nbr_size];
+			// std::memset(_nbr_ptr, 0, _nbr_size*sizeof(int));
+		}
+
+		~task_nbr()
+		{
+			_vertex = -1;
+			_nbr_ptr = NULL;
+			_nbr_size = 0;
+		}
+
+		int _vertex; // the updating vertex in graph
+		int* _nbr_ptr; // the truncated local nbr list
+		int _nbr_size; // the size of local nbr list 
+
+	};
+
+	struct task_nbr_update{
+
+		task_nbr_update(int vertex, int adj_size, int* map_ids_atom, int* chunk_ids_atom, int* chunk_internal_offsets_atom)
+		{
+			_vertex = vertex;
+			_adj_size = adj_size;
+			_map_ids_atom = map_ids_atom;
+			_chunk_ids_atom = chunk_ids_atom;
+			_chunk_internal_offsets_atom = chunk_internal_offsets_atom;
+		}
+
+		~task_nbr_update()
+		{
+			_vertex = -1;
+			_adj_size = 0;
+			_map_ids_atom = NULL;
+			_chunk_ids_atom = NULL;
+			_chunk_internal_offsets_atom = NULL;
+		}
+
+		int _vertex;
+		int _adj_size;
+		int* _map_ids_atom;
+		int* _chunk_ids_atom;
+		int* _chunk_internal_offsets_atom; 
+
+	};
+
+	struct decompressElem{
+
+		decompressElem()
+		{
+			_len = -1;
+			_data = NULL;
+		}
+
+		void allocate(int len)
+		{
+			_len = len;
+			_data = new float[len];
+		}
+
+		~decompressElem()
+		{
+			if (_data != NULL)
+				delete[] _data;
+		}
+
+		int _len;
+		float* _data;
+
+	};
+
     struct Graph
     {
 
@@ -316,6 +400,7 @@ namespace interface1
             float get_passive(int vertex, int comb_num_index);
             void set(int subtemplate, int vertex, int comb_num_index, float count);
             void set(int vertex, int comb_num_index, float count);
+            void set_init(int vertex);
             void update_comm(int vertex, int comb_num_index, float count);
             bool is_init(); 
             bool is_sub_init(int subtemplate); 
@@ -361,6 +446,7 @@ namespace interface1
  */
 class DAAL_EXPORT Input : public daal::algorithms::Input
 {
+
 public:
     /** Default constructor */
     Input();
@@ -478,13 +564,16 @@ public:
 
     void updateRecvParcelInit(int comm_id); 
     void updateRecvParcel();
-    void updateRecvParcelOld();
+    void updateRecvParcel2();
+    // void updateRecvParcelOld();
     void freeRecvParcel();
     void freeRecvParcelPip(int pipId);
     void calculate_update_ids(int sub_id);
     void release_update_ids();
     double compute_update_comm(int sub_id);
     double compute_update_comm_pip(int sub_id, int update_id);
+
+	void clear_task_update_list();
 
     // for comm
     int mapper_num;
@@ -532,8 +621,17 @@ public:
     BlockDescriptor<int>** update_queue_pos;
     // float*** update_queue_counts;
     BlockDescriptor<float>** update_queue_counts;
+	decompressElem** update_queue_counts_decompress;
+
     // int*** update_queue_index;
     BlockDescriptor<int>** update_queue_index;
+
+    //for nbrs task breakdown
+	std::vector<task_nbr*> task_list;
+	std::vector<task_nbr_update*> task_list_update;
+	int task_list_len;
+    
+
 private:
 
     // thread in read in graph
@@ -579,10 +677,6 @@ private:
     // for update comm data
     // int** update_map;
     // int* update_map_size;
-    
-
-    
-
     
 
 };

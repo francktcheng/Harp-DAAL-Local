@@ -125,6 +125,7 @@ Input::Input() : daal::algorithms::Input(10) {
 
     update_queue_pos = NULL;
     update_queue_counts = NULL;
+    update_queue_counts_decompress = NULL;
     update_queue_index = NULL;
     // update_mapper_len = NULL;
 
@@ -156,6 +157,7 @@ Input::Input() : daal::algorithms::Input(10) {
     cur_parcel_v_counts_data = NULL; //count_num
     cur_parcel_v_counts_index = NULL; //count_num
 
+	task_list_len = 100;
 }
 
 void Input::init_comm(int mapper_num_par, int local_mapper_id_par, long send_array_limit_par, bool rotation_pipeline_par)
@@ -243,10 +245,13 @@ void Input::init_comm(int mapper_num_par, int local_mapper_id_par, long send_arr
     update_queue_counts = new BlockDescriptor<float>*[mapper_num];
     update_queue_index = new BlockDescriptor<int>*[mapper_num];
 
+    update_queue_counts_decompress = new decompressElem*[mapper_num];
+
     for(int i=0;i<mapper_num;i++)
     {
         update_queue_pos[i] = NULL;
         update_queue_counts[i] = NULL;
+        update_queue_counts_decompress[i] = NULL;
         update_queue_index[i] = NULL;
     }
 
@@ -606,33 +611,30 @@ void Input::updateRecvParcelInit(int comm_id)
     if (update_queue_pos[cur_upd_mapper_id] == NULL)
     {
         long recv_divid_num = (update_mapper_len.get()[cur_upd_mapper_id]*((long)cur_comb_len_comm)+ send_array_limit - 1)/send_array_limit;
-        //debug
         // std::printf("Update create size of id %d: %d\n",cur_upd_mapper_id,  (int)recv_divid_num);
         // std::fflush;
-
         update_queue_pos[cur_upd_mapper_id] = new BlockDescriptor<int>[(int)recv_divid_num];
         update_queue_counts[cur_upd_mapper_id] = new BlockDescriptor<float>[(int)recv_divid_num];
         update_queue_index[cur_upd_mapper_id] = new BlockDescriptor<int>[(int)recv_divid_num];
+        update_queue_counts_decompress[cur_upd_mapper_id] = new decompressElem[(int)recv_divid_num];
     }
 
 }
 
-void Input::updateRecvParcelOld()
+// void Input::updateRecvParcelOld()
+// {
+//     NumericTablePtr recv_v_offset_table = get(ParcelOffsetId);
+//     recv_v_offset_table->getBlockOfColumnValues(0, 0, recv_v_offset_table->getNumberOfRows(), readOnly, update_queue_pos[cur_upd_mapper_id][cur_upd_parcel_id]);
+//
+//     NumericTablePtr recv_v_data_table = get(ParcelDataId);
+//     recv_v_data_table->getBlockOfColumnValues(0, 0, recv_v_data_table->getNumberOfRows(), readOnly, update_queue_counts[cur_upd_mapper_id][cur_upd_parcel_id]);
+//
+//     NumericTablePtr recv_v_index_table = get(ParcelIdxId);
+//     recv_v_index_table->getBlockOfColumnValues(0, 0, recv_v_index_table->getNumberOfRows(), readOnly, update_queue_index[cur_upd_mapper_id][cur_upd_parcel_id]);
+// }
+
+void Input::updateRecvParcel2()
 {
-    NumericTablePtr recv_v_offset_table = get(ParcelOffsetId);
-    recv_v_offset_table->getBlockOfColumnValues(0, 0, recv_v_offset_table->getNumberOfRows(), readOnly, update_queue_pos[cur_upd_mapper_id][cur_upd_parcel_id]);
-
-    NumericTablePtr recv_v_data_table = get(ParcelDataId);
-    recv_v_data_table->getBlockOfColumnValues(0, 0, recv_v_data_table->getNumberOfRows(), readOnly, update_queue_counts[cur_upd_mapper_id][cur_upd_parcel_id]);
-
-    NumericTablePtr recv_v_index_table = get(ParcelIdxId);
-    recv_v_index_table->getBlockOfColumnValues(0, 0, recv_v_index_table->getNumberOfRows(), readOnly, update_queue_index[cur_upd_mapper_id][cur_upd_parcel_id]);
-}
-
-void Input::updateRecvParcel()
-{
-    // virtual void getBlockOfColumnValuesBM(size_t feature_start, size_t feature_len, size_t vector_idx, size_t value_num,
-                                // ReadWriteMode rwflag, BlockDescriptor<double>** block) {} 
 
     BlockDescriptor<int>* recv_offset_ptr = &(update_queue_pos[cur_upd_mapper_id][cur_upd_parcel_id]); 
     NumericTablePtr recv_v_offset_table = get(ParcelOffsetId);
@@ -645,6 +647,86 @@ void Input::updateRecvParcel()
     BlockDescriptor<int>* recv_index_ptr = &(update_queue_index[cur_upd_mapper_id][cur_upd_parcel_id]);
     NumericTablePtr recv_v_index_table = get(ParcelIdxId);
     recv_v_index_table->getBlockOfColumnValuesBM(0, 1, 0, recv_v_index_table->getNumberOfRows(), readOnly, &recv_index_ptr);
+
+}
+
+/**
+ * @brief another impl of update parcel
+ * decompress count array
+ */
+void Input::updateRecvParcel()
+{
+    //for a specific cur_upd_mapper_id and parcel id
+
+    BlockDescriptor<int>* recv_offset_ptr = &(update_queue_pos[cur_upd_mapper_id][cur_upd_parcel_id]); 
+    NumericTablePtr recv_v_offset_table = get(ParcelOffsetId);
+    recv_v_offset_table->getBlockOfColumnValuesBM(0, 1, 0, recv_v_offset_table->getNumberOfRows(), readOnly, &recv_offset_ptr);
+
+    BlockDescriptor<float>* recv_data_ptr = &(update_queue_counts[cur_upd_mapper_id][cur_upd_parcel_id]);
+    NumericTablePtr recv_v_data_table = get(ParcelDataId);
+    recv_v_data_table->getBlockOfColumnValuesBM(0, 1, 0, recv_v_data_table->getNumberOfRows(), readOnly, &recv_data_ptr);
+
+    BlockDescriptor<int>* recv_index_ptr = &(update_queue_index[cur_upd_mapper_id][cur_upd_parcel_id]);
+    NumericTablePtr recv_v_index_table = get(ParcelIdxId);
+    recv_v_index_table->getBlockOfColumnValuesBM(0, 1, 0, recv_v_index_table->getNumberOfRows(), readOnly, &recv_index_ptr);
+
+    //start the decompress process for a specific mapper id and a parcel id
+    //construct update_queue_counts_decompress val 
+    int* offset_ptr = recv_offset_ptr->getBlockPtr();
+    float* data_ptr = recv_data_ptr->getBlockPtr();
+    int* index_ptr = recv_index_ptr->getBlockPtr();
+
+    int num_v = recv_v_offset_table->getNumberOfRows() - 1;
+    int* offset_ptr_tmp = new int[num_v+1];
+    std::memcpy(offset_ptr_tmp, offset_ptr, (num_v+1)*sizeof(int));
+
+    int effect_num_v = 0;
+    for(int i=0; i<num_v; i++)
+    {
+        if (offset_ptr_tmp[i] != offset_ptr_tmp[i+1])
+            effect_num_v++;
+    }
+
+    //allocate mem for decompressed count data
+    decompressElem* decomp_ele = &(update_queue_counts_decompress[cur_upd_mapper_id][cur_upd_parcel_id]);
+    decomp_ele->allocate(cur_comb_len_comm*effect_num_v);
+    std::memset(decomp_ele->_data, 0, decomp_ele->_len*sizeof(float));
+
+    //start decompress
+    offset_ptr[0] = 0;
+    for(int i=0;i<num_v; i++)
+    {
+        int start_pos_comp = offset_ptr_tmp[i];
+        int end_pos_comp = offset_ptr_tmp[i+1];
+
+        if (start_pos_comp != end_pos_comp)
+        {
+            int interval = end_pos_comp - start_pos_comp;
+            for(int x=0; x < interval; x++)
+                (decomp_ele->_data)[offset_ptr[i] + index_ptr[start_pos_comp +x]] = data_ptr[start_pos_comp+x];
+
+            offset_ptr[i+1] = offset_ptr[i] + cur_comb_len_comm;
+
+        }
+        else
+            offset_ptr[i+1] = offset_ptr[i];
+        
+    }
+
+    //delete original count val
+    if (offset_ptr_tmp != NULL)
+    {
+        delete[] offset_ptr_tmp;
+        offset_ptr_tmp = NULL;
+    }
+
+    //free mem in the original count array
+    // delete recv_data_ptr;
+    // update_queue_counts[cur_upd_mapper_id][cur_upd_parcel_id]
+
+    recv_data_ptr->~BlockDescriptor();
+    std::printf("Parcel decompress successful\n");
+    std::fflush;
 
 }
 
@@ -661,7 +743,7 @@ void Input::freeRecvParcel()
 
         if (update_queue_counts[i] != NULL)
         {
-            delete[] update_queue_counts[i];
+            // delete[] update_queue_counts[i];
             update_queue_counts[i] = NULL;
         }
 
@@ -669,6 +751,12 @@ void Input::freeRecvParcel()
         {
             delete[] update_queue_index[i];
             update_queue_index[i] = NULL;
+        }
+
+        if (update_queue_counts_decompress[i] != NULL)
+        {
+            delete[] update_queue_counts_decompress[i];
+            update_queue_counts_decompress[i] = NULL;
         }
 
     }
@@ -686,7 +774,7 @@ void Input::freeRecvParcelPip(int pipId)
 
     if (update_queue_counts[pipId] != NULL)
     {
-        delete[] update_queue_counts[pipId];
+        // delete[] update_queue_counts[pipId];
         update_queue_counts[pipId] = NULL;
     }
 
@@ -695,6 +783,13 @@ void Input::freeRecvParcelPip(int pipId)
         delete[] update_queue_index[pipId];
         update_queue_index[pipId] = NULL;
     }
+
+    if (update_queue_counts_decompress[pipId] != NULL)
+    {
+        delete[] update_queue_counts_decompress[pipId];
+        update_queue_counts_decompress[pipId] = NULL;
+    }
+
 }
 
 // for update comm
@@ -934,13 +1029,13 @@ double Input::compute_update_comm(int sub_id)
 
         delete[] update_at_n;
     }
-    
+
 
     if (sub_id == 0)
     {
         std::printf("Final updated counts is %e\n", total_update_counts);
     }
-    
+
     return total_update_counts;
 }
 
@@ -1114,13 +1209,13 @@ double Input::compute_update_comm_pip(int sub_id, int update_id)
 
         delete[] update_at_n;
     }
-    
+
 
     if (sub_id == 0)
     {
         std::printf("Final updated counts is %e\n", total_update_counts);
     }
-    
+
     return total_update_counts;
 }
 
@@ -1134,6 +1229,17 @@ void Input::release_update_ids()
         chunk_ids_cache_pip[v] = services::SharedPtr<int>();
         chunk_internal_offsets_cache_pip[v] = services::SharedPtr<int>();
     }
+}
+
+void Input::clear_task_update_list()
+{
+    for(int i=0;i<task_list_update.size();i++)
+    {
+        delete task_list_update[i];
+        task_list_update[i] = NULL;
+    }
+
+    task_list_update.clear();
 }
 
 NumericTablePtr Input::get(InputId id) const
@@ -2850,9 +2956,12 @@ void dynamic_table_array::set(int subtemplate, int vertex, int comb_num_index, f
     table[subtemplate][vertex][comb_num_index]  = count;
 }
 
+
+
 void dynamic_table_array::set(int vertex, int comb_num_index, float count)
 {
-    if( cur_table[vertex] == NULL){
+    if( cur_table[vertex] == NULL)
+    {
         cur_table[vertex] = new float[num_colorsets[cur_sub]];
 
         for( int c = 0; c < num_colorsets[cur_sub]; ++c) {
@@ -2862,6 +2971,19 @@ void dynamic_table_array::set(int vertex, int comb_num_index, float count)
 
     cur_table[vertex][comb_num_index] = count;
 }
+
+void dynamic_table_array::set_init(int vertex)
+{
+    if( cur_table[vertex] == NULL)
+    {
+        cur_table[vertex] = new float[num_colorsets[cur_sub]];
+        // std::memset(cur_table[vertex], 0, num_colorsets[cur_sub]*sizeof(float));
+        for( int c = 0; c < num_colorsets[cur_sub]; ++c) {
+            cur_table[vertex][c] = 0.0;
+        }
+    }
+}
+
 
 //shall deal with the uninit vertex in local
 void dynamic_table_array::update_comm(int vertex, int comb_num_index, float count)

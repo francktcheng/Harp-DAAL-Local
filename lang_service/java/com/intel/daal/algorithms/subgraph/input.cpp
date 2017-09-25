@@ -186,6 +186,12 @@ JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cReleaseUpd
 	((subgraph::Input*)inputAddr)->release_update_ids();
 }
 
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cClearTaskUpdateList
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	((subgraph::Input*)inputAddr)->clear_task_update_list();
+}
+
 JNIEXPORT jdouble JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cComputeUpdateComm
 (JNIEnv *env, jobject thisObj, jlong inputAddr, jint sub_id)
 {

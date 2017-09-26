@@ -397,6 +397,7 @@ namespace interface1
             float get_active(int vertex, int comb_num_index);
             float* get_active(int vertex);
             float* get_passive(int vertex);
+			float** get_passive_table();
             float get_passive(int vertex, int comb_num_index);
             void set(int subtemplate, int vertex, int comb_num_index, float count);
             void set(int vertex, int comb_num_index, float count);
@@ -629,7 +630,7 @@ public:
     //for nbrs task breakdown
 	std::vector<task_nbr*> task_list;
 	std::vector<task_nbr_update*> task_list_update;
-	int task_list_len;
+	// int task_list_len;
     
 
 private:
@@ -897,6 +898,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _total_counts = 0.0;
         _update_counts = 0.0;
         _count_time = 0.0;
+		_nbr_task_len = 0;
     }
 
     virtual ~Parameter() {}
@@ -909,6 +911,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
                       size_t core_num,
                       size_t tpc,
                       size_t affinity,
+					  size_t nbr_task_len,
                       size_t verbose)
     {
         _thread_num = thread_num;
@@ -916,6 +919,8 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _tpc = tpc;
         _affinity = affinity;
         _verbose = verbose;
+		_nbr_task_len = nbr_task_len;
+		_omp_schedule = "guided";
     }
 
     void setStage(size_t stage)
@@ -927,6 +932,11 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     {
         _sub_itr = sub_itr;
     }
+
+	void setNbrTaskLen(size_t nbr_task_len)
+	{
+		_nbr_task_len = nbr_task_len;
+	}
 
     void setPipId(size_t pip_id)
     {
@@ -945,6 +955,8 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     double _total_counts;
     double _update_counts;
     double _count_time;
+	int _nbr_task_len;
+	std::string _omp_schedule;
 
 };
 

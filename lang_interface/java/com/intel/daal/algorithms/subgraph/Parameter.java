@@ -66,9 +66,10 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
                               int core_num,
                               int tpc,
                               int affinity,
+                              int nbrtasklen,
                               int verbose) {
 
-        cSetParameters(this.cObject, thread_num, core_num, tpc, affinity, verbose);
+        cSetParameters(this.cObject, thread_num, core_num, tpc, affinity, nbrtasklen, verbose);
     }
 
     public void setSubItr(int sub_itr){
@@ -86,6 +87,10 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
         cSetStage(this.cObject, stage);
     }
 
+    public void setNbrTaskLen(int len) {
+        cSetNbrTaskLen(this.cObject, len);
+    }
+
     public void setPipId(int id) {
         cSetPipId(this.cObject, id);
     }
@@ -98,12 +103,18 @@ public class Parameter extends com.intel.daal.algorithms.Parameter {
         return cGetUpdateCounts(this.cObject);
     }
 
-    private native void cSetParameters(long parAddr, int thread_num, int core_num, int tpc, int affinity, int verbose);
+    public void setOmpSchedule(String opt)
+    {
+        cSetOmpSchedule(this.cObject, opt);
+    }
+
+    private native void cSetParameters(long parAddr, int thread_num, int core_num, int tpc, int affinity, int nbrtasklen, int verbose);
     private native void cSetStage(long parAddr, int stage);
+    private native void cSetNbrTaskLen(long parAddr, int len);
     private native void cSetPipId(long parAddr, int id);
     private native void cSetSubItr(long parAddr, int sub_itr);
     private native double cGetTotalCounts(long parAddr);
     private native double cGetUpdateCounts(long parAddr);
-
+    private native void cSetOmpSchedule(long parAddr, String opt);
 
 }

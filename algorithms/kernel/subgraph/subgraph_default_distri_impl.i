@@ -27,6 +27,8 @@
 #include <time.h>
 #include <math.h>       
 #include <algorithm>
+#include <string>
+#include <cstring>
 #include <cstdlib> 
 #include <vector>
 #include <iostream>
@@ -300,13 +302,26 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottomNbrSplit(Paramet
     std::printf("Start Distrikernel compute nonlast\n");
     std::fflush;
 
+    std::string omp_schel = par->_omp_schedule;
+    std::printf("Use omp schedule: %s\n", omp_schel.c_str());
+    std::fflush;
+
     //setup omp affinity
     // setenv("KMP_AFFINITY","granularity=core,compact",1);
-    int set_flag = setenv("KMP_AFFINITY","granularity=fine,compact",1);
+    int set_flag_affinity = setenv("KMP_AFFINITY","granularity=fine,compact",1);
+    // int set_flag_schedule = setenv("OMP_SCHEDULE", "static", 1);
+    int set_flag_schedule = setenv("OMP_SCHEDULE", omp_schel.c_str(), 1);
+
     // int set_flag = setenv("KMP_AFFINITY","granularity=core,scatter",1);
-    if (set_flag == 0)
+    if (set_flag_affinity == 0)
     {
         std::printf("omp affinity bind successful\n");
+        std::fflush;
+    }
+
+    if (set_flag_schedule == 0)
+    {
+        std::printf("omp schedule setup successful\n");
         std::fflush;
     }
 
@@ -314,7 +329,6 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottomNbrSplit(Paramet
     struct timespec ts2;
     int64_t diff = 0;
     double compute_time = 0;
-
 
     clock_gettime(CLOCK_MONOTONIC, &ts1);
 
@@ -396,16 +410,19 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottomNbrSplit(Paramet
     std::printf("Start the breakdown of nbrs list task\n");
     std::fflush;
     //breakdown all the valid nbrs list into small task stored in task_list vector  
+    int nbr_task_len = 0;
     for(int v=0;v<num_vert_g;v++)
     {
         if (dt->is_vertex_init_active(v) && valid_nbrs_map_size[v] != 0)
         {
             int* nbrs_pos = valid_nbrs_map[v];
             int nbrs_len = valid_nbrs_map_size[v];
+           
+            nbr_task_len = (par->_nbr_task_len > 0) ? par->_nbr_task_len : nbrs_len;
             //create the task
             while(nbrs_len > 0)
             {
-                int task_len = (nbrs_len < input->task_list_len) ? nbrs_len : input->task_list_len;
+                int task_len = (nbrs_len < nbr_task_len) ? nbrs_len : nbr_task_len;
                 input->task_list.push_back(new task_nbr(v, task_len, nbrs_pos));
                 nbrs_len -= task_len;
                 if (nbrs_len > 0)
@@ -423,10 +440,11 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottomNbrSplit(Paramet
 
     task_nbr** compute_list = &(input->task_list)[0];
 
-    #pragma omp parallel for schedule(guided) num_threads(thread_num) 
+    #pragma omp parallel for schedule(runtime) num_threads(thread_num) 
     for(int t = 0; t< cur_task_list_len; t++)
     {
-        //definle local var
+        //replace shared ptr/var by local (private) one 
+        //to avoid race condition
         task_nbr* task_atomic = compute_list[t];
         int**** comb_num_idx_thd = comb_num_idx;
         int** comb_idx_set_thd = comb_idx_set;
@@ -438,23 +456,27 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottomNbrSplit(Paramet
         //get ptr to v table entry
         //counts of v at active child
         float* counts_a = dt->get_active(v);
+        float** passiv_table = dt->get_passive_table();
 
         float* v_dt_ptr = NULL;
         if (s != 0)
             v_dt_ptr = dt->get_table(s, v);
 
+        int cur_a_comb_num_thd = cur_a_comb_num;
+        int cur_comb_num_thd = cur_comb_num; 
         double last_sub_count = 0.0;
-        for(int n = 0; n < cur_comb_num; ++n)
+
+        for(int n = 0; n < cur_comb_num_thd; ++n)
         {
             int* comb_indexes_a = comb_num_idx_thd[0][s][n];
             int* comb_indexes_p = comb_num_idx_thd[1][s][n];
-            int p = cur_a_comb_num -1;
+            int p = cur_a_comb_num_thd -1;
 
             double color_count = 0.0;
             // second loop on different color_combs of active/passive children
             // a+p == num_combinations_ato 
             // (total colorscombs for both of active child and pasive child)
-            for(int a = 0; a < cur_a_comb_num; ++a, --p)
+            for(int a = 0; a < cur_a_comb_num_thd; ++a, --p)
             {
                 float count_a = counts_a[comb_indexes_a[a]];
                 if( count_a > 0)
@@ -462,8 +484,10 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottomNbrSplit(Paramet
                     //third loop on different valid nbrs
                     //validated nbrs already checked to be on passive child
                     for(int j=0;j<valid_nbrs_task_num;j++)
-                        color_count += ((double)count_a*dt->get_passive(valid_nbrs_task_ptr[j], comb_indexes_p[p]));
-
+                    {
+                        color_count += ((double)count_a*passiv_table[valid_nbrs_task_ptr[j]][comb_indexes_p[p]]);
+                        // color_count += ((double)count_a*dt->get_passive(valid_nbrs_task_ptr[j], comb_indexes_p[p]));
+                    }
                 }
             }
 
@@ -535,14 +559,37 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplit(Param
 
     //setup omp affinity
     // setenv("KMP_AFFINITY","granularity=core,compact",1);
-    int set_flag = setenv("KMP_AFFINITY","granularity=fine,compact",1);
+    // int set_flag = setenv("KMP_AFFINITY","granularity=fine,compact",1);
+    // // int set_flag = setenv("KMP_AFFINITY","granularity=core,scatter",1);
+    // if (set_flag == 0)
+    // {
+    //     std::printf("omp affinity bind successful\n");
+    //     std::fflush;
+    // }
+    
+    std::string omp_schel = par->_omp_schedule;
+    std::printf("Use omp schedule: %s\n", omp_schel.c_str());
+    std::fflush;
+
+    //setup omp affinity
+    // setenv("KMP_AFFINITY","granularity=core,compact",1);
+    int set_flag_affinity = setenv("KMP_AFFINITY","granularity=fine,compact",1);
+    // int set_flag_schedule = setenv("OMP_SCHEDULE", "static", 1);
+    int set_flag_schedule = setenv("OMP_SCHEDULE", omp_schel.c_str(), 1);
+
     // int set_flag = setenv("KMP_AFFINITY","granularity=core,scatter",1);
-    if (set_flag == 0)
+    if (set_flag_affinity == 0)
     {
         std::printf("omp affinity bind successful\n");
         std::fflush;
     }
-    
+
+    if (set_flag_schedule == 0)
+    {
+        std::printf("omp schedule setup successful\n");
+        std::fflush;
+    }   
+
     struct timespec ts1;
 	struct timespec ts2;
     int64_t diff = 0;
@@ -597,6 +644,7 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplit(Param
     double total_update_counts = 0.0;
 
     // prepare the task_list_update 
+    int nbr_task_len = 0;
     for (int v = 0; v < num_vert_g; ++v) 
     {
         int adj_list_size = update_map_size.get()[v];
@@ -609,9 +657,10 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplit(Param
             if (sub_id != 0)
                 dt->set_init(v);
 
+            nbr_task_len = (par->_nbr_task_len > 0 ) ? par->_nbr_task_len : adj_list_size;
             while(adj_list_size > 0)
             {
-                int task_len = (adj_list_size < input->task_list_len) ? adj_list_size : input->task_list_len;
+                int task_len = (adj_list_size < nbr_task_len) ? adj_list_size : nbr_task_len;
                 input->task_list_update.push_back(new task_nbr_update(v, task_len, map_ids, chunk_ids, chunk_internal_offsets));
                 adj_list_size -= task_len;
                 if (adj_list_size > 0)
@@ -634,18 +683,18 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplit(Param
     std::fflush;
 
     //loop over all the task_list_updates
-    #pragma omp parallel for schedule(guided) num_threads(thread_num) 
+    // #pragma omp parallel for schedule(guided) num_threads(thread_num) 
+    #pragma omp parallel for schedule(runtime) num_threads(thread_num) 
     for (int t_id = 0; t_id < task_update_queue_size; ++t_id) 
     {
+
+        //replace shared var by local vars
         int**** comb_num_indexes_thd = comb_num_indexes; 
         int** comb_num_indexes_set_thd = comb_num_indexes_set;
-        float* v_update_ptr = NULL;
-
-        int thread_id = omp_get_thread_num(); 
-
         task_nbr_update* task_update_atomic = task_update_queue[t_id];
         int v = task_update_atomic->_vertex;
 
+        float* v_update_ptr = NULL;
         if (sub_id != 0)
             v_update_ptr = dt->get_table(sub_id, v);
 
@@ -654,18 +703,24 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplit(Param
         int* map_ids = task_update_atomic->_map_ids_atom;
         int* chunk_ids = task_update_atomic->_chunk_ids_atom;
         int* chunk_internal_offsets = task_update_atomic->_chunk_internal_offsets_atom; 
+        int num_combinations_active_ato_thd = num_combinations_active_ato;
+        int num_combinations_verts_sub_thd =  num_combinations_verts_sub;
+        int sub_id_thd = sub_id;
+
+        BlockDescriptor<int>** update_queue_pos_thd = update_queue_pos;
+        decompressElem** update_queue_counts_decompress_thd = update_queue_counts_decompress;
 
         std::vector<float*> adj_list_valid;
         for(int i=0;i<adj_list_size;i++)
         {
 
-            int* adj_offset_list = (update_queue_pos[map_ids[i]][chunk_ids[i]]).getBlockPtr();
+            int* adj_offset_list = (update_queue_pos_thd[map_ids[i]][chunk_ids[i]]).getBlockPtr();
             int start_pos = adj_offset_list[chunk_internal_offsets[i]];
             int end_pos = adj_offset_list[chunk_internal_offsets[i] + 1];
 
             if (start_pos != end_pos)
             {
-                float* decompress_exp = update_queue_counts_decompress[map_ids[i]][chunk_ids[i]]._data;
+                float* decompress_exp = update_queue_counts_decompress_thd[map_ids[i]][chunk_ids[i]]._data;
                 adj_list_valid.push_back(decompress_exp + start_pos);
             }
         }
@@ -673,21 +728,21 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplit(Param
         double last_sub_count = 0.0;
         // ----------- Finish decompress process -----------
         //third loop over comb_num for cur subtemplate
-        for(int n = 0; n< num_combinations_verts_sub; n++)
+        for(int n = 0; n< num_combinations_verts_sub_thd; n++)
         {
 
             //local counts 
             double partial_local_counts = 0.0;
 
             // more details
-            int* comb_indexes_a = comb_num_indexes_thd[0][sub_id][n];
-            int* comb_indexes_p = comb_num_indexes_thd[1][sub_id][n];
+            int* comb_indexes_a = comb_num_indexes_thd[0][sub_id_thd][n];
+            int* comb_indexes_p = comb_num_indexes_thd[1][sub_id_thd][n];
 
             // for passive 
-            int p = num_combinations_active_ato -1;
+            int p = num_combinations_active_ato_thd -1;
 
             // fourth loop over comb_num for active/passive subtemplates
-            for(int a = 0; a < num_combinations_active_ato; ++a, --p)
+            for(int a = 0; a < num_combinations_active_ato_thd; ++a, --p)
             {
                 float count_a = counts_a[comb_indexes_a[a]];
                 if (count_a > 0)
@@ -698,17 +753,17 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplit(Param
             }
 
             //set value to table
-            if (sub_id != 0)
+            if (sub_id_thd != 0)
             {
                 #pragma omp atomic
-                v_update_ptr[comb_num_indexes_set_thd[sub_id][n]] +=  (float)partial_local_counts;
+                v_update_ptr[comb_num_indexes_set_thd[sub_id_thd][n]] +=  (float)partial_local_counts;
             }
             else
                 last_sub_count += partial_local_counts;
 
         } // finish all combination sets for cur template
 
-        if (sub_id == 0)
+        if (sub_id_thd == 0)
         {
             #pragma omp atomic
             total_update_counts += last_sub_count; 
@@ -739,16 +794,39 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplit(Pa
     std::printf("Distrikernel updateRemoteCounts\n");
     std::fflush;
 
+    // //setup omp affinity
+    // // setenv("KMP_AFFINITY","granularity=core,compact",1);
+    // int set_flag = setenv("KMP_AFFINITY","granularity=fine,compact",1);
+    // // int set_flag = setenv("KMP_AFFINITY","granularity=core,scatter",1);
+    // if (set_flag == 0)
+    // {
+    //     std::printf("omp affinity bind successful\n");
+    //     std::fflush;
+    // }
+ 
+    std::string omp_schel = par->_omp_schedule;
+    std::printf("Use omp schedule: %s\n", omp_schel.c_str());
+    std::fflush;
+
     //setup omp affinity
     // setenv("KMP_AFFINITY","granularity=core,compact",1);
-    int set_flag = setenv("KMP_AFFINITY","granularity=fine,compact",1);
+    int set_flag_affinity = setenv("KMP_AFFINITY","granularity=fine,compact",1);
+    // int set_flag_schedule = setenv("OMP_SCHEDULE", "static", 1);
+    int set_flag_schedule = setenv("OMP_SCHEDULE", omp_schel.c_str(), 1);
+
     // int set_flag = setenv("KMP_AFFINITY","granularity=core,scatter",1);
-    if (set_flag == 0)
+    if (set_flag_affinity == 0)
     {
         std::printf("omp affinity bind successful\n");
         std::fflush;
     }
-    
+
+    if (set_flag_schedule == 0)
+    {
+        std::printf("omp schedule setup successful\n");
+        std::fflush;
+    }    
+
     struct timespec ts1;
 	struct timespec ts2;
     int64_t diff = 0;
@@ -807,6 +885,7 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplit(Pa
     if (input->task_list_update.size() == 0)
     {
         // prepare the task_list_update 
+        int nbr_task_len = 0; 
         for (int v = 0; v < num_vert_g; ++v) 
         {
             int adj_list_size = update_map_size.get()[v];
@@ -819,9 +898,10 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplit(Pa
                 if (sub_id != 0)
                     dt->set_init(v);
 
+                nbr_task_len = (par->_nbr_task_len > 0) ? par->_nbr_task_len : adj_list_size;
                 while(adj_list_size > 0)
                 {
-                    int task_len = (adj_list_size < input->task_list_len) ? adj_list_size : input->task_list_len;
+                    int task_len = (adj_list_size < nbr_task_len) ? adj_list_size : nbr_task_len;
                     input->task_list_update.push_back(new task_nbr_update(v, task_len, map_ids, chunk_ids, chunk_internal_offsets));
                     adj_list_size -= task_len;
                     if (adj_list_size > 0)
@@ -846,14 +926,15 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplit(Pa
     std::fflush;
 
     //loop over all the task_list_updates
-    #pragma omp parallel for schedule(guided) num_threads(thread_num) 
+    // #pragma omp parallel for schedule(guided) num_threads(thread_num) 
+    #pragma omp parallel for schedule(runtime) num_threads(thread_num) 
     for (int t_id = 0; t_id < task_update_queue_size; ++t_id) 
     {
+
+        //replace shared var by local var
         int**** comb_num_indexes_thd = comb_num_indexes; 
         int** comb_num_indexes_set_thd = comb_num_indexes_set;
         float* v_update_ptr = NULL;
-
-        int thread_id = omp_get_thread_num(); 
 
         task_nbr_update* task_update_atomic = task_update_queue[t_id];
         int v = task_update_atomic->_vertex;
@@ -866,44 +947,48 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplit(Pa
         int* map_ids = task_update_atomic->_map_ids_atom;
         int* chunk_ids = task_update_atomic->_chunk_ids_atom;
         int* chunk_internal_offsets = task_update_atomic->_chunk_internal_offsets_atom; 
-
+        int update_pip_id_thd = update_pip_id;
+        BlockDescriptor<int>** update_queue_pos_thd = update_queue_pos;
+        decompressElem** update_queue_counts_decompress_thd = update_queue_counts_decompress;
+        int num_combinations_verts_sub_thd = num_combinations_verts_sub;
+        int num_combinations_active_ato_thd = num_combinations_active_ato;
+        int sub_id_thd = sub_id;
         //prepare a list of ptr to decompressed array for adj_list
-        // int adj_list_size_valid = 0;
         std::vector<float*> adj_list_valid;
         for(int i=0;i<adj_list_size;i++)
         {
 
-            if (map_ids[i] != update_pip_id || update_queue_pos[map_ids[i]] == NULL)
+            if (map_ids[i] != update_pip_id_thd || update_queue_pos_thd[map_ids[i]] == NULL)
                 continue;
 
-            int* adj_offset_list = (update_queue_pos[map_ids[i]][chunk_ids[i]]).getBlockPtr();
+            int* adj_offset_list = (update_queue_pos_thd[map_ids[i]][chunk_ids[i]]).getBlockPtr();
             int start_pos = adj_offset_list[chunk_internal_offsets[i]];
             int end_pos = adj_offset_list[chunk_internal_offsets[i] + 1];
 
             if (start_pos != end_pos)
             {
-                float* decompress_exp = update_queue_counts_decompress[map_ids[i]][chunk_ids[i]]._data;
+                float* decompress_exp = update_queue_counts_decompress_thd[map_ids[i]][chunk_ids[i]]._data;
                 adj_list_valid.push_back(decompress_exp + start_pos);
             }
         }
 
         double last_sub_count = 0.0;
         //third loop over comb_num for cur subtemplate
-        for(int n = 0; n< num_combinations_verts_sub; n++)
+        for(int n = 0; n< num_combinations_verts_sub_thd; n++)
         {
 
             //local counts 
             double partial_local_counts = 0.0;
 
             // more details
-            int* comb_indexes_a = comb_num_indexes_thd[0][sub_id][n];
-            int* comb_indexes_p = comb_num_indexes_thd[1][sub_id][n];
+            int* comb_indexes_a = comb_num_indexes_thd[0][sub_id_thd][n];
+            int* comb_indexes_p = comb_num_indexes_thd[1][sub_id_thd][n];
 
             // for passive 
-            int p = num_combinations_active_ato -1;
+            int p = num_combinations_active_ato_thd -1;
 
             // fourth loop over comb_num for active/passive subtemplates
-            for(int a = 0; a < num_combinations_active_ato; ++a, --p)
+            for(int a = 0; a < num_combinations_active_ato_thd; ++a, --p)
             {
                 float count_a = counts_a[comb_indexes_a[a]];
                 if (count_a > 0)
@@ -915,17 +1000,17 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplit(Pa
             }
 
             //set value to table
-            if (sub_id != 0)
+            if (sub_id_thd != 0)
             {
                 #pragma omp atomic
-                v_update_ptr[comb_num_indexes_set_thd[sub_id][n]] +=  (float)partial_local_counts;
+                v_update_ptr[comb_num_indexes_set_thd[sub_id_thd][n]] +=  (float)partial_local_counts;
             }
             else
                 last_sub_count += partial_local_counts;
 
         } // finish all combination sets for cur template
 
-        if (sub_id == 0)
+        if (sub_id_thd == 0)
         {
             #pragma omp atomic
             total_update_counts += last_sub_count; 
@@ -939,7 +1024,6 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplit(Pa
 
     // task_update list will be re-used til the last pipeline operation
     // input->task_list_update.clear();
-
     if (sub_id == 0)
     {
         std::printf("Final updated counts is %e\n", total_update_counts);

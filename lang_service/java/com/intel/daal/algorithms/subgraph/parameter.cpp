@@ -16,6 +16,8 @@
 *******************************************************************************/
 
 #include <jni.h>
+#include <string>
+#include <cstring>
 #include "subgraph_types.i"
 
 #include "JComputeMode.h"
@@ -35,12 +37,13 @@ using namespace daal::algorithms::subgraph;
  * Signature:(JIJ)I
  */
 JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Parameter_cSetParameters
-(JNIEnv *env, jobject thisObj, jlong parAddr, jint thread_num, jint core_num, jint tpc, jint affinity, jint verbose)
+(JNIEnv *env, jobject thisObj, jlong parAddr, jint thread_num, jint core_num, jint tpc, jint affinity, jint nbrtasklen, jint verbose)
 {
 	((subgraph::Parameter*)parAddr)->_thread_num = thread_num;
 	((subgraph::Parameter*)parAddr)->_core_num = core_num;
 	((subgraph::Parameter*)parAddr)->_tpc = tpc;
 	((subgraph::Parameter*)parAddr)->_affinity = affinity;
+	((subgraph::Parameter*)parAddr)->_nbr_task_len = nbrtasklen;
 	((subgraph::Parameter*)parAddr)->_verbose = verbose;
 }
 
@@ -48,6 +51,21 @@ JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Parameter_cSetSta
 (JNIEnv *env, jobject thisObj, jlong parAddr, jint stage)
 {
 	((subgraph::Parameter*)parAddr)->_stage = stage;
+}
+
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Parameter_cSetOmpSchedule
+(JNIEnv *env, jobject thisObj, jlong parAddr, jstring opt)
+{
+    jboolean isCopy;
+    const char* opt_c = env->GetStringUTFChars(opt, &isCopy); 
+    std::string opt_s(opt_c);
+	((subgraph::Parameter*)parAddr)->_omp_schedule = opt_s;
+}
+
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Parameter_cSetNbrTaskLen
+(JNIEnv *env, jobject thisObj, jlong parAddr, jint len)
+{
+	((subgraph::Parameter*)parAddr)->_nbr_task_len = len;
 }
 
 JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Parameter_cSetSubItr

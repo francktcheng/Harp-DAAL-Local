@@ -157,7 +157,7 @@ Input::Input() : daal::algorithms::Input(10) {
     cur_parcel_v_counts_data = NULL; //count_num
     cur_parcel_v_counts_index = NULL; //count_num
 
-	task_list_len = 100;
+	// task_list_len = 100;
 }
 
 void Input::init_comm(int mapper_num_par, int local_mapper_id_par, long send_array_limit_par, bool rotation_pipeline_par)
@@ -723,8 +723,8 @@ void Input::updateRecvParcel()
     //free mem in the original count array
     // delete recv_data_ptr;
     // update_queue_counts[cur_upd_mapper_id][cur_upd_parcel_id]
-
     recv_data_ptr->~BlockDescriptor();
+    recv_index_ptr->~BlockDescriptor();
     std::printf("Parcel decompress successful\n");
     std::fflush;
 
@@ -749,7 +749,7 @@ void Input::freeRecvParcel()
 
         if (update_queue_index[i] != NULL)
         {
-            delete[] update_queue_index[i];
+            // delete[] update_queue_index[i];
             update_queue_index[i] = NULL;
         }
 
@@ -780,7 +780,7 @@ void Input::freeRecvParcelPip(int pipId)
 
     if (update_queue_index[pipId] != NULL)
     {
-        delete[] update_queue_index[pipId];
+        // delete[] update_queue_index[pipId];
         update_queue_index[pipId] = NULL;
     }
 
@@ -2931,6 +2931,11 @@ float* dynamic_table_array::get_active(int vertex)
 float* dynamic_table_array::get_passive(int vertex)
 {
     return cur_table_passive[vertex];
+}
+
+float** dynamic_table_array::get_passive_table()
+{
+    return cur_table_passive;
 }
 
 float dynamic_table_array::get_passive(int vertex, int comb_num_index)

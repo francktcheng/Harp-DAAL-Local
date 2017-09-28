@@ -60,6 +60,7 @@ int util_partition(int*& arr, const int left, const int right);
 int* util_dynamic_to_static(std::vector<int>& arr);
 int util_get_max(std::vector<int> arr1, std::vector<int> arr2);
 int util_choose(int n, int k);
+int util_choose_old(int n, int k);
 int** util_init_choose_table(int num_colors);
 int* util_init_permutation(int num_verts);
 void util_next_set(int*& current_set, int length, int num_colors);
@@ -168,29 +169,13 @@ void Input::init_comm(int mapper_num_par, int local_mapper_id_par, long send_arr
     rotation_pipeline = rotation_pipeline_par;
 
     NumericTablePtr abs_v_to_mapper_table = get(VMapperId);
-    // BlockDescriptor<int> mtVMapperId;
     abs_v_to_mapper_table->getBlockOfColumnValues(0, 0, abs_v_to_mapper_table->getNumberOfRows(), readOnly, abs_v_to_mapper);
-    // abs_v_to_mapper = mtVMapperId.getBlockSharedPtr();
-    // mtVMapperId.~BlockDescriptor();
-    // services::SharedPtr<int> tmp_shptr = mtVMapperId.getBlockSharedPtr();
-    // abs_v_to_mapper = services::SharedPtr<int>(new int[abs_v_to_mapper_table->getNumberOfRows()]);
-    // std::memcpy(abs_v_to_mapper.get(), mtVMapperId.getBlockPtr(), abs_v_to_mapper_table->getNumberOfRows()*sizeof(int));
 
-    //retrieve the abs v id to mapper mapping
-    //length max_v_id+1 
-    //debug check abs_v_to_mapper val
-    // for(int i=0; i<10;i++)
-    // {
-    //     int v_id = g.vertex_ids.get()[i]; 
-    //     std::printf("Check abs_v_to_mapper v_id: %d, mapper id: %d\n", v_id, abs_v_to_mapper.getBlockPtr()[v_id]);
-    // }
-
-    int abs_len = g.max_v_id + 1;
+    // may be overflow 124836417*25 change int to long
+    long abs_len = g.max_v_id + 1;
     abs_v_to_queue = new int[abs_len];
     std::memset(abs_v_to_queue, 0, abs_len*sizeof(int));
 
-    // comm_mapper_vertex = new std::unordered_set<int>[mapper_num];
-    // comm_mapper_vertex = new int*[mapper_num];
     comm_mapper_vertex = new std::vector<int>[mapper_num];
 
     int* comm_mapper_tmp = new int[abs_len*mapper_num];
@@ -214,7 +199,7 @@ void Input::init_comm(int mapper_num_par, int local_mapper_id_par, long send_arr
         }
     }
 
-    for(int i=0;i<abs_len*mapper_num;i++)
+    for(long i=0;i<abs_len*mapper_num;i++)
     {
         if (comm_mapper_tmp[i] > 0)
         {
@@ -226,21 +211,13 @@ void Input::init_comm(int mapper_num_par, int local_mapper_id_par, long send_arr
 
     delete[] comm_mapper_tmp;
 
-    // update_map = new int*[g.vert_num_count];
-    // for(int i=0;i<g.vert_num_count;i++)
-    //     update_map[i] = new int[g.out_degree(i)];
     update_map = new services::SharedPtr<int>[g.vert_num_count];
     for(int i=0;i<g.vert_num_count;i++)
         update_map[i] = services::SharedPtr<int>(new int[g.out_degree(i)]); 
 
-    // update_map_size = new int[g.vert_num_count];
-    // std::memset(update_map_size, 0, g.vert_num_count*sizeof(int));
     update_map_size = services::SharedPtr<int>(new int[g.vert_num_count]);
     std::memset(update_map_size.get(), 0, g.vert_num_count*sizeof(int));
 
-    // update_queue_pos = new int**[mapper_num];
-    // update_queue_counts = new float**[mapper_num];
-    // update_queue_index = new int**[mapper_num];
     update_queue_pos = new BlockDescriptor<int>*[mapper_num];
     update_queue_counts = new BlockDescriptor<float>*[mapper_num];
     update_queue_index = new BlockDescriptor<int>*[mapper_num];
@@ -255,24 +232,12 @@ void Input::init_comm(int mapper_num_par, int local_mapper_id_par, long send_arr
         update_queue_index[i] = NULL;
     }
 
-    // update_mapper_len = new int[mapper_num];
-    // std::memset(update_mapper_len, 0, mapper_num*sizeof(int));
     update_mapper_len = services::SharedPtr<int>(new int[mapper_num]);
     std::memset(update_mapper_len.get(), 0, mapper_num*sizeof(int));
 
-    // map_ids_cache_pip = new int*[g.vert_num_count];
-    // chunk_ids_cache_pip = new int*[g.vert_num_count];
-    // chunk_internal_offsets_cache_pip = new int*[g.vert_num_count];
     map_ids_cache_pip = new services::SharedPtr<int>[g.vert_num_count];
     chunk_ids_cache_pip = new services::SharedPtr<int>[g.vert_num_count];
     chunk_internal_offsets_cache_pip = new services::SharedPtr<int>[g.vert_num_count];
-
-    // for(int i=0;i<g.vert_num_count;i++)
-    // {
-    //     map_ids_cache_pip[i] = NULL;
-    //     chunk_ids_cache_pip[i] = NULL;
-    //     chunk_internal_offsets_cache_pip[i] = NULL;
-    // }
 
 }
 
@@ -367,7 +332,17 @@ int Input::sendCommParcelInit(int sub_id, int send_id)
         
         cur_send_id_data = &(search->second);
         //use long to avoid size overflow
-        cur_parcel_num = (cur_send_id_data->size()*((long)cur_comb_len_comm)+ send_array_limit - 1)/send_array_limit;
+        //long is not enough for overflow
+        // cur_parcel_num = (cur_send_id_data->size()*((long)cur_comb_len_comm)+ send_array_limit - 1)/send_array_limit;
+        
+        float cur_parcel_num_tmp = (cur_send_id_data->size()*((float)cur_comb_len_comm)+ send_array_limit - 1)/send_array_limit; 
+        if (cur_parcel_num_tmp < 1.0)
+            cur_parcel_num = 1;
+        else
+            cur_parcel_num = static_cast<long>(cur_parcel_num_tmp);
+
+        std::printf("Parcel Num Sending sub: %d, send_id: %d, num: %ld\n", sub_id, send_id, cur_parcel_num);
+        std::fflush;
 
         // prepare chunks
         // send_chunks.length == send_divid_num + 1
@@ -406,12 +381,16 @@ void Input::sendCommParcelPrep(int parcel_id)
     // int v_num = vert_list.length;
     int* v_offset = new int[parcel_len + 1];
     //to be trimed
-    float* counts_data_tmp = new float[cur_comb_len_comm*parcel_len];
+    //avoid overflow
+    // float* counts_data_tmp = new float[cur_comb_len_comm*parcel_len];
+    float* counts_data_tmp = new float[(long)cur_comb_len_comm*parcel_len];
     float* compress_array = new float[cur_comb_len_comm];
 
     // compress index uses short to save memory, support up to 32767 as max_comb_len
     // use int instead of short here
-    int* counts_index_tmp = new int[cur_comb_len_comm*parcel_len];
+    // avoid overflow
+    // int* counts_index_tmp = new int[cur_comb_len_comm*parcel_len];
+    int* counts_index_tmp = new int[(long)cur_comb_len_comm*parcel_len];
     int* compress_index = new int[cur_comb_len_comm];
 
     int count_num = 0;
@@ -447,7 +426,7 @@ void Input::sendCommParcelPrep(int parcel_id)
         int compress_itr = 0;
         for(int j=0; j<cur_comb_len_comm; j++)
         {
-            if (counts_raw[j] > 0.0)
+            if (counts_raw[j] != 0.0)
             {
                 compress_array[compress_itr] = counts_raw[j];
                 compress_index[compress_itr] = j;
@@ -610,7 +589,19 @@ void Input::updateRecvParcelInit(int comm_id)
     // create update_queue 
     if (update_queue_pos[cur_upd_mapper_id] == NULL)
     {
-        long recv_divid_num = (update_mapper_len.get()[cur_upd_mapper_id]*((long)cur_comb_len_comm)+ send_array_limit - 1)/send_array_limit;
+        //to avoid overflow
+        // long recv_divid_num = (update_mapper_len.get()[cur_upd_mapper_id]*((long)cur_comb_len_comm)+ send_array_limit - 1)/send_array_limit;
+        
+        long recv_divid_num = 1;
+        float recv_divid_num_tmp = (update_mapper_len.get()[cur_upd_mapper_id]*((float)cur_comb_len_comm)+ send_array_limit - 1)/send_array_limit; 
+        if (recv_divid_num_tmp < 1.0)
+            recv_divid_num = 1;
+        else
+            recv_divid_num = static_cast<long>(recv_divid_num_tmp);
+
+        std::printf("Parcel Num recv update_id: %d, num: %ld\n", cur_upd_mapper_id, recv_divid_num);
+        std::fflush;
+
         // std::printf("Update create size of id %d: %d\n",cur_upd_mapper_id,  (int)recv_divid_num);
         // std::fflush;
         update_queue_pos[cur_upd_mapper_id] = new BlockDescriptor<int>[(int)recv_divid_num];
@@ -838,9 +829,15 @@ void Input::calculate_update_ids(int sub_id)
                 adj_list_len = update_mapper_len.get()[map_id]; 
 
                 //calculate chunk id 
-                chunk_size =(int) ((adj_list_len*(long)comb_len + send_array_limit - 1)/send_array_limit);
+                //avoid overflow
+                // chunk_size =(int) ((adj_list_len*(long)comb_len + send_array_limit - 1)/send_array_limit);
+                float chunk_size_tmp = (adj_list_len*((float)comb_len)+ send_array_limit - 1)/send_array_limit; 
+                if (chunk_size_tmp < 1.0)
+                    chunk_size = 1;
+                else
+                    chunk_size = static_cast<int>(chunk_size_tmp);
+
                 chunk_len = adj_list_len/chunk_size;
-                //
                 // from 0 to chunk_size - 1
                 chunk_id = adj_offset/chunk_len; 
                 chunk_internal_offset = adj_offset%chunk_len;  
@@ -1792,12 +1789,24 @@ void Input::create_tables()
     choose_table = util_init_choose_table(num_colors);
     //record vertices number of each subtemplate
     create_num_verts_table();
+
+    std::printf("Finish create num vert table\n");
+    std::fflush;
     //create color index for each combination of different set size
     create_all_index_sets();
+
+    std::printf("Finish create index sets table\n");
+    std::fflush;
     //create color sets for all subtemplates
     create_all_color_sets();
+
+    std::printf("Finish create color sets table\n");
+    std::fflush;
     //convert colorset combination into numeric values (hash function)
     create_comb_num_system_indexes();
+
+    std::printf("Finish create num hash system table\n");
+    std::fflush;
     //free up memory space 
     delete_all_color_sets();
     //free up memory space
@@ -2796,6 +2805,7 @@ void dynamic_table_array::init_num_colorsets()
 
 void dynamic_table_array::init(Graph*& _subtemplates, int _num_subtemplates, int _num_vertices, int _num_colors, int _max_abs_vid) 
 {
+    //debug
     subtemplates = _subtemplates;
     num_subs = _num_subtemplates;
     //num of vertices of full graph 
@@ -3117,7 +3127,25 @@ int util_get_max(std::vector<int> arr1, std::vector<int> arr2)
     return maximum;
 }
 
+//rewrite this choose function to avoid overflow in terms of large value
 int util_choose(int n, int k)
+{
+    if (k > n) return 0;
+    if (k * 2 > n) k = n-k;
+    if (k == 0) return 1;
+
+    int result = n;
+    for( int i = 2; i <= k; ++i  ) {
+        result *= (n-i+1);
+        result /= i;
+
+    }
+
+    return result;
+}
+
+
+int util_choose_old(int n, int k)
 {
     if( n < k){
         return 0;

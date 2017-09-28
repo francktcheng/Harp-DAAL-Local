@@ -72,6 +72,7 @@ namespace subgraph
 namespace internal
 {
     
+const double overflow_val = 1.0e+30;
 
 template <typename interm, daal::algorithms::subgraph::Method method, CpuType cpu>
 daal::services::interface1::Status subgraphDistriKernel<interm, method, cpu>::compute(Parameter* &par, Input* &input)
@@ -466,41 +467,54 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottomNbrSplit(Paramet
         int cur_comb_num_thd = cur_comb_num; 
         double last_sub_count = 0.0;
 
+        double mult_active = 0.0;
+        double mult_passive = 0.0;
+        double color_count = 0.0;
         for(int n = 0; n < cur_comb_num_thd; ++n)
         {
             int* comb_indexes_a = comb_num_idx_thd[0][s][n];
             int* comb_indexes_p = comb_num_idx_thd[1][s][n];
             int p = cur_a_comb_num_thd -1;
 
-            double color_count = 0.0;
+            color_count = 0.0;
             // second loop on different color_combs of active/passive children
             // a+p == num_combinations_ato 
             // (total colorscombs for both of active child and pasive child)
             for(int a = 0; a < cur_a_comb_num_thd; ++a, --p)
             {
-                float count_a = counts_a[comb_indexes_a[a]];
-                if( count_a > 0)
+                mult_active = counts_a[comb_indexes_a[a]];
+                if( mult_active != 0)
                 {
-                    //third loop on different valid nbrs
-                    //validated nbrs already checked to be on passive child
+                    //check overflow of count_a
+                    if (mult_active < 0.0)
+                        mult_active = (-1.0)*mult_active*overflow_val;
+
+                    // for(int j=0;j<valid_nbrs_task_num;j++)
+                    //     color_count += ((double)count_a*passiv_table[valid_nbrs_task_ptr[j]][comb_indexes_p[p]]);
                     for(int j=0;j<valid_nbrs_task_num;j++)
                     {
-                        color_count += ((double)count_a*passiv_table[valid_nbrs_task_ptr[j]][comb_indexes_p[p]]);
-                        // color_count += ((double)count_a*dt->get_passive(valid_nbrs_task_ptr[j], comb_indexes_p[p]));
+                        mult_passive = passiv_table[valid_nbrs_task_ptr[j]][comb_indexes_p[p]];
+                        if (mult_passive < 0.0)
+                            mult_passive = (-1.0)*mult_passive*overflow_val;
+                            
+                        color_count += (mult_active*mult_passive);
                     }
+
                 }
             }
 
             //update n pos of v
             if (s != 0)
             {
+                if (color_count > overflow_val)
+                    color_count = (-1.0)*color_count/overflow_val;
+
                 #pragma omp atomic
                 v_dt_ptr[comb_idx_set_thd[s][n]] += (float)color_count;
             }
             else
             {
                 // #pragma omp atomic
-                // total_count_cursub += color_count;
                 last_sub_count += color_count;
             }
 
@@ -557,27 +571,14 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplit(Param
     std::printf("Distrikernel updateRemoteCounts\n");
     std::fflush;
 
-    //setup omp affinity
-    // setenv("KMP_AFFINITY","granularity=core,compact",1);
-    // int set_flag = setenv("KMP_AFFINITY","granularity=fine,compact",1);
-    // // int set_flag = setenv("KMP_AFFINITY","granularity=core,scatter",1);
-    // if (set_flag == 0)
-    // {
-    //     std::printf("omp affinity bind successful\n");
-    //     std::fflush;
-    // }
-    
     std::string omp_schel = par->_omp_schedule;
     std::printf("Use omp schedule: %s\n", omp_schel.c_str());
     std::fflush;
 
     //setup omp affinity
-    // setenv("KMP_AFFINITY","granularity=core,compact",1);
     int set_flag_affinity = setenv("KMP_AFFINITY","granularity=fine,compact",1);
-    // int set_flag_schedule = setenv("OMP_SCHEDULE", "static", 1);
     int set_flag_schedule = setenv("OMP_SCHEDULE", omp_schel.c_str(), 1);
 
-    // int set_flag = setenv("KMP_AFFINITY","granularity=core,scatter",1);
     if (set_flag_affinity == 0)
     {
         std::printf("omp affinity bind successful\n");
@@ -683,7 +684,6 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplit(Param
     std::fflush;
 
     //loop over all the task_list_updates
-    // #pragma omp parallel for schedule(guided) num_threads(thread_num) 
     #pragma omp parallel for schedule(runtime) num_threads(thread_num) 
     for (int t_id = 0; t_id < task_update_queue_size; ++t_id) 
     {
@@ -726,13 +726,17 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplit(Param
         }
 
         double last_sub_count = 0.0;
+        double partial_local_counts = 0.0;
+        double mult_active = 0.0;
+        double mult_passive = 0.0;
+
         // ----------- Finish decompress process -----------
         //third loop over comb_num for cur subtemplate
         for(int n = 0; n< num_combinations_verts_sub_thd; n++)
         {
 
             //local counts 
-            double partial_local_counts = 0.0;
+            partial_local_counts = 0.0;
 
             // more details
             int* comb_indexes_a = comb_num_indexes_thd[0][sub_id_thd][n];
@@ -744,17 +748,29 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplit(Param
             // fourth loop over comb_num for active/passive subtemplates
             for(int a = 0; a < num_combinations_active_ato_thd; ++a, --p)
             {
-                float count_a = counts_a[comb_indexes_a[a]];
-                if (count_a > 0)
+                mult_active = counts_a[comb_indexes_a[a]];
+                if (mult_active != 0)
                 {    
+                    if (mult_active < 0.0)
+                        mult_active = (-1.0)*mult_active*overflow_val;
+
                     for(int i=0; i<adj_list_valid.size(); i++)
-                        partial_local_counts += ((double)count_a*(adj_list_valid[i])[comb_indexes_p[p]]);
+                    {
+                        mult_passive = (adj_list_valid[i])[comb_indexes_p[p]];
+                        if (mult_passive < 0.0)
+                            mult_passive = (-1.0)*mult_passive*overflow_val;
+       
+                        partial_local_counts += (mult_active*mult_passive);
+                    }
                 }
             }
 
             //set value to table
             if (sub_id_thd != 0)
             {
+                if (partial_local_counts > overflow_val)
+                    partial_local_counts = (-1.0)*partial_local_counts/overflow_val;
+
                 #pragma omp atomic
                 v_update_ptr[comb_num_indexes_set_thd[sub_id_thd][n]] +=  (float)partial_local_counts;
             }
@@ -973,12 +989,16 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplit(Pa
         }
 
         double last_sub_count = 0.0;
+        double partial_local_counts = 0.0;
+        double mult_active = 0.0;
+        double mult_passive = 0.0;
+
         //third loop over comb_num for cur subtemplate
         for(int n = 0; n< num_combinations_verts_sub_thd; n++)
         {
 
             //local counts 
-            double partial_local_counts = 0.0;
+            partial_local_counts = 0.0;
 
             // more details
             int* comb_indexes_a = comb_num_indexes_thd[0][sub_id_thd][n];
@@ -990,11 +1010,22 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplit(Pa
             // fourth loop over comb_num for active/passive subtemplates
             for(int a = 0; a < num_combinations_active_ato_thd; ++a, --p)
             {
-                float count_a = counts_a[comb_indexes_a[a]];
-                if (count_a > 0)
+                // float count_a = counts_a[comb_indexes_a[a]];
+                mult_active = counts_a[comb_indexes_a[a]];
+                if (mult_active != 0)
                 {
+                    if (mult_active < 0.0)
+                        mult_active = (-1.0)*mult_active*overflow_val;
+
                     for(int i=0; i<adj_list_valid.size(); i++)
-                        partial_local_counts += ((double)count_a*(adj_list_valid[i])[comb_indexes_p[p]]);
+                    {
+                        mult_passive = (adj_list_valid[i])[comb_indexes_p[p]];
+                        if (mult_passive < 0.0)
+                            mult_passive = (-1.0)*mult_passive*overflow_val;
+
+                        partial_local_counts += (mult_active*mult_passive);
+
+                    }
                 }
 
             }
@@ -1002,8 +1033,15 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplit(Pa
             //set value to table
             if (sub_id_thd != 0)
             {
+                if (partial_local_counts > overflow_val)
+                    partial_local_counts = (-1.0)*partial_local_counts/overflow_val;
+
                 #pragma omp atomic
                 v_update_ptr[comb_num_indexes_set_thd[sub_id_thd][n]] +=  (float)partial_local_counts;
+
+                // #pragma omp atomic
+                // v_update_ptr[comb_num_indexes_set_thd[sub_id_thd][n]] +=  0;
+
             }
             else
                 last_sub_count += partial_local_counts;

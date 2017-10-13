@@ -294,6 +294,18 @@ JNIEXPORT jint JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetLocalMa
 	return (jint)(((subgraph::Input*)inputAddr)->getLocalMaxV());
 }
 
+JNIEXPORT jint JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetTotalDeg
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	return (jint)(((subgraph::Input*)inputAddr)->getTotalDeg());
+}
+
+JNIEXPORT jint JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetMaxDeg
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	return (jint)(((subgraph::Input*)inputAddr)->getMaxDeg());
+}
+
 JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cSetGlobalMaxV
 (JNIEnv *env, jobject thisObj, jlong inputAddr, jint id)
 {

@@ -278,6 +278,7 @@ namespace interface1
         }
 
         int max_degree(){return max_deg;}
+		int total_degree(){return total_deg;}
         int* get_abs_v_ids(){return vertex_ids.get();}
         int num_vertices(){ return vert_num_count;}
         int vert_num_count;
@@ -286,6 +287,8 @@ namespace interface1
         int adj_len;
         int num_edges;
         int max_deg;
+		int total_deg;
+
         // int* vertex_ids; // absolute v_id
         services::SharedPtr<int> vertex_ids; // absolute v_id
         int* vertex_local_ids; // mapping from absolute v_id to relative v_id
@@ -546,6 +549,8 @@ public:
     int* getColorsG() {return colors_g;}
 
     int getMaxDeg() {return g.max_deg;}
+	int getTotalDeg() {return g.total_degree();}
+
     Graph* getGraphPtr() {return &g; }
     int getColorNum() {return num_colors;}
     int computeMorphism();

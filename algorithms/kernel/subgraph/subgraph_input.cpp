@@ -1715,6 +1715,7 @@ void Input::init_Graph()
     g.adj_index_table = new v_adj_elem*[g.vert_num_count];
 
     int itr=0;
+	g.total_deg = 0;
     for(int i=0; i<thread_num; i++)
     {
         for(int j=0; j<v_adj[i].size(); j++)
@@ -1725,6 +1726,8 @@ void Input::init_Graph()
             g.adj_index_table[itr] = ((v_adj[i])[j]);
 
             int deg = ((v_adj[i])[j])->_adjs.size();
+			g.total_deg += deg;
+
             g.max_deg = deg > g.max_deg? deg: g.max_deg;
             itr++;
         }

@@ -144,6 +144,14 @@ public final class Input extends com.intel.daal.algorithms.Input {
         cSetGlobalMaxV(cObject, id);
     }
 
+	public int getTotalDeg(){
+		return cGetTotalDeg(cObject);
+	}
+
+	public int getMaxDeg(){
+		return cGetMaxDeg(cObject);
+	}
+
     public int getSubtemplateCount(){
         return cGetSubtemplateCount(cObject);
     }
@@ -280,6 +288,8 @@ public final class Input extends com.intel.daal.algorithms.Input {
     private native long cGetDaalTableSize(long cInput);
     private native void cSetSendVertexSize(long cInput, int size);
     private native void cSetSendVertexArray(long cInput, int dstID);
+	private native int cGetTotalDeg(long cInput);
+	private native int cGetMaxDeg(long cInput);
 
     private native int cSendCommParcelInit(long cInput, int sub_id, int send_id);
     private native void cSendCommParcelPrep(long cInput, int parcel_id);

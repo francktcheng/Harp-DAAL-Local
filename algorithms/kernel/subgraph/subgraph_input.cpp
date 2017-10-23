@@ -158,6 +158,9 @@ Input::Input() : daal::algorithms::Input(10) {
     cur_parcel_v_counts_data = NULL; //count_num
     cur_parcel_v_counts_index = NULL; //count_num
 
+	peak_mem = 0.0;
+	peak_mem_comm = 0.0;
+
 	// task_list_len = 100;
 }
 
@@ -329,7 +332,6 @@ int Input::sendCommParcelInit(int sub_id, int send_id)
     if (search != send_vertex_array.end())
     {
         //debug
-        
         cur_send_id_data = &(search->second);
         //use long to avoid size overflow
         //long is not enough for overflow
@@ -463,6 +465,11 @@ void Input::sendCommParcelPrep(int parcel_id)
     delete[] compress_index;
 
     delete[] send_parcel_buf;
+
+	// //trace mem used in comm
+	// double peak_data_comm = parcel_len*4 + cur_comb_len_comm*4 + cur_comb_len_comm*4 + (long)cur_comb_len_comm*parcel_len*4 + (long)cur_comb_len_comm*parcel_len*4;
+	// peak_data_comm = peak_data_comm/(1024*1024*1024);
+	// input->peak_mem_comm = (peak_data_comm > input->peak_mem_comm ) ? peak_data_comm : input->peak_mem_comm;
 
     //delete cur_send_chunks
     if (parcel_id == cur_parcel_num - 1)

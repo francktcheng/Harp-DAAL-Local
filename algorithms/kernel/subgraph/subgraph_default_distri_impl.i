@@ -73,6 +73,8 @@ namespace internal
 {
     
 const double overflow_val = 1.0e+30;
+//memsure the RSS mem used by this process
+
 
 template <typename interm, daal::algorithms::subgraph::Method method, CpuType cpu>
 daal::services::interface1::Status subgraphDistriKernel<interm, method, cpu>::compute(Parameter* &par, Input* &input)
@@ -378,8 +380,6 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottomNbrSplit(Paramet
             int* adjs_abs = g->adjacent_vertices(v);
             int end = g->out_degree(v);
 
-            //indexed by comb number
-
             //loop overall its neighbours
             int nbr_comm_itr = 0;
             for(int i = 0; i < end; ++i)
@@ -554,6 +554,15 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottomNbrSplit(Paramet
 
     par->_count_time += compute_time;
     par->_total_counts = total_count_cursub;
+
+    //trace the memory usage after computation
+    double compute_mem = 0.0;
+    process_mem_usage(compute_mem);
+	compute_mem = compute_mem /(1024*1024);
+    std::printf("Mem utilization compute step sub %d: %9.6lf GB\n", s, compute_mem);
+    std::fflush;
+	  
+    input->peak_mem = (compute_mem > input->peak_mem) ? compute_mem : input->peak_mem;
 
     if (s == 0)
     {
@@ -799,6 +808,14 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplit(Param
         std::printf("Finish task split pre-decompress\n");
         std::fflush;
     }
+
+    //trace the memory usage after computation
+    double compute_mem = 0.0;
+    process_mem_usage(compute_mem);
+	compute_mem = compute_mem /(1024*1024);
+    std::printf("Mem utilization compute step sub %d: %9.6lf GB\n", sub_id, compute_mem);
+    std::fflush;
+    input->peak_mem = (compute_mem > input->peak_mem) ? compute_mem : input->peak_mem;
 
     par->_update_counts = total_update_counts;
 
@@ -1068,6 +1085,14 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplit(Pa
         std::printf("Finish task split pre-decompress Pipeline version\n");
         std::fflush;
     }
+
+    //trace the memory usage after computation
+    double compute_mem = 0.0;
+    process_mem_usage(compute_mem);
+	compute_mem = compute_mem /(1024*1024);
+    std::printf("Mem utilization compute step sub %d: %9.6lf GB\n", sub_id, compute_mem);
+    std::fflush;
+    input->peak_mem = (compute_mem > input->peak_mem) ? compute_mem : input->peak_mem;
 
     par->_update_counts = total_update_counts;
 

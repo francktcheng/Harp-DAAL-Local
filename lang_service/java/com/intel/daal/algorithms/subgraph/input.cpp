@@ -312,6 +312,18 @@ JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cSetGlobalM
 	((subgraph::Input*)inputAddr)->setGlobalMaxV(id);
 }
 
+JNIEXPORT jint JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetCombLen
+(JNIEnv *env, jobject thisObj, jlong inputAddr, jint id)
+{
+	return (jint)(((subgraph::Input*)inputAddr)->getCombLen(id));
+}
+
+JNIEXPORT jdouble JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetPeakMem
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	return (jdouble)(((subgraph::Input*)inputAddr)->getPeakMem());
+}
+
 JNIEXPORT jint JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetLocalADJLen
 (JNIEnv *env, jobject thisObj, jlong inputAddr)
 {

@@ -36,6 +36,10 @@
 #include <random>
 #include <omp.h>
 
+//mem info extraction
+#include <stdio.h>
+#include <string.h>
+
 #include "service_rng.h"
 #include "services/daal_memory.h"
 #include "service_micro_table.h"
@@ -132,6 +136,33 @@ public:
     void computeNonBottomNbrSplit(Parameter* &par, Input* &input);
     void updateRemoteCountsNbrSplit(Parameter* &par, Input* &input);
     void updateRemoteCountsPipNbrSplit(Parameter* &par, Input* &input);
+
+    void process_mem_usage(double& resident_set)
+    {
+        resident_set = 0.0;
+
+        FILE *fp;
+        long vmrss;
+        int BUFFERSIZE=80;
+        char *buf= new char[85];
+        if((fp = fopen("/proc/self/status","r")))
+        {
+            while(fgets(buf, BUFFERSIZE, fp) != NULL)
+            {
+                if(strstr(buf, "VmRSS") != NULL)
+                {
+                    if (sscanf(buf, "%*s %ld", &vmrss) == 1){
+                        // printf("VmSize is %dKB\n", vmrss);
+                        resident_set = (double)vmrss;
+                    }
+                }
+            }
+        }
+
+        fclose(fp);
+        delete[] buf;
+    }
+
 };
 
 /**

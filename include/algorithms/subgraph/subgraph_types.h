@@ -555,6 +555,10 @@ public:
     int getColorNum() {return num_colors;}
     int computeMorphism();
 
+	double getPeakMem() {return peak_mem;}
+
+	int getCombLen(int subid) {return dt->get_num_color_set(part->get_passive_index(subid));}
+
     // for comm
     void init_comm(int mapper_num_par, int local_mapper_id_par, long send_array_limit_par, bool rotation_pipeline_par);
     void init_comm_prepare(int update_id);
@@ -609,6 +613,10 @@ public:
 
     int cur_sub_id_compute;
     int cur_comb_len_compute;
+
+	// record peak mem usage 
+	double peak_mem;
+	double peak_mem_comm;
 
     int send_vertex_array_size;
     std::vector<int> send_vertex_array_dst;
@@ -671,19 +679,12 @@ private:
 
     bool isTableCreated;
 
-    // std::set<int>* comm_mapper_vertex;
-    // std::unordered_set<int>* comm_mapper_vertex;
     std::vector<int>* comm_mapper_vertex;
-    // int* abs_v_to_mapper;
-    // services::SharedPtr<int> abs_v_to_mapper;
     BlockDescriptor<int> abs_v_to_mapper;
 
     int* abs_v_to_queue;
-    // daal::data_management::interface1::BlockDescriptor<int> mtVMapperId;
-    // for update comm data
-    // int** update_map;
-    // int* update_map_size;
-    
+
+	    
 
 };
 

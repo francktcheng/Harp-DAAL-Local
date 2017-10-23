@@ -160,6 +160,16 @@ public final class Input extends com.intel.daal.algorithms.Input {
         return cGetMorphism(cObject);
     }
 
+	public int getCombLen(int subid)
+	{
+		return cGetCombLen(cObject, subid);
+	}
+
+	public double getPeakMem()
+	{
+		return cGetPeakMem(cObject);
+	}
+
     public void freeInput() {
         cFreeInput(cObject);
     }
@@ -290,6 +300,7 @@ public final class Input extends com.intel.daal.algorithms.Input {
     private native void cSetSendVertexArray(long cInput, int dstID);
 	private native int cGetTotalDeg(long cInput);
 	private native int cGetMaxDeg(long cInput);
+	private native double cGetPeakMem(long cInput);
 
     private native int cSendCommParcelInit(long cInput, int sub_id, int send_id);
     private native void cSendCommParcelPrep(long cInput, int parcel_id);
@@ -321,5 +332,6 @@ public final class Input extends com.intel.daal.algorithms.Input {
     private native int cGetSubtemplateCount(long cInput);
     private native int cGetMorphism(long cInput);
     private native void cSetGlobalMaxV(long cInput, int id);
+    private native int cGetCombLen(long cInput, int id);
 
 }

@@ -138,6 +138,7 @@ ifeq ($(ENV_ARCH),"")
 else
 	WORKDIR    ?= $(DIR)/../__work$(ENV_ARCH)$(CMPLRDIRSUFF.$(COMPILER))/$(PLAT)
 	RELEASEDIR ?= $(DIR)/../__release_subgraph_$(ENV_ARCH)_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
+	# RELEASEDIR ?= $(DIR)/../__release_$(ENV_ARCH)_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
 endif
 RELEASEDIR.daal    := $(RELEASEDIR)/daal
 RELEASEDIR.lib     := $(RELEASEDIR.daal)/lib
@@ -378,8 +379,8 @@ $(CORE.objs_a): COPT += $(-fPIC) $(-cxx11) $(-Zl) $(-DEBC)
 $(CORE.objs_a): COPT += -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS -DDAAL_HIDE_DEPRECATED
 $(CORE.objs_a): COPT += @$(CORE.tmpdir_a)/inc_a_folders.txt
 # intel openmp support and O3 optimization
-$(CORE.objs_a): COPT += -qopenmp -D_OPENMP -ansi-alias -O3  
-# $(CORE.objs_a): COPT += -qopenmp -D_OPENMP -I$(DIR)/externals/hdfs/include -ansi-alias -O3 -std=c++11 
+# $(CORE.objs_a): COPT += -qopenmp -D_OPENMP -ansi-alias -O3  
+$(CORE.objs_a): COPT += -qopenmp -D_OPENMP -I$(DIR)/externals/hdfs/include -ansi-alias -O3 -std=c++11 
 
 $(filter %threading.$o, $(CORE.objs_a)): COPT += -D__DO_TBB_LAYER__
 $(call containing,_nrh, $(CORE.objs_a)): COPT += $(p4_OPT)   -DDAAL_CPU=sse2
@@ -397,8 +398,8 @@ $(CORE.objs_y): COPT += $(-fPIC) $(-cxx11) $(-Zl) $(-DEBC)
 $(CORE.objs_y): COPT += -D__DAAL_IMPLEMENTATION -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS -DDAAL_HIDE_DEPRECATED $(if $(CHECK_DLL_SIG),-DDAAL_CHECK_DLL_SIG)
 $(CORE.objs_y): COPT += @$(CORE.tmpdir_y)/inc_y_folders.txt
 # intel openmp support and O3 optimization
-$(CORE.objs_y): COPT += -qopenmp -D_OPENMP -ansi-alias -O3 
-# $(CORE.objs_y): COPT += -qopenmp -D_OPENMP -I$(DIR)/externals/hdfs/include -ansi-alias -O3 -std=c++11
+# $(CORE.objs_y): COPT += -qopenmp -D_OPENMP -ansi-alias -O3 
+$(CORE.objs_y): COPT += -qopenmp -D_OPENMP -I$(DIR)/externals/hdfs/include -ansi-alias -O3 -std=c++11
 
 $(filter %threading.$o, $(CORE.objs_y)): COPT += -D__DO_TBB_LAYER__
 $(call containing,_nrh, $(CORE.objs_y)): COPT += $(p4_OPT)   -DDAAL_CPU=sse2

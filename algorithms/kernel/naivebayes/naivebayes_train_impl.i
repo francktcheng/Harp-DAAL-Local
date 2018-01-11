@@ -27,6 +27,8 @@
 #ifndef __NAIVEBAYES_TRAIN_FAST_I__
 #define __NAIVEBAYES_TRAIN_FAST_I__
 
+#define __DO_TBB_LAYER__
+
 #include "algorithm.h"
 #include "numeric_table.h"
 #include "threading.h"
@@ -41,6 +43,8 @@
 #include "service_error_handling.h"
 
 
+#include <cstdio> 
+
 #if( __CPUID__(DAAL_CPU) == __avx512_mic__ )
 
     #define _CALLOC_      service_scalable_calloc
@@ -52,7 +56,6 @@
     #define _FREE_        service_free
 
 #endif
-
 
 using namespace daal::internal;
 using namespace daal::services;
@@ -405,6 +408,14 @@ services::Status NaiveBayesOnlineTrainKernel<algorithmFPType, method, cpu>::comp
     WriteRows<algorithmFPType, cpu> wrCi( *mdl->getClassGroupSum(), 0, c );
     DAAL_CHECK_BLOCK_STATUS(wrCi);
 
+    //debug
+    #if defined(__DO_TBB_LAYER__)
+    std::printf("Enabling TBB\n");
+    std::fflush;
+    #else
+    std::printf("No TBB\n");
+    std::fflush;
+    #endif
     s |= collectCounters<algorithmFPType, method, cpu>( nbPar, ntData, ntClass, wrC.get(), wrCi.get() );
 
     size_t n = ntData->getNumberOfRows();

@@ -556,6 +556,7 @@ public:
     int computeMorphism();
 
 	double getPeakMem() {return peak_mem;}
+	void resetPeakMem() { peak_mem = 0.0;}
 
 	int getCombLen(int subid) {return dt->get_num_color_set(part->get_passive_index(subid));}
 
@@ -584,6 +585,22 @@ public:
     double compute_update_comm_pip(int sub_id, int update_id);
 
 	void clear_task_update_list();
+
+	// retrieve the comb number for each sub-templates
+	int getCombCur(int s){
+		if(part->get_num_verts_sub(s) == 1) 
+			return 0;
+		else
+			return choose_table[num_colors][part->get_num_verts_sub(s)];
+	}
+
+	// retrieve the Active comb number for each sub-templates
+	int getCombActiveCur(int s){
+		if (part->get_num_verts_sub(s) == 1)
+			return 0;
+		else
+			return choose_table[part->get_num_verts_sub(s)][part->get_num_verts_active(s)];
+	}
 
     // for comm
     int mapper_num;

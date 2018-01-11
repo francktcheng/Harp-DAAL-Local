@@ -142,8 +142,7 @@ CORE.ALGORITHMS.FULL :=                                                       \
     pca                                                                       \
     qr                                                                        \
     svd                                                                       \
-    mf_sgd														              \
-    subgraph
+    mf_sgd
 
 
 CORE.ALGORITHMS := $(if $(CORE.ALGORITHMS.CUSTOM), $(CORE.ALGORITHMS.CUSTOM), $(CORE.ALGORITHMS.FULL))
@@ -200,8 +199,7 @@ CORE.ALGORITHMS.INC :=                                                        \
     pca                                                                       \
     qr                                                                        \
     svd                                                                       \
-	mf_sgd                                                                    \													 
-    subgraph
+	mf_sgd
 
 
 CORE.SERVICES       := compression            \
@@ -293,8 +291,7 @@ JJ.ALGORITHMS       :=                                                          
                        pca                                                       \
                        qr                                                        \
                        svd                                                       \
-                       mf_sgd                                                    \
-                       subgraph
+                       mf_sgd
                        
 
 JJ.DATA_MANAGEMENT  := data                                                      \

@@ -318,10 +318,28 @@ JNIEXPORT jint JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetCombLen
 	return (jint)(((subgraph::Input*)inputAddr)->getCombLen(id));
 }
 
+JNIEXPORT jint JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetCombCur
+(JNIEnv *env, jobject thisObj, jlong inputAddr, jint id)
+{
+	return (jint)(((subgraph::Input*)inputAddr)->getCombCur(id));
+}
+
+JNIEXPORT jint JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetCombActiveCur
+(JNIEnv *env, jobject thisObj, jlong inputAddr, jint id)
+{
+	return (jint)(((subgraph::Input*)inputAddr)->getCombActiveCur(id));
+}
+
 JNIEXPORT jdouble JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetPeakMem
 (JNIEnv *env, jobject thisObj, jlong inputAddr)
 {
 	return (jdouble)(((subgraph::Input*)inputAddr)->getPeakMem());
+}
+
+JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cResetPeakMem
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	((subgraph::Input*)inputAddr)->resetPeakMem();
 }
 
 JNIEXPORT jint JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetLocalADJLen

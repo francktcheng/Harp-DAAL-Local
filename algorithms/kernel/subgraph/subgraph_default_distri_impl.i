@@ -38,6 +38,7 @@
 #include <omp.h>
 #include <immintrin.h>
 #include <stdlib.h>
+#include <cmath>
 
 #include "service_lapack.h"
 #include "service_memory.h"
@@ -353,6 +354,8 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottomNbrSplit(Paramet
     services::SharedPtr<int>* update_map = input->update_map;
     services::SharedPtr<int> update_map_size = input->update_map_size;
 
+    double* thdwork_record = input->thdwork_record;
+
     daal::algorithms::subgraph::interface1::Graph* g = input->getGraphPtr();
 
     //start omp function
@@ -365,6 +368,12 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottomNbrSplit(Paramet
     int** valid_nbrs_map = new int*[num_vert_g];
     int* valid_nbrs_map_size = new int[num_vert_g];
     std::memset(valid_nbrs_map_size, 0, num_vert_g*sizeof(int));
+
+    // clear the thread workload records
+    if (thdwork_record == NULL)
+        thdwork_record = new double[thread_num];
+
+    std::memset(thdwork_record, 0, thread_num*sizeof(double));
 
     #pragma omp parallel for schedule(guided) num_threads(thread_num) 
     for(int v=0;v<num_vert_g;v++)
@@ -446,6 +455,8 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottomNbrSplit(Paramet
     {
         //replace shared ptr/var by local (private) one 
         //to avoid race condition
+        int ompthd_id = omp_get_thread_num();
+
         task_nbr* task_atomic = compute_list[t];
         int**** comb_num_idx_thd = comb_num_idx;
         int** comb_idx_set_thd = comb_idx_set;
@@ -499,6 +510,9 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottomNbrSplit(Paramet
                             
                         color_count += (mult_active*mult_passive);
                     }
+
+                    //record workload for this thread
+                    // thdwork_record[ompthd_id] += valid_nbrs_task_num;
 
                 }
             }
@@ -564,6 +578,20 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottomNbrSplit(Paramet
 	  
     input->peak_mem = (compute_mem > input->peak_mem) ? compute_mem : input->peak_mem;
 
+    //calculate avg thread workload and stdev of thread-workload
+    double thdwork_sum = 0;
+    double thdwork_avg = 0;
+    for (int j=0; j<thread_num; j++)
+        thdwork_sum += thdwork_record[j];
+
+    thdwork_avg = thdwork_sum/thread_num;
+    input->thdwork_avg = thdwork_avg;
+    thdwork_sum = 0;
+    for(int j=0;j<thread_num; j++)
+        thdwork_sum += (std::pow((thdwork_record[j] - thdwork_avg),2));
+
+    input->thdwork_stdev = std::sqrt(thdwork_sum);
+
     if (s == 0)
     {
         std::printf("Finish Final compute with total count %e\n", total_count_cursub);
@@ -627,6 +655,7 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplit(Param
 
     int**** comb_num_indexes = input->comb_num_indexes;
     int** comb_num_indexes_set = input->comb_num_indexes_set;
+    double* thdwork_record = input->thdwork_record;
 
     daal::algorithms::subgraph::interface1::Graph* g = input->getGraphPtr();
 
@@ -692,6 +721,12 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplit(Param
     std::printf("Task breakdown subid %d: initial v num is %d, task num is %d\n", sub_id, num_vert_g, task_update_queue_size);
     std::fflush;
 
+    // clear the thread workload records
+    if (thdwork_record == NULL)
+        thdwork_record = new double[thread_num];
+
+    std::memset(thdwork_record, 0, thread_num*sizeof(double));
+
     //loop over all the task_list_updates
     #pragma omp parallel for schedule(runtime) num_threads(thread_num) 
     for (int t_id = 0; t_id < task_update_queue_size; ++t_id) 
@@ -702,6 +737,9 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplit(Param
         int** comb_num_indexes_set_thd = comb_num_indexes_set;
         task_nbr_update* task_update_atomic = task_update_queue[t_id];
         int v = task_update_atomic->_vertex;
+
+        //record thdworkload
+        int ompthd_id = omp_get_thread_num();
 
         float* v_update_ptr = NULL;
         if (sub_id != 0)
@@ -771,6 +809,8 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplit(Param
        
                         partial_local_counts += (mult_active*mult_passive);
                     }
+
+                    // thdwork_record[ompthd_id] += adj_list_valid.size();
                 }
             }
 
@@ -818,6 +858,20 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplit(Param
     input->peak_mem = (compute_mem > input->peak_mem) ? compute_mem : input->peak_mem;
 
     par->_update_counts = total_update_counts;
+
+    //calculate avg thread workload and stdev of thread-workload
+    double thdwork_sum = 0;
+    double thdwork_avg = 0;
+    for (int j=0; j<thread_num; j++)
+        thdwork_sum += thdwork_record[j];
+
+    thdwork_avg = thdwork_sum/thread_num;
+    input->thdwork_avg = thdwork_avg;
+    thdwork_sum = 0;
+    for(int j=0;j<thread_num; j++)
+        thdwork_sum += (std::pow((thdwork_record[j] - thdwork_avg),2));
+
+    input->thdwork_stdev = std::sqrt(thdwork_sum);
 
 }
 
@@ -874,6 +928,8 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplit(Pa
     int num_vert_g = input->getLocalVNum();
     int sub_id = par->_sub_itr;
     int num_colors = input->getColorNum();
+
+    double* thdwork_record = input->thdwork_record;
 
     services::SharedPtr<int>* update_map = input->update_map;
     services::SharedPtr<int> update_map_size = input->update_map_size;
@@ -958,12 +1014,19 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplit(Pa
     std::printf("Task breakdown subid %d: initial v num is %d, task num is %d\n", sub_id, num_vert_g, task_update_queue_size);
     std::fflush;
 
+    // clear the thread workload records
+    if (thdwork_record == NULL)
+        thdwork_record = new double[thread_num];
+
+    std::memset(thdwork_record, 0, thread_num*sizeof(double));
+
     //loop over all the task_list_updates
     // #pragma omp parallel for schedule(guided) num_threads(thread_num) 
     #pragma omp parallel for schedule(runtime) num_threads(thread_num) 
     for (int t_id = 0; t_id < task_update_queue_size; ++t_id) 
     {
 
+        int ompthd_id = omp_get_thread_num();
         //replace shared var by local var
         int**** comb_num_indexes_thd = comb_num_indexes; 
         int** comb_num_indexes_set_thd = comb_num_indexes_set;
@@ -1043,6 +1106,8 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplit(Pa
                         partial_local_counts += (mult_active*mult_passive);
 
                     }
+
+                    // thdwork_record[ompthd_id] += adj_list_valid.size();
                 }
 
             }
@@ -1095,6 +1160,20 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplit(Pa
     input->peak_mem = (compute_mem > input->peak_mem) ? compute_mem : input->peak_mem;
 
     par->_update_counts = total_update_counts;
+
+    //calculate avg thread workload and stdev of thread-workload
+    double thdwork_sum = 0;
+    double thdwork_avg = 0;
+    for (int j=0; j<thread_num; j++)
+        thdwork_sum += thdwork_record[j];
+
+    thdwork_avg = thdwork_sum/thread_num;
+    input->thdwork_avg = thdwork_avg;
+    thdwork_sum = 0;
+    for(int j=0;j<thread_num; j++)
+        thdwork_sum += (std::pow((thdwork_record[j] - thdwork_avg),2));
+
+    input->thdwork_stdev = std::sqrt(thdwork_sum);
 
 }
 

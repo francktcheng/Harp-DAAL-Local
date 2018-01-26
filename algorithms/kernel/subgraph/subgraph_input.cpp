@@ -161,7 +161,11 @@ Input::Input() : daal::algorithms::Input(10) {
 	peak_mem = 0.0;
 	peak_mem_comm = 0.0;
 
-	// task_list_len = 100;
+	//record avg and stdev of thread-level workload
+	thdwork_record = NULL;
+	thdwork_avg = 0;
+	thdwork_stdev = 0;
+
 }
 
 void Input::init_comm(int mapper_num_par, int local_mapper_id_par, long send_array_limit_par, bool rotation_pipeline_par)
@@ -2200,6 +2204,8 @@ void Input::free_input()
         colors_g = NULL;
     }
 
+	if (thdwork_record != NULL)
+		delete[] thdwork_record;
 }
 
 /**
@@ -2798,11 +2804,6 @@ void dynamic_table_array::init_choose_table()
     for(int i=0;i<num_colors+1; i++)
         choose_table[i] = new int[num_colors+1];
 
-    // for(int i = 0; i <= num_colors; ++i){
-    //     for(int j = 0; j <= num_colors; ++j){
-    //         choose_table[i][j] = util_choose(i,j);
-    //     }
-    // }
 }
 
 void dynamic_table_array::init_num_colorsets()

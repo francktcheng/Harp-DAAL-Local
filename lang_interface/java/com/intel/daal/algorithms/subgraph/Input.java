@@ -180,6 +180,16 @@ public final class Input extends com.intel.daal.algorithms.Input {
 		return cGetPeakMem(cObject);
 	}
 
+    public double getThdWorkAvg()
+    {
+        return cGetThdWorkAvg(cObject);
+    }
+
+    public double getThdWorkStdev()
+    {
+        return cGetThdWorkStdev(cObject);
+    }
+
 	public void resetPeakMem()
 	{
 		cResetPeakMem(cObject);
@@ -317,6 +327,9 @@ public final class Input extends com.intel.daal.algorithms.Input {
 	private native int cGetTotalDeg(long cInput);
 	private native int cGetMaxDeg(long cInput);
 	private native double cGetPeakMem(long cInput);
+    private native double cGetThdWorkAvg(long cInput);
+    private native double cGetThdWorkStdev(long cInput);
+
 	private native void cResetPeakMem(long cInput);
 
     private native int cSendCommParcelInit(long cInput, int sub_id, int send_id);

@@ -336,6 +336,18 @@ JNIEXPORT jdouble JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetPeak
 	return (jdouble)(((subgraph::Input*)inputAddr)->getPeakMem());
 }
 
+JNIEXPORT jdouble JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetThdWorkAvg
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	return (jdouble)(((subgraph::Input*)inputAddr)->thdwork_avg);
+}
+
+JNIEXPORT jdouble JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetThdWorkStdev
+(JNIEnv *env, jobject thisObj, jlong inputAddr)
+{
+	return (jdouble)(((subgraph::Input*)inputAddr)->thdwork_stdev);
+}
+
 JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cResetPeakMem
 (JNIEnv *env, jobject thisObj, jlong inputAddr)
 {

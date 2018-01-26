@@ -635,6 +635,11 @@ public:
 	double peak_mem;
 	double peak_mem_comm;
 
+	//record avg and stdev of thread-level workload
+	double* thdwork_record;
+	double thdwork_avg;
+	double thdwork_stdev;
+
     int send_vertex_array_size;
     std::vector<int> send_vertex_array_dst;
     std::unordered_map<int, std::vector<int> > send_vertex_array;

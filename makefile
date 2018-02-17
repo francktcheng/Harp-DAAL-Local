@@ -137,8 +137,8 @@ ifeq ($(ENV_ARCH),"")
 	RELEASEDIR ?= $(DIR)/../__release_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
 else
 	WORKDIR    ?= $(DIR)/../__work$(ENV_ARCH)$(CMPLRDIRSUFF.$(COMPILER))/$(PLAT)
-	RELEASEDIR ?= $(DIR)/../__release_subgraph_$(ENV_ARCH)_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
-	# RELEASEDIR ?= $(DIR)/../__release_$(ENV_ARCH)_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
+	# RELEASEDIR ?= $(DIR)/../__release_subgraph_$(ENV_ARCH)_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
+	RELEASEDIR ?= $(DIR)/../__release_$(ENV_ARCH)_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
 endif
 RELEASEDIR.daal    := $(RELEASEDIR)/daal
 RELEASEDIR.lib     := $(RELEASEDIR.daal)/lib

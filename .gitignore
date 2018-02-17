@@ -1,2 +1,4 @@
 syntastic-config
 .osync_workdir
+compile.sh
+.gitignore

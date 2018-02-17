@@ -99,24 +99,24 @@ enum InputId
  * Available types of results of the subgraph algorithm
  * to Remove
  */
-// enum ResultId
-// {
-//     resWMat = 0,   #<{(|!< Model W |)}>#
-//     resHMat = 1    #<{(|!< Model H |)}>#
-// };
+enum ResultId
+{
+    resWMat = 0,   /*!< Model W */
+    resHMat = 1    /*!< Model H */
+};
 
 /**
  * <a name="DAAL-ENUM-ALGORITHMS__subgraph__DISTRIBUTED_RESULTID"></a>
  * Available types of partial results of the subgraph algorithm
  * to remove
  */
-// enum DistributedPartialResultId
-// {
-//     presWMat = 0,   #<{(|!< Model W, used in distributed mode |)}>#
-//     presHMat = 1,   #<{(|!< Model H, used in distributed mode|)}>#
-//     presRMSE = 2,   #<{(|!< RMSE computed from test dataset |)}>#
-//     presWData = 3
-// };
+enum DistributedPartialResultId
+{
+    presWMat = 0,   /*!< Model W, used in distributed mode */
+    presHMat = 1,   /*!< Model H, used in distributed mode*/
+    presRMSE = 2,   /*!< RMSE computed from test dataset */
+    presWData = 3
+};
 
 
 /**

@@ -82,10 +82,10 @@ enum Method
  */
 enum InputId
 {
-    filenames = 0,		  
+    filenames = 0,		 /* input graph files  */
 	fileoffset = 1,
     localV = 2,
-    tfilenames =3,
+    tfilenames =3,       /* template file */
     tfileoffset = 4,
     VMapperId = 5,
     CommDataId = 6,
@@ -97,24 +97,26 @@ enum InputId
 /**
  * <a name="DAAL-ENUM-ALGORITHMS__subgraph__RESULTID"></a>
  * Available types of results of the subgraph algorithm
+ * to Remove
  */
-enum ResultId
-{
-    resWMat = 0,   /*!< Model W */
-    resHMat = 1    /*!< Model H */
-};
+// enum ResultId
+// {
+//     resWMat = 0,   #<{(|!< Model W |)}>#
+//     resHMat = 1    #<{(|!< Model H |)}>#
+// };
 
 /**
  * <a name="DAAL-ENUM-ALGORITHMS__subgraph__DISTRIBUTED_RESULTID"></a>
  * Available types of partial results of the subgraph algorithm
+ * to remove
  */
-enum DistributedPartialResultId
-{
-    presWMat = 0,   /*!< Model W, used in distributed mode */
-    presHMat = 1,   /*!< Model H, used in distributed mode*/
-    presRMSE = 2,   /*!< RMSE computed from test dataset */
-    presWData = 3
-};
+// enum DistributedPartialResultId
+// {
+//     presWMat = 0,   #<{(|!< Model W, used in distributed mode |)}>#
+//     presHMat = 1,   #<{(|!< Model H, used in distributed mode|)}>#
+//     presRMSE = 2,   #<{(|!< RMSE computed from test dataset |)}>#
+//     presWData = 3
+// };
 
 
 /**
@@ -125,71 +127,42 @@ namespace interface1
     
     /**
      * @brief store abs v id and its adj list
+	 * of input graph data
      */
     struct v_adj_elem{
 
-        v_adj_elem()
-        {
-            _v_id = 0;
-        }
-
-        v_adj_elem(int v_id)
-        {
-            _v_id = v_id;
-        }
-
-        ~v_adj_elem()
-        {
-            std::vector<int>().swap(_adjs);
-        }
+        v_adj_elem(){_v_id = 0;}
+        v_adj_elem(int v_id){_v_id = v_id;}
+        ~v_adj_elem(){std::vector<int>().swap(_adjs);}
 
         int _v_id;
         std::vector<int> _adjs;
-
     };
 
+	/**
+	 * @brief an omp task of computing count information by local neighbors 
+	 */
 	struct task_nbr{
 
-		task_nbr()
-		{
-			_vertex = -1;
-			_nbr_ptr = NULL;
-			_nbr_size = 0;
-		}
-
-		task_nbr(int vertex, int nbr_size, int* nbr_ptr) 
-		{
-			_vertex = vertex;
-			_nbr_size = nbr_size;
-			_nbr_ptr = nbr_ptr;
-			// _nbr_ptr = new int[_nbr_size];
-			// std::memset(_nbr_ptr, 0, _nbr_size*sizeof(int));
-		}
-
-		~task_nbr()
-		{
-			_vertex = -1;
-			_nbr_ptr = NULL;
-			_nbr_size = 0;
-		}
+		task_nbr(): _vertex(-1), _nbr_ptr(NULL), _nbr_size(0) {}
+		task_nbr(int vertex, int nbr_size, int* nbr_ptr): _vertex(vertex), _nbr_size(nbr_size), _nbr_ptr(nbr_ptr) {}
+		~task_nbr(){_vertex = -1; _nbr_ptr = NULL;_nbr_size = 0;}
 
 		int _vertex; // the updating vertex in graph
 		int* _nbr_ptr; // the truncated local nbr list
 		int _nbr_size; // the size of local nbr list 
-
 	};
 
+	/**
+	 * @brief an omp task of updating count information 
+	 * by received remote neighbors 
+	 */
 	struct task_nbr_update{
 
-		task_nbr_update(int vertex, int adj_size, int* map_ids_atom, int* chunk_ids_atom, int* chunk_internal_offsets_atom)
-		{
-			_vertex = vertex;
-			_adj_size = adj_size;
-			_map_ids_atom = map_ids_atom;
-			_chunk_ids_atom = chunk_ids_atom;
-			_chunk_internal_offsets_atom = chunk_internal_offsets_atom;
-		}
-
+		task_nbr_update(int vertex, int adj_size, int* map_ids_atom, int* chunk_ids_atom, int* chunk_internal_offsets_atom):
+			_vertex(vertex), _adj_size(adj_size), _map_ids_atom(map_ids_atom), _chunk_ids_atom(chunk_ids_atom), 
+			_chunk_internal_offsets_atom(chunk_internal_offsets_atom) {}
+		
 		~task_nbr_update()
 		{
 			_vertex = -1;
@@ -207,14 +180,12 @@ namespace interface1
 
 	};
 
+	/**
+	 * @brief a thread taks to decompress received count data 
+	 */
 	struct decompressElem{
 
-		decompressElem()
-		{
-			_len = -1;
-			_data = NULL;
-		}
-
+		decompressElem(): _len(-1), _data(NULL) {}
 		void allocate(int len)
 		{
 			_len = len;
@@ -229,21 +200,20 @@ namespace interface1
 
 		int _len;
 		float* _data;
-
 	};
 
+	/**
+	 * @brief internal data format to hold the input graph
+	 */
     struct Graph
     {
-
         Graph(){
-
             vert_num_count = 0;
             max_v_id_local = 0;
             max_v_id = 0; //global max_v_id
             adj_len = 0;
             num_edges = 0;
             max_deg = 0;
-            // vertex_ids = NULL; // absolute v_id
             vertex_local_ids = NULL; // mapping from absolute v_id to relative v_id
             adj_index_table = NULL; //a table to index adj list for each local vert
             isTemplate = false;
@@ -251,10 +221,12 @@ namespace interface1
 
         void initTemplate(int ng, int mg, int*& src, int*& dst);
         void freeMem();
-        //copy the graph (templates)
+        //copy the graph ( used in dynamic programing of sub-templates)
         Graph& operator= (const Graph& param);
 
+		//get relative neighbor ids of a specified vertex
         int* adjacent_vertices(int v){return &(adj_index_table[v]->_adjs)[0];}
+		//get absoluate neighbor ids of a specified vertex
         int* adjacent_vertices_abs(int v)
         {
             //from abs id to rel id
@@ -265,8 +237,11 @@ namespace interface1
                 return NULL;
         }
 
+		// convert an absolute vertex id to relative vertex id
         int get_relative_v_id(int v_abs){return vertex_local_ids[v_abs];}
+		// obtain the out degree (neighbor number) of a specified vertex by its relative id
         int out_degree(int v){ return (adj_index_table[v]->_adjs).size();}
+		// obtain the out degree (neighbor number) of a specified vertex by its absolute id
         int out_degree_abs(int v)
         {
             //from abs id to rel id
@@ -277,10 +252,15 @@ namespace interface1
                 return -1;
         }
 
+		// accessor of max_degree value
         int max_degree(){return max_deg;}
+		// accessor of total degree value
 		int total_degree(){return total_deg;}
+		// get an array of absolute id for local vertices
         int* get_abs_v_ids(){return vertex_ids.get();}
+		// get num of vertices of local input graph
         int num_vertices(){ return vert_num_count;}
+
         int vert_num_count;
         int max_v_id_local;
         int max_v_id; //global max_v_id
@@ -288,27 +268,31 @@ namespace interface1
         int num_edges;
         int max_deg;
 		int total_deg;
-
-        // int* vertex_ids; // absolute v_id
         services::SharedPtr<int> vertex_ids; // absolute v_id
         int* vertex_local_ids; // mapping from absolute v_id to relative v_id
-
         v_adj_elem** adj_index_table; //a table to index adj list for each local vert
-
-        bool isTemplate;
-
+        bool isTemplate; //to control the copy behaviour for input graph and template files
     };
     
+	/**
+	 * @brief partition the template into sub-templates used by dynamic programming.  
+	 */
     class partitioner {
 
         public:
+
             partitioner(){}
             partitioner(Graph& t, bool label, int*& label_map);
+			// re-order the partitioned sub-templates
             void sort_subtemplates();
             void clear_temparrays();
+			// get the number of sub-templates
             int get_subtemplate_count(){ return subtemplate_count;}
+			// accessor to the subtemplate files
             Graph* get_subtemplates(){ return subtemplates; }
+			// get number of active children for a sub-template
             int get_num_verts_active(int s){return subtemplates[active_children[s]].vert_num_count;}
+			// get number of passive children for a sub-template
             int get_num_verts_passive(int s){return subtemplates[passive_children[s]].vert_num_count;}
             int get_num_verts_sub(int sub) {return subtemplates[sub].vert_num_count;}
             int get_active_index(int a){ return active_children[a];}
@@ -317,9 +301,6 @@ namespace interface1
         private:
 
             void init_arrays(){subtemplates_create = new Graph[create_size];}
-            //Do a bubble sort based on each subtemplate's parents' index
-            //This is a simple way to organize the partition tree for use
-            // with dt.init_sub() and memory management of dynamic table
             bool sub_count_needed(int s){ return count_needed[s];}
 
             int* get_labels(int s)
@@ -329,7 +310,6 @@ namespace interface1
                 else
                     return NULL;
             }
-
             
             void partition_recursive(int s, int root);
             int* split(int s, int root);
@@ -373,11 +353,8 @@ namespace interface1
 
             int current_creation_index;
             int subtemplate_count;
-
             bool* count_needed;
             bool labeled;
-
-
     };
 
     /**
@@ -509,7 +486,6 @@ public:
     void setGlobalMaxV(size_t id);
     size_t getSubtemplateCount();
 
-
     // store vert of each template
     int* num_verts_table;
     int subtemplate_count;
@@ -560,7 +536,7 @@ public:
 
 	int getCombLen(int subid) {return dt->get_num_color_set(part->get_passive_index(subid));}
 
-    // for comm
+    // for inter-node communication 
     void init_comm(int mapper_num_par, int local_mapper_id_par, long send_array_limit_par, bool rotation_pipeline_par);
     void init_comm_prepare(int update_id);
     void upload_prep_comm();
@@ -576,7 +552,6 @@ public:
     void updateRecvParcelInit(int comm_id); 
     void updateRecvParcel();
     void updateRecvParcel2();
-    // void updateRecvParcelOld();
     void freeRecvParcel();
     void freeRecvParcelPip(int pipId);
     void calculate_update_ids(int sub_id);
@@ -585,7 +560,6 @@ public:
     double compute_update_comm_pip(int sub_id, int update_id);
 
 	void clear_task_update_list();
-
 	// retrieve the comb number for each sub-templates
 	int getCombCur(int s){
 		if(part->get_num_verts_sub(s) == 1) 
@@ -602,7 +576,6 @@ public:
 			return choose_table[part->get_num_verts_sub(s)][part->get_num_verts_active(s)];
 	}
 
-    // for comm
     int mapper_num;
     int local_mapper_id;
     long send_array_limit;
@@ -627,58 +600,49 @@ public:
     int* cur_parcel_v_counts_index; //count_num
     int cur_upd_mapper_id;
     int cur_upd_parcel_id;
-
     int cur_sub_id_compute;
     int cur_comb_len_compute;
 
-	// record peak mem usage 
-	double peak_mem;
-	double peak_mem_comm;
-
-	//record avg and stdev of thread-level workload
-	double* thdwork_record;
-	double thdwork_avg;
-	double thdwork_stdev;
-
+	// for inter-node distributed usage
     int send_vertex_array_size;
     std::vector<int> send_vertex_array_dst;
     std::unordered_map<int, std::vector<int> > send_vertex_array;
 
-    // int* update_mapper_len;
     services::SharedPtr<int> update_mapper_len;
     services::SharedPtr<int>* map_ids_cache_pip;
     services::SharedPtr<int>* chunk_ids_cache_pip;
     services::SharedPtr<int>* chunk_internal_offsets_cache_pip;
-    // int** map_ids_cache_pip;
-    // int** chunk_ids_cache_pip;
-    // int** chunk_internal_offsets_cache_pip;
     
-    // int*** update_queue_pos;
     BlockDescriptor<int>** update_queue_pos;
-    // float*** update_queue_counts;
     BlockDescriptor<float>** update_queue_counts;
 	decompressElem** update_queue_counts_decompress;
-
-    // int*** update_queue_index;
     BlockDescriptor<int>** update_queue_index;
 
-    //for nbrs task breakdown
+    //for neighborlist partitioning
 	std::vector<task_nbr*> task_list;
 	std::vector<task_nbr_update*> task_list_update;
-	// int task_list_len;
-    
+ 
+	// record peak mem usage
+	// used in experiments
+	double peak_mem;
+	double peak_mem_comm;
 
+	//record avg and stdev of thread-level workload
+	// used in experiments
+	double* thdwork_record;
+	double thdwork_avg;
+	double thdwork_stdev;
+   
 private:
 
-    // thread in read in graph
-    int thread_num;
+    int thread_num;// thread in read in graph
     std::vector<v_adj_elem*>* v_adj; //store data from reading data
 
     Graph g; // graph data
     Graph t; // template data
-    int num_colors; 
 
-    int* colors_g;
+    int num_colors; //num of colors used in coloring
+    int* colors_g; // color values of local graph vertices
     
     // for template data
     size_t t_ng;
@@ -686,6 +650,7 @@ private:
     std::vector<int> t_src;
     std::vector<int> t_dst;
 
+	// read in data from HDFS
     hdfsFS* fs;
     services::SharedPtr<int> fileOffsetPtr;
     services::SharedPtr<int> fileNamesPtr;
@@ -703,19 +668,15 @@ private:
 
     std::vector<int>* comm_mapper_vertex;
     BlockDescriptor<int> abs_v_to_mapper;
-
     int* abs_v_to_queue;
-
-	    
-
 };
-
 
 
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__subgraph__RESULT"></a>
  * \brief Provides methods to access results obtained with the compute() method of the subgraph algorithm
  *        in the batch processing mode 
+ *        deprecated
  */
 class DAAL_EXPORT Result : public daal::algorithms::Result
 {
@@ -914,13 +875,13 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 	/* default constructor */
     Parameter() 
     {
-        _thread_num = 1;  //  specify used in computation 
-        _core_num = 1; // the core num used in affinity setting
-        _tpc = 1; // the threads per core
-        _affinity = 0; // the affinity (default 0: compact, 1: scatter)
+        _thread_num = 1;		//  specify used in computation 
+        _core_num = 1;			// the core num used in affinity setting
+        _tpc = 1;				// the threads per core
+        _affinity = 0;			// the affinity (default 0: compact, 1: scatter)
         _verbose = 0;
-        _vert_num_sub = 0; // the vert number of current subtemplate
-        _stage = 0; // 0: bottom subtemplate, 1: non-last subtemplate, 2: last subtemplate
+        _vert_num_sub = 0;		// the vert number of current subtemplate
+        _stage = 0;				// 0: bottom subtemplate, 1: non-last subtemplate, 2: last subtemplate
         _sub_itr = 0;
         _pip_id=0;
         _total_counts = 0.0;
@@ -971,13 +932,13 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
         _pip_id = pip_id;
     }
 
-    size_t _thread_num;  //  specify used in computation 
-    size_t _core_num; // the core num used in affinity setting
-    size_t _tpc; // the threads per core
-    size_t _affinity; // the affinity (default 0: compact, 1: scatter)
-    size_t _verbose;
-    size_t _vert_num_sub; // the vert number of current subtemplate
-    size_t _stage; // 0: bottom subtemplate, 1: non-bottom subtemplate
+    size_t _thread_num;			//  specify used in computation 
+    size_t _core_num;			// the core num used in affinity setting
+    size_t _tpc;				// the threads per core
+    size_t _affinity;			// the affinity (default 0: compact, 1: scatter)
+    size_t _verbose;            // verbose mode to print out more runtime information
+    size_t _vert_num_sub;		// the vert number of current subtemplate
+    size_t _stage;				// 0: bottom subtemplate, 1: non-bottom subtemplate
     size_t _sub_itr;
     size_t _pip_id;
     double _total_counts;

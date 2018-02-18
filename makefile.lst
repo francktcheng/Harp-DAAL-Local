@@ -200,8 +200,8 @@ CORE.ALGORITHMS.INC :=                                                        \
     pca                                                                       \
     qr                                                                        \
     svd                                                                       \
-	mf_sgd                                                                    \
-	subgraph
+    mf_sgd                                                                    \
+    subgraph
 
 
 CORE.SERVICES       := compression            \

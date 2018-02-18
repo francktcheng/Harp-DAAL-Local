@@ -201,7 +201,7 @@ CORE.ALGORITHMS.INC :=                                                        \
     qr                                                                        \
     svd                                                                       \
 	mf_sgd                                                                    \
-    subgraph
+	subgraph
 
 
 CORE.SERVICES       := compression            \

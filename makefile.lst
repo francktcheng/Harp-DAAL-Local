@@ -55,7 +55,6 @@ CORE.ALGORITHMS.INC :=                                                        \
     covariance                                                                \
     subgraph																  \
 	mf_sgd
-
     
 CORE.SERVICES       := compression            \
                        data_management

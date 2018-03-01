@@ -85,6 +85,10 @@ y      := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 -sGRP  = $(if $(OS_is_lnx),-Wl$(comma)--start-group,)
 -eGRP  = $(if $(OS_is_lnx),-Wl$(comma)--end-group,)
 
+## add support to OpenMP
+-omp   := $(if $(COMPILER_is_icc), -qopenmp, $(if $(COMPILER_is_gnu), -fopenmp,))
+-ansialias := $(if $(COMPILER_is_icc), -ansi-alias, )
+
 p4_OPT   := $(p4_OPT.$(COMPILER))
 mc_OPT   := $(mc_OPT.$(COMPILER))
 mc3_OPT  := $(mc3_OPT.$(COMPILER))
@@ -137,7 +141,6 @@ ifeq ($(ENV_ARCH),"")
 	RELEASEDIR ?= $(DIR)/../__release_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
 else
 	WORKDIR    ?= $(DIR)/../__work$(ENV_ARCH)$(CMPLRDIRSUFF.$(COMPILER))/$(PLAT)
-	# RELEASEDIR ?= $(DIR)/../__release_subgraph_$(ENV_ARCH)_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
 	RELEASEDIR ?= $(DIR)/../__release_$(ENV_ARCH)_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
 endif
 RELEASEDIR.daal    := $(RELEASEDIR)/daal
@@ -378,9 +381,8 @@ $(CORE.objs_a): $(CORE.tmpdir_a)/inc_a_folders.txt
 $(CORE.objs_a): COPT += $(-fPIC) $(-cxx11) $(-Zl) $(-DEBC)
 $(CORE.objs_a): COPT += -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS -DDAAL_HIDE_DEPRECATED
 $(CORE.objs_a): COPT += @$(CORE.tmpdir_a)/inc_a_folders.txt
-# intel openmp support and O3 optimization
-# $(CORE.objs_a): COPT += -qopenmp -D_OPENMP -ansi-alias -O3  
-$(CORE.objs_a): COPT += -qopenmp -D_OPENMP -I$(DIR)/externals/hdfs/include -ansi-alias -O3 -std=c++11 
+# openmp support and O3 optimization
+$(CORE.objs_a): COPT += $(-omp) -D_OPENMP -I$(DIR)/externals/hdfs/include $(-ansialias) -O3
 
 $(filter %threading.$o, $(CORE.objs_a)): COPT += -D__DO_TBB_LAYER__
 $(call containing,_nrh, $(CORE.objs_a)): COPT += $(p4_OPT)   -DDAAL_CPU=sse2
@@ -397,9 +399,8 @@ $(CORE.objs_y): $(CORE.tmpdir_y)/inc_y_folders.txt
 $(CORE.objs_y): COPT += $(-fPIC) $(-cxx11) $(-Zl) $(-DEBC)
 $(CORE.objs_y): COPT += -D__DAAL_IMPLEMENTATION -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS -DDAAL_HIDE_DEPRECATED $(if $(CHECK_DLL_SIG),-DDAAL_CHECK_DLL_SIG)
 $(CORE.objs_y): COPT += @$(CORE.tmpdir_y)/inc_y_folders.txt
-# intel openmp support and O3 optimization
-# $(CORE.objs_y): COPT += -qopenmp -D_OPENMP -ansi-alias -O3 
-$(CORE.objs_y): COPT += -qopenmp -D_OPENMP -I$(DIR)/externals/hdfs/include -ansi-alias -O3 -std=c++11
+# openmp support and O3 optimization
+$(CORE.objs_y): COPT += $(-omp) -D_OPENMP -I$(DIR)/externals/hdfs/include $(-ansialias) -O3
 
 $(filter %threading.$o, $(CORE.objs_y)): COPT += -D__DO_TBB_LAYER__
 $(call containing,_nrh, $(CORE.objs_y)): COPT += $(p4_OPT)   -DDAAL_CPU=sse2

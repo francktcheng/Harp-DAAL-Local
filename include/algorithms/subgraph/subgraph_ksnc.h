@@ -129,11 +129,13 @@ public:
      * Register user-allocated memory to store the results of the subgraph algorithm
      * \return Structure to store the results of the subgraph algorithm
      */
-    void setResult(const services::SharedPtr<Result>& res)
+    daal::services::interface1::Status setResult(const services::SharedPtr<Result>& res)
     {
-        DAAL_CHECK(res, ErrorNullResult)
+        daal::services::interface1::Status status;
+        DAAL_CHECK(res, daal::services::ErrorNullResult)
         _result = res;
         _res = _result.get();
+		return status;
     }
 
     /**

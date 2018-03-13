@@ -23,7 +23,3 @@
 */
 #include <iostream>
 
-// template<> void updateMF_explicit<DAAL_FPTYPE, avx512_mic>(DAAL_FPTYPE* WMat, DAAL_FPTYPE* HMat, DAAL_FPTYPE* workV, int idx, const long dim_r, const DAAL_FPTYPE rate, const DAAL_FPTYPE lambda)
-
-
-

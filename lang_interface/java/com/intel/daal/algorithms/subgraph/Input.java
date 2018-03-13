@@ -270,15 +270,6 @@ public final class Input extends com.intel.daal.algorithms.Input {
         cClearTaskUpdateList(cObject);
     }
 
-    public double computeUpdateComm(int sub_id)
-    {
-        return cComputeUpdateComm(cObject, sub_id);
-    }
-    public double computeUpdateCommPip(int sub_id, int update_id)
-    {
-        return cComputeUpdateCommPip(cObject, sub_id, update_id);
-    }
-
     public void sendCommParcelLoad()
     {
         cSendCommParcelLoad(cObject);
@@ -344,9 +335,6 @@ public final class Input extends com.intel.daal.algorithms.Input {
     private native void cCalculateUpdateIds(long cInput, int sub_id);
     private native void cReleaseUpdateIds(long cInput);
     private native void cClearTaskUpdateList(long cInput);
-
-    private native double cComputeUpdateComm(long cInput, int sub_id);
-    private native double cComputeUpdateCommPip(long cInput, int sub_id, int update_id);
 
     private native void cSetToTable(long cInput, int src, int dst);
     private native void cSampleColors(long cInput);

@@ -538,6 +538,9 @@ public:
 
     // for inter-node communication 
     void init_comm(int mapper_num_par, int local_mapper_id_par, long send_array_limit_par, bool rotation_pipeline_par);
+    void init_comm_omp_kernel(int mapper_num_par, int local_mapper_id_par, long send_array_limit_par, bool rotation_pipeline_par);
+    void init_comm_tbb_kernel(int mapper_num_par, int local_mapper_id_par, long send_array_limit_par, bool rotation_pipeline_par);
+
     void init_comm_prepare(int update_id);
     void upload_prep_comm();
     void setSendVertexSize(int size);
@@ -554,10 +557,12 @@ public:
     void updateRecvParcel2();
     void freeRecvParcel();
     void freeRecvParcelPip(int pipId);
+
     void calculate_update_ids(int sub_id);
+    void calculate_update_ids_omp_kernel(int sub_id);
+    void calculate_update_ids_tbb_kernel(int sub_id);
+
     void release_update_ids();
-    double compute_update_comm(int sub_id);
-    double compute_update_comm_pip(int sub_id, int update_id);
 
 	void clear_task_update_list();
 	// retrieve the comb number for each sub-templates

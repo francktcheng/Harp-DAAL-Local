@@ -143,8 +143,11 @@ daal::services::interface1::Status MF_SGDDistriKernel<interm, method, cpu>::comp
         mtWDataTable.getBlockOfRows(0, dim_w, &mtWDataPtr);
 
         // Model H is stored in hMat_native_mem
-        // MF_SGDDistriKernel<interm, method, cpu>::compute_train_omp(workWPos,workHPos,workV, dim_set, mtWDataPtr, col_ids, hMat_native_mem,  parameter ); 
+    #ifdef USE_OMP
+        MF_SGDDistriKernel<interm, method, cpu>::compute_train_omp(workWPos,workHPos,workV, dim_set, mtWDataPtr, col_ids, hMat_native_mem,  parameter ); 
+    #else
         MF_SGDDistriKernel<interm, method, cpu>::compute_train_tbb(workWPos,workHPos,workV, dim_set, mtWDataPtr, col_ids, hMat_native_mem,  parameter ); 
+    #endif
 
 
     }/*}}}*/
@@ -179,8 +182,11 @@ daal::services::interface1::Status MF_SGDDistriKernel<interm, method, cpu>::comp
         BlockMicroTable<interm, readWrite, cpu> mtRMSETable(r[3]);
         mtRMSETable.getBlockOfRows(0, 1, &mtRMSEPtr);
 
-        // MF_SGDDistriKernel<interm, method, cpu>::compute_test_omp(workWPos,workHPos,workV, dim_set, mtWDataPtr, mtRMSEPtr, parameter, col_ids, hMat_native_mem);
+#ifdef USE_OMP
+        MF_SGDDistriKernel<interm, method, cpu>::compute_test_omp(workWPos,workHPos,workV, dim_set, mtWDataPtr, mtRMSEPtr, parameter, col_ids, hMat_native_mem);
+#else
         MF_SGDDistriKernel<interm, method, cpu>::compute_test_tbb(workWPos,workHPos,workV, dim_set, mtWDataPtr, mtRMSEPtr, parameter, col_ids, hMat_native_mem);
+#endif
 
     }/*}}}*/
 
@@ -522,6 +528,8 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_train_tbb(int* &workWPos,
     // set up the threads used
     if (thread_num > 0)
         services::Environment::getInstance()->setNumberOfThreads(thread_num);
+    else
+        thread_num = threader_get_max_threads_number();
 
     SafeStatus safeStat;
     daal::threader_for(task_queues_num, task_queues_num, [=, &safeStat](int k)
@@ -954,6 +962,8 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test_tbb(int* workWPos,
     // set up the threads used
     if (thread_num > 0)
         services::Environment::getInstance()->setNumberOfThreads(thread_num);
+    else
+        thread_num = threader_get_max_threads_number();
 
     SafeStatus safeStat;
     daal::threader_for(task_queues_num, task_queues_num, [=, &safeStat](int k)

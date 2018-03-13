@@ -465,6 +465,8 @@ void wMat_generate_distri(NumericTable *r[], mf_sgd::Parameter* &par, mf_sgd::Di
     // set up the threads used
     if (thread_num > 0)
         services::Environment::getInstance()->setNumberOfThreads(thread_num);
+    else
+        thread_num = threader_get_max_threads_number();
 
     SafeStatus safeStat;
     daal::threader_for(wMat_size, wMat_size, [=, &safeStat](int k)
@@ -522,6 +524,8 @@ void train_generate_distri(NumericTable *r[], NumericTable* &a0, NumericTable* &
     // set up the threads used
     if (thread_num > 0)
         services::Environment::getInstance()->setNumberOfThreads(thread_num);
+    else
+        thread_num = threader_get_max_threads_number();
 
     SafeStatus safeStat;
     daal::threader_for(train_size, train_size, [=, &safeStat](int k)
@@ -630,6 +634,8 @@ void test_generate_distri(NumericTable *r[], NumericTable* &a3, NumericTable* &a
     // set up the threads used
     if (thread_num > 0)
         services::Environment::getInstance()->setNumberOfThreads(thread_num);
+    else
+        thread_num = threader_get_max_threads_number();
 
     SafeStatus safeStat;
     daal::threader_for(test_size, test_size, [=, &safeStat](int k)
@@ -761,6 +767,8 @@ void hMat_generate(NumericTable *r[], mf_sgd::Parameter* &par, size_t dim_r, int
     // set up the threads used
     if (thread_num > 0)
         services::Environment::getInstance()->setNumberOfThreads(thread_num);
+    else
+        thread_num = threader_get_max_threads_number();
 
     SafeStatus safeStat;
     daal::threader_for(thread_num, thread_num, [=, &safeStat](int k)
@@ -838,6 +846,8 @@ void hMat_release(NumericTable *r[], mf_sgd::Parameter* &par, size_t dim_r, int 
         // set up the threads used
         if (thread_num > 0)
             services::Environment::getInstance()->setNumberOfThreads(thread_num);
+        else
+            thread_num = threader_get_max_threads_number();
 
         SafeStatus safeStat;
         daal::threader_for(thread_num, thread_num, [=, &safeStat](int k)

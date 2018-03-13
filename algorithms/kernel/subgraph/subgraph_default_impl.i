@@ -59,41 +59,10 @@ namespace subgraph
 namespace internal
 {
 
-// template<typename interm, CpuType cpu>
-// void updateMF(interm *WMat,interm *HMat, interm* workV, const int idx, const long dim_r, const interm rate, const interm lambda);
-//
-// template<typename interm, CpuType cpu>
-// void updateMF_explicit(interm *WMat,interm *HMat, interm* workV, int idx, const long dim_r, const interm rate, const interm lambda);
-//
-// template<typename interm, CpuType cpu>
-// void computeRMSE(interm *WMat,interm *HMat, interm* testV, interm* testRMSE, int idx, const long dim_r);
-//
-// template<typename interm, CpuType cpu>
-// void computeRMSE_explicit(interm *WMat,interm *HMat, interm* testV, interm* testRMSE, int idx, const long dim_r);
-
 // CPU intrinsics for Intel Compiler only
 #if defined (__INTEL_COMPILER) && defined(__linux__) && defined(__x86_64__)
     #include <immintrin.h>
 #endif
-
-// template<typename interm, CpuType cpu>
-// MFSGDTBB<interm, cpu>::MFSGDTBB(
-//         interm* mtWDataTable,
-//         interm* mtHDataTable,
-//         int* workWPos,
-//         int* workHPos,
-//         interm *workV,
-//         const long Dim,
-//         const interm learningRate,
-//         const interm lambda,
-//         currentMutex_t* mutex_w,
-//         currentMutex_t* mutex_h,
-//         const int Avx_explicit,
-//         const int step,
-//         const int dim_train
-//
-// )
-
 
 /* AVX optimization via template specialization (Intel compiler only) */
 #if defined (__INTEL_COMPILER) && defined(__linux__) && defined(__x86_64__) && ( __CPUID__(DAAL_CPU) == __avx__ )

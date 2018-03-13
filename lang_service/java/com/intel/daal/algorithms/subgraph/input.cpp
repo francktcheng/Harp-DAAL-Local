@@ -192,18 +192,6 @@ JNIEXPORT void JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cClearTaskU
 	((subgraph::Input*)inputAddr)->clear_task_update_list();
 }
 
-JNIEXPORT jdouble JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cComputeUpdateComm
-(JNIEnv *env, jobject thisObj, jlong inputAddr, jint sub_id)
-{
-	return (double)(((subgraph::Input*)inputAddr)->compute_update_comm(sub_id));
-}
-
-JNIEXPORT jdouble JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cComputeUpdateCommPip
-(JNIEnv *env, jobject thisObj, jlong inputAddr, jint sub_id, jint update_id)
-{
-	return (double)(((subgraph::Input*)inputAddr)->compute_update_comm_pip(sub_id, update_id));
-}
-
 JNIEXPORT jlong JNICALL Java_com_intel_daal_algorithms_subgraph_Input_cGetDaalTableSize
 (JNIEnv *env, jobject thisObj, jlong inputAddr)
 {

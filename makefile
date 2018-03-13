@@ -88,6 +88,8 @@ y      := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 ## add support to OpenMP
 -omp   := $(if $(COMPILER_is_icc), -qopenmp, $(if $(COMPILER_is_gnu), -fopenmp,))
 -ansialias := $(if $(COMPILER_is_icc), -ansi-alias, )
+# -useomp := -DUSE_OMP 
+-useomp := 
 
 p4_OPT   := $(p4_OPT.$(COMPILER))
 mc_OPT   := $(mc_OPT.$(COMPILER))
@@ -382,7 +384,7 @@ $(CORE.objs_a): COPT += $(-fPIC) $(-cxx11) $(-Zl) $(-DEBC)
 $(CORE.objs_a): COPT += -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS -DDAAL_HIDE_DEPRECATED
 $(CORE.objs_a): COPT += @$(CORE.tmpdir_a)/inc_a_folders.txt
 # openmp support and O3 optimization
-$(CORE.objs_a): COPT += $(-omp) -D_OPENMP -I$(DIR)/externals/hdfs/include $(-ansialias) -O3
+$(CORE.objs_a): COPT += $(-omp) $(-useomp) -D_OPENMP -I$(DIR)/externals/hdfs/include $(-ansialias) -O3
 
 $(filter %threading.$o, $(CORE.objs_a)): COPT += -D__DO_TBB_LAYER__
 $(call containing,_nrh, $(CORE.objs_a)): COPT += $(p4_OPT)   -DDAAL_CPU=sse2
@@ -400,7 +402,7 @@ $(CORE.objs_y): COPT += $(-fPIC) $(-cxx11) $(-Zl) $(-DEBC)
 $(CORE.objs_y): COPT += -D__DAAL_IMPLEMENTATION -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS -DDAAL_HIDE_DEPRECATED $(if $(CHECK_DLL_SIG),-DDAAL_CHECK_DLL_SIG)
 $(CORE.objs_y): COPT += @$(CORE.tmpdir_y)/inc_y_folders.txt
 # openmp support and O3 optimization
-$(CORE.objs_y): COPT += $(-omp) -D_OPENMP -I$(DIR)/externals/hdfs/include $(-ansialias) -O3
+$(CORE.objs_y): COPT += $(-omp) $(-useomp) -D_OPENMP -I$(DIR)/externals/hdfs/include $(-ansialias) -O3
 
 $(filter %threading.$o, $(CORE.objs_y)): COPT += -D__DO_TBB_LAYER__
 $(call containing,_nrh, $(CORE.objs_y)): COPT += $(p4_OPT)   -DDAAL_CPU=sse2

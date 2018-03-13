@@ -157,42 +157,11 @@ daal::services::interface1::Status DistriContainer<step, interm, method, cpu>::c
 
     daal::services::Environment::env &env = *_env;
 
-    // invoke the MF_SGDDistriKernel 
-    // std::printf("start training check compute\n");
-    // std::fflush(stdout);
-
-    // __DAAL_CALL_KERNEL(env, internal::MF_SGDDistriKernel, __DAAL_KERNEL_ARGUMENTS(interm, method), compute, WPos, HPos, Val, WPosTest, HPosTest, ValTest, r, par, col_ids, hMat_native_mem);
     __DAAL_CALL_KERNEL_STATUS(env, internal::MF_SGDDistriKernel, __DAAL_KERNEL_ARGUMENTS(interm, method), compute, WPos, HPos, Val, WPosTest, HPosTest, ValTest, r, par, col_ids, hMat_native_mem)
-
-    // std::printf("After training check compute\n");
-    // std::fflush(stdout);
-
-
 
     //release h matrix from native side back to Java side after updating values
     internal::hMat_release<interm, cpu>(r, par, dim_r, thread_num, hMat_blk_array, copylist);
 
-    // debug: check the correctness of parallel copy after computation
-    // int feature_select = 1; 
-    // BlockDescriptor<interm> check_col;
-    // r[1]->getBlockOfColumnValues((size_t)feature_select, 0, dim_r+1, readOnly, check_col);
-    // interm* check_val = check_col.getBlockPtr();
-    // interm error_val = 0;
-    // for(int p=0;p<(dim_r+1);p++)
-    // {
-    //    error_val += (check_val[p] - hMat_native_mem[feature_select][p]); 
-    //    if (p<10)
-    //    {
-    //        std::printf("col val after releasing: %f\n",hMat_native_mem[feature_select][p] );
-    //        std::fflush(stdout);
-    //    }
-    //        
-    // }
-    // std::printf("copy error after releasing: %f\n", error_val);
-    // std::fflush(stdout);
-
-    // end of debug
-    //
     //clean up the memory space per iteration
     if (col_ids != NULL)
         free(col_ids);

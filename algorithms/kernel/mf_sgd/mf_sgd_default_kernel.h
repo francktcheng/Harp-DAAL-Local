@@ -40,6 +40,7 @@
 #include "services/daal_memory.h"
 #include "service_micro_table.h"
 #include "service_numeric_table.h"
+#include "service_error_handling.h"
 
 #include "mf_sgd_batch.h"
 #include "tbb/tick_count.h"
@@ -146,15 +147,22 @@ public:
      * @param[in,out] r[] model W and H
      * @param[in] par
      */
-    daal::services::interface1::Status compute(NumericTable** WPos, NumericTable** HPos, NumericTable** Val, NumericTable** WPosTest, NumericTable** HPosTest, NumericTable** ValTest, 
-            NumericTable *r[], Parameter* &par, int* &col_ids, interm** &hMat_native_mem);
+    daal::services::interface1::Status compute(NumericTable** WPos, NumericTable** HPos, NumericTable** Val, NumericTable** WPosTest, 
+            NumericTable** HPosTest, NumericTable** ValTest, NumericTable *r[], Parameter* &par, int* &col_ids, interm** &hMat_native_mem);
 
-    // another multi-threading version of training process implemented by OpenMP 
+    // multi-threading version of training process implemented by OpenMP 
     void compute_train_omp(int* &workWPos, int* &workHPos, interm* &workV, const int dim_set,
                            interm* &mtWDataPtr, int* &col_ids, interm** &hMat_native_mem, Parameter* &parameter);
 
-    // another multi-threading version of testing process implemented by OpenMP 
+    // multi-threading version of training process implemented by Intel TBB 
+    void compute_train_tbb(int* &workWPos, int* &workHPos, interm* &workV, const int dim_set,
+                           interm* &mtWDataPtr, int* &col_ids, interm** &hMat_native_mem, Parameter* &parameter);
+
+    // multi-threading version of testing process implemented by OpenMP 
     void compute_test_omp(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtRMSEPtr, Parameter *parameter, int* col_ids, interm** hMat_native_mem);
+
+    // multi-threading version of testing process implemented by TBB 
+    void compute_test_tbb(int* workWPos, int* workHPos, interm* workV, const int dim_set, interm* mtWDataPtr, interm* mtRMSEPtr, Parameter *parameter, int* col_ids, interm** hMat_native_mem);
 
 };
 
@@ -190,7 +198,7 @@ struct MFSGDTBB
 	 * @param[in] range range of parallel block to execute by a thread
 	 */
     void operator()( const blocked_range<int>& range ) const; 
-	
+
 	/**
 	 * @brief set up the id of iteration
 	 * used in distributed mode
@@ -198,7 +206,7 @@ struct MFSGDTBB
 	 * @param itr
 	 */
     void setItr(int itr) { _itr = itr;}
-    
+
     void setTimeStart(tbb::tick_count timeStart) {_timeStart = timeStart;}
 
     void setTimeOut(double timeOut) {_timeOut = timeOut;}
@@ -305,7 +313,7 @@ struct MFSGDTBBREORDER
 template<typename interm, CpuType cpu>
 struct MFSGDTBB_TEST
 {
-    
+
     MFSGDTBB_TEST(
 
             interm* mtWDataTable,
@@ -324,7 +332,7 @@ struct MFSGDTBB_TEST
 
     // model W 
 	interm* _mtWDataTable;   
-    
+
     // model H 
     interm* _mtHDataTable;   
 
@@ -454,13 +462,12 @@ void wMat_generate_distri(NumericTable *r[], mf_sgd::Parameter* &par, mf_sgd::Di
     int* wMat_index_ptr = 0;
     wMat_index.getBlockOfColumnValues(0, 0, wMat_size, &wMat_index_ptr);
 
-#ifdef _OPENMP
+    // set up the threads used
+    if (thread_num > 0)
+        services::Environment::getInstance()->setNumberOfThreads(thread_num);
 
-    if (thread_num == 0)
-        thread_num = omp_get_max_threads();
-
-    #pragma omp parallel for schedule(guided) num_threads(thread_num) 
-    for(size_t k=0;k<wMat_size;k++)
+    SafeStatus safeStat;
+    daal::threader_for(wMat_size, wMat_size, [=, &safeStat](int k)
     {
         ConcurrentModelMap::accessor pos; 
         if(par->_wMat_map->insert(pos, wMat_index_ptr[k]))
@@ -475,29 +482,9 @@ void wMat_generate_distri(NumericTable *r[], mf_sgd::Parameter* &par, mf_sgd::Di
         daal::internal::RNGs<interm, daal::sse2> rng1;
         //k*dim_r is size_t to avoid integer overflow
         rng1.uniform(dim_r,&wMat_body[k*dim_r],  base_rng1.getState(), 0.0, scale);
-    }
+    });
 
-#else
-
-    // a serial version 
-    // daal::internal::UniformRng<interm, daal::sse2> rng1(time(0));
-    daal::internal::BaseRNGs<daal::sse2> base_rng1;
-    daal::internal::RNGs<interm, daal::sse2> rng1;
-
-    for(size_t k=0;k<wMat_size;k++)
-    {
-        ConcurrentModelMap::accessor pos; 
-        if(par->_wMat_map->insert(pos, wMat_index_ptr[k]))
-        {
-            pos->second = k;
-        }
-        pos.release();
-        //randomize the kth row in the memory space
-        // rng1.uniform(dim_r, 0.0, scale, &wMat_body[k*dim_r]);
-        rng1.uniform(dim_r, &wMat_body[k*dim_r], base_rng1.getState(), 0.0, scale);
-    }
-
-#endif
+    safeStat.detach();
 
     par->_wMatFinished = 1;
     result->set(presWData, data_management::NumericTablePtr(new HomogenNumericTable<interm>(wMat_body, dim_r, wMat_size)));
@@ -532,13 +519,12 @@ void train_generate_distri(NumericTable *r[], NumericTable* &a0, NumericTable* &
     int* train_hPos_ptr = 0;
     train_hPos.getBlockOfColumnValues(0, 0, train_size, &train_hPos_ptr);
 
-#ifdef _OPENMP
+    // set up the threads used
+    if (thread_num > 0)
+        services::Environment::getInstance()->setNumberOfThreads(thread_num);
 
-    if (thread_num == 0)
-        thread_num = omp_get_max_threads();
-
-    #pragma omp parallel for schedule(guided) num_threads(thread_num) 
-    for(size_t k=0;k<train_size;k++)
+    SafeStatus safeStat;
+    daal::threader_for(train_size, train_size, [=, &safeStat](int k)
     {
         ConcurrentModelMap::accessor pos_w;
         ConcurrentDataMap::accessor pos_train;
@@ -561,35 +547,9 @@ void train_generate_distri(NumericTable *r[], NumericTable* &a0, NumericTable* &
 
         pos_train.release();
 
-    }
+    });
 
-#else
-
-    for(size_t k=0;k<train_size;k++)
-    {
-        ConcurrentModelMap::accessor pos_w;
-        ConcurrentModelMap::accessor pos_train;
-
-        // replace row id by row position 
-        int row_id = train_wPos_ptr[k];
-        if (par->_wMat_map->find(pos_w, row_id))
-        {
-            train_wPos_ptr[k] = pos_w->second;
-        }
-        else
-            train_wPos_ptr[k] = -1;
-
-        pos_w.release();
-
-        // construct the training data queue indexed by col id 
-        int col_id = train_hPos_ptr[k];
-        par->_train_map->insert(pos_train, col_id);
-        pos_train->second.push_back(k);
-        pos_train.release();
-
-    }
-
-#endif
+    safeStat.detach();
 
     par->_trainMapFinished = 1;
 
@@ -667,13 +627,12 @@ void test_generate_distri(NumericTable *r[], NumericTable* &a3, NumericTable* &a
     int* test_hPos_ptr = 0;
     test_hPos.getBlockOfColumnValues(0, 0, test_size, &test_hPos_ptr);
 
-#ifdef _OPENMP
+    // set up the threads used
+    if (thread_num > 0)
+        services::Environment::getInstance()->setNumberOfThreads(thread_num);
 
-    if (thread_num == 0)
-        thread_num = omp_get_max_threads();
-
-    #pragma omp parallel for schedule(guided) num_threads(thread_num) 
-    for(size_t k=0;k<test_size;k++)
+    SafeStatus safeStat;
+    daal::threader_for(test_size, test_size, [=, &safeStat](int k)
     {
         ConcurrentModelMap::accessor pos_w;
         ConcurrentDataMap::accessor pos_test;
@@ -695,38 +654,9 @@ void test_generate_distri(NumericTable *r[], NumericTable* &a3, NumericTable* &a
         pos_test->second.push_back(k);
         pos_test.release();
 
-    }
+    });
 
-#else
-
-    //a sequential version
-    for(size_t k=0;k<test_size;k++)
-    {
-        ConcurrentModelMap::accessor pos_w;
-        ConcurrentDataMap::accessor pos_test;
-
-        // replace row id by row position 
-        int row_id = test_wPos_ptr[k];
-        if (par->_wMat_map->find(pos_w, row_id))
-        {
-            test_wPos_ptr[k] = pos_w->second;
-        }
-        else
-            test_wPos_ptr[k] = -1;
-
-        pos_w.release();
-
-        // construct the test data queue indexed by col id 
-        int col_id = test_hPos_ptr[k];
-        par->_test_map->insert(pos_test, col_id);
-        pos_test->second.push_back(k);
-
-        pos_test.release();
-
-    }
-
-
-#endif
+    safeStat.detach();
 
     par->_testMapFinished = 1;
     //transfer data from test_Map to test_list
@@ -767,9 +697,6 @@ void test_generate_distri(NumericTable *r[], NumericTable* &a3, NumericTable* &a
     delete par->_test_map;
     par->_test_map = NULL;
 
-    // std::printf("Finish constructing test_map\n");
-    // std::fflush(stdout);
-
 }/*}}}*/
 
 /**
@@ -795,9 +722,6 @@ void hMat_generate(NumericTable *r[], mf_sgd::Parameter* &par, size_t dim_r, int
 	struct timespec ts2;
     int64_t diff = 0;
     double hMat_time = 0;
-
-    // std::printf("Start constructing h_map\n");
-    // std::fflush(stdout);
 
     int hMat_rowNum = par->_Dim_h;
     assert(hMat_rowNum <= (r[1]->getNumberOfColumns()));
@@ -833,14 +757,18 @@ void hMat_generate(NumericTable *r[], mf_sgd::Parameter* &par, size_t dim_r, int
     // std::printf("Start converting h_map\n");
     // std::fflush(stdout);
 
-    //---------------------------------- start doing a parallel data conversion by using openmp----------------------------------
     clock_gettime(CLOCK_MONOTONIC, &ts1);
+    // set up the threads used
+    if (thread_num > 0)
+        services::Environment::getInstance()->setNumberOfThreads(thread_num);
 
-    #pragma omp parallel for schedule(static) num_threads(thread_num) 
-    for(int k=0;k<thread_num;k++)
+    SafeStatus safeStat;
+    daal::threader_for(thread_num, thread_num, [=, &safeStat](int k)
     {
         internal::SOACopyBulkData<interm>(copylist[k]);
-    }
+    });
+
+    safeStat.detach();
 
     clock_gettime(CLOCK_MONOTONIC, &ts2);
     diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
@@ -850,29 +778,8 @@ void hMat_generate(NumericTable *r[], mf_sgd::Parameter* &par, size_t dim_r, int
     // std::fflush(stdout);
     par->_jniDataConvertTime += (size_t)hMat_time;
 
-    // std::printf("Finish converting h_map\n");
-    // std::fflush(stdout);
-    // debug: check the correctness of parallel copy
-    // int feature_select = 1; 
-    // BlockDescriptor<interm> check_col;
-    // r[1]->getBlockOfColumnValues((size_t)feature_select, 0, hMat_colNum, readOnly, check_col);
-    // interm* check_val = check_col.getBlockPtr();
-    // interm error_val = 0;
-    // for(int p=0;p<hMat_colNum;p++)
-    // {
-    //    error_val += (check_val[p] - hMat_native_mem[feature_select][p]); 
-    //    if (p<10)
-    //    {
-    //        std::printf("col val after: %f\n",hMat_native_mem[feature_select][p] );
-    //        std::fflush(stdout);
-    //    }
-    //        
-    // }
-    // std::printf("copy error for row: %f\n", error_val);
-    // std::fflush(stdout);
-
-
-    //---------------------------------- finish doing a parallel data conversion by using openmp----------------------------------
+    //---------------------------------- finish doing a parallel data conversion by using tbb ----------------------------------
+    
     //clean up and re-generate a hMat hashmap
     if (par->_hMat_map != NULL)
         par->_hMat_map->~ConcurrentModelMap();
@@ -880,11 +787,8 @@ void hMat_generate(NumericTable *r[], mf_sgd::Parameter* &par, size_t dim_r, int
     par->_hMat_map = new ConcurrentModelMap(hMat_rowNum);
     assert(par->_hMat_map != NULL);
 
-    if (thread_num == 0)
-        thread_num = omp_get_max_threads();
-
-    #pragma omp parallel for schedule(guided) num_threads(thread_num) 
-    for(int k=0;k<hMat_rowNum;k++)
+    SafeStatus safeStat2;
+    daal::threader_for(hMat_rowNum, hMat_rowNum, [=, &safeStat2](int k)
     {
         ConcurrentModelMap::accessor pos; 
         int col_id = (int)((hMat_native_mem[k])[0]);
@@ -897,10 +801,10 @@ void hMat_generate(NumericTable *r[], mf_sgd::Parameter* &par, size_t dim_r, int
 
         pos.release();
 
-    }
+    });
 
-    // std::printf("Finish constructing h_map\n");
-    // std::fflush(stdout);
+    safeStat2.detach();
+
 
 }/*}}}*/
 
@@ -931,19 +835,17 @@ void hMat_release(NumericTable *r[], mf_sgd::Parameter* &par, size_t dim_r, int 
 
         clock_gettime(CLOCK_MONOTONIC, &ts1);
 
-        //debug
-        // std::printf("entering parallel release\n");
-        // std::fflush(stdout);
+        // set up the threads used
+        if (thread_num > 0)
+            services::Environment::getInstance()->setNumberOfThreads(thread_num);
 
-        #pragma omp parallel for schedule(static) num_threads(thread_num) 
-        for(int k=0;k<thread_num;k++)
+        SafeStatus safeStat;
+        daal::threader_for(thread_num, thread_num, [=, &safeStat](int k)
         {
             internal::SOAReleaseBulkData<interm>(copylist[k]);
-        }
+        });
 
-        //debug
-        // std::printf("Finishing parallel release\n");
-        // std::fflush(stdout);
+        safeStat.detach();
 
         clock_gettime(CLOCK_MONOTONIC, &ts2);
         diff = 1000000000L *(ts2.tv_sec - ts1.tv_sec) + ts2.tv_nsec - ts1.tv_nsec;
@@ -955,14 +857,9 @@ void hMat_release(NumericTable *r[], mf_sgd::Parameter* &par, size_t dim_r, int 
         int hMat_rows_size = par->_Dim_h;
         for(int k=0;k<hMat_rows_size;k++)
         {
-            // hMat_blk_array[k]->~BlockDescriptor();
             delete hMat_blk_array[k];
 
         }
-
-        //debug
-        // std::printf("Finishing parallel free blockptr\n");
-        // std::fflush(stdout);
 
         //free up memory space of pthread copy args
         for(int k=0;k<thread_num;k++)

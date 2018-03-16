@@ -17,6 +17,9 @@
 COMPILERs = icc gnu clang vc
 COMPILER ?= icc
 
+## choose multi-threading impl: THDIMPL=openmp
+THDIMPL ?= tbb
+
 $(if $(filter $(COMPILERs),$(COMPILER)),,$(error COMPILER must be one of $(COMPILERs)))
 
 req-features = order-only second-expansion
@@ -47,6 +50,9 @@ COMPILER_is_$(COMPILER)  := yes
 OS_is_$(_OS)             := yes
 IA_is_$(_IA)             := yes
 PLAT_is_$(PLAT)          := yes
+
+## choose multi-threading impl
+THD_is_$(THDIMPL) 		 := yes
 
 #===============================================================================
 # Compiler specific part
@@ -88,8 +94,7 @@ y      := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 ## add support to OpenMP
 -omp   := $(if $(COMPILER_is_icc), -qopenmp, $(if $(COMPILER_is_gnu), -fopenmp,))
 -ansialias := $(if $(COMPILER_is_icc), -ansi-alias, )
-# -useomp := -DUSE_OMP 
--useomp := 
+-useomp := $(if $(THD_is_openmp), -DUSE_OMP, )
 
 p4_OPT   := $(p4_OPT.$(COMPILER))
 mc_OPT   := $(mc_OPT.$(COMPILER))
@@ -138,6 +143,7 @@ DAALTHRS ?= tbb seq
 DAALAY   ?= a y
 
 DIR:=.
+
 ifeq ($(ENV_ARCH),"")
 	WORKDIR    ?= $(DIR)/../__work$(CMPLRDIRSUFF.$(COMPILER))/$(PLAT)
 	RELEASEDIR ?= $(DIR)/../__release_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
@@ -145,6 +151,7 @@ else
 	WORKDIR    ?= $(DIR)/../__work$(ENV_ARCH)$(CMPLRDIRSUFF.$(COMPILER))/$(PLAT)
 	RELEASEDIR ?= $(DIR)/../__release_$(ENV_ARCH)_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
 endif
+
 RELEASEDIR.daal    := $(RELEASEDIR)/daal
 RELEASEDIR.lib     := $(RELEASEDIR.daal)/lib
 RELEASEDIR.env     := $(RELEASEDIR.daal)/bin

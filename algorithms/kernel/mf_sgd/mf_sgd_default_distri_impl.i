@@ -865,6 +865,12 @@ void MF_SGDDistriKernel<interm, method, cpu>::compute_test_tbb(int* workWPos,
 
 {/*{{{*/
 
+    // //debug for test tbb:atomic<T> size
+    // std::printf("Test the cast of tbb atomic array\n");
+    // std::fflush;
+    // float* array_nonatomic = new float[10];
+    // std::memset(array_nonatomic, 0, sizeof(array_nonatomic));
+    // tbb::atomic<float>* array_atomic = reinterpret_cast<tbb::atomic<float>*>(array_nonatomic);
 
     /* retrieve members of parameter */
     const int dim_r = parameter->_Dim_r;

@@ -295,7 +295,7 @@ void Input::init_comm_tbb_kernel(int mapper_num_par, int local_mapper_id_par, lo
     int* abs_v_to_mapper_ptr = abs_v_to_mapper.getBlockPtr();
 
     SafeStatus safeStat;
-    tbb::queuing_mutex tbb_mutex_update;
+    tbb::atomic<int>* comm_mapper_tmp_atomic = reinterpret_cast<tbb::atomic<int>*>(comm_mapper_tmp);
 
     daal::threader_for(g.vert_num_count, g.vert_num_count, [&](int i)
     {
@@ -307,8 +307,7 @@ void Input::init_comm_tbb_kernel(int mapper_num_par, int local_mapper_id_par, lo
             int adj_abs_id = elem_adj_ptr[j];
             int adj_mapper_id = abs_v_to_mapper_ptr[adj_abs_id];
             // #pragma omp atomic
-            tbb::queuing_mutex::scoped_lock lock_update(tbb_mutex_update);
-            comm_mapper_tmp[adj_mapper_id*abs_len + adj_abs_id]++;
+            comm_mapper_tmp_atomic[adj_mapper_id*abs_len + adj_abs_id].fetch_and_add(1);
         }
 
     });
@@ -993,7 +992,6 @@ void Input::calculate_update_ids_tbb_kernel(int sub_id)
     int thread_num_max = threader_get_max_threads_number();
 
     SafeStatus safeStat;
-    tbb::queuing_mutex tbb_mutex_update;
 
     daal::threader_for(g.vert_num_count, g.vert_num_count, [&](int v)
     {

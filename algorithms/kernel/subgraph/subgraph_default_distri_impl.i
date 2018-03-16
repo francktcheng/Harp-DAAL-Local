@@ -57,7 +57,6 @@
 
 #include "blocked_range.h"
 #include "parallel_for.h"
-// #include "queuing_mutex.h"
 
 #include "subgraph_default_impl.i"
 
@@ -726,7 +725,7 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottomNbrSplitTBB(Para
     else
         thread_num = threader_get_max_threads_number();
 
-    double total_count_cursub = 0.0;
+    tbb::atomic<double> total_count_cursub_atomic = 0.0;
 
     //need a container to store all the valid_nbrs 
     int** valid_nbrs_map = new int*[num_vert_g];
@@ -761,7 +760,6 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottomNbrSplitTBB(Para
                 //how to determine whether adj_i is in the current passive table
                 if( adj_i >=0 && dt->is_vertex_init_passive(adj_i))
                 {
-                    // valid_nbrs.push_back(adj_i);
                     valid_nbrs[valid_nbrs_count++] = adj_i;
                 }
                 if (mapper_num > 1 && adj_i < 0)
@@ -772,7 +770,6 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottomNbrSplitTBB(Para
 
             valid_nbrs_map[v] = valid_nbrs;
             valid_nbrs_map_size[v] = valid_nbrs_count;
-            // delete[] valid_nbrs;
             if (s != 0 && valid_nbrs_map_size[v] != 0)
                 dt->set_init(v);
         }
@@ -817,13 +814,8 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottomNbrSplitTBB(Para
     task_nbr** compute_list = &(input->task_list)[0];
 
     SafeStatus safeStat2;
-    tbb::queuing_mutex tbb_mutex_update;
-
     daal::threader_for(cur_task_list_len, cur_task_list_len, [&](int t)
     {
-        //replace shared ptr/var by local (private) one 
-        //to avoid race condition
-        // int ompthd_id = omp_get_thread_num();
         task_nbr* task_atomic = compute_list[t];
         int**** comb_num_idx_thd = comb_num_idx;
         int** comb_idx_set_thd = comb_idx_set;
@@ -837,11 +829,9 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottomNbrSplitTBB(Para
         float* counts_a = dt->get_active(v);
         float** passiv_table = dt->get_passive_table();
 
-        float* v_dt_ptr = NULL;
+        tbb::atomic<float>* v_dt_ptr_atomic = NULL;
         if (s != 0)
-        {
-            v_dt_ptr = dt->get_table(s, v);
-        }
+            v_dt_ptr_atomic = reinterpret_cast<tbb::atomic<float>*>(dt->get_table(s, v));
 
         int cur_a_comb_num_thd = cur_a_comb_num;
         int cur_comb_num_thd = cur_comb_num; 
@@ -892,8 +882,12 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottomNbrSplitTBB(Para
                 if (color_count > overflow_val)
                     color_count = (-1.0)*color_count/overflow_val;
 
-                tbb::queuing_mutex::scoped_lock lock_update(tbb_mutex_update);
-                v_dt_ptr[comb_idx_set_thd[s][n]] += (float)color_count;
+                float atomic_tmp;
+                int atomic_update_idx = comb_idx_set_thd[s][n];
+
+                do{
+                    atomic_tmp = v_dt_ptr_atomic[atomic_update_idx]; 
+                }while(v_dt_ptr_atomic[atomic_update_idx].compare_and_swap(atomic_tmp+(float)color_count, atomic_tmp) != atomic_tmp);
             }
             else
                 last_sub_count += color_count;
@@ -905,8 +899,10 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottomNbrSplitTBB(Para
 
             //replace this by TBB atomic
             // #pragma omp atomic
-            tbb::queuing_mutex::scoped_lock lock_update(tbb_mutex_update);
-            total_count_cursub += last_sub_count;
+            double atomic_tmp = 0.0;
+            do{
+                atomic_tmp = total_count_cursub_atomic;
+            }while(total_count_cursub_atomic.compare_and_swap(atomic_tmp+last_sub_count, atomic_tmp) != atomic_tmp);
         }
 
         delete task_atomic;
@@ -937,7 +933,7 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottomNbrSplitTBB(Para
     compute_time = (double)(diff)/1000000L;
 
     par->_count_time += compute_time;
-    par->_total_counts = total_count_cursub;
+    par->_total_counts = total_count_cursub_atomic;
 
     //trace the memory usage after computation
     double compute_mem = 0.0;
@@ -964,7 +960,7 @@ void subgraphDistriKernel<interm, method, cpu>::computeNonBottomNbrSplitTBB(Para
 
     if (s == 0)
     {
-        std::printf("Finish Final compute with total count %e\n", total_count_cursub);
+        std::printf("Finish Final compute with total count %e\n", par->_total_counts);
         std::printf("Omp total compute time: %f ms\n", par->_count_time);
         std::fflush;
     }
@@ -1329,7 +1325,8 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplitTBB(Pa
     // start update 
     // first loop over local v
     int effect_count = 0;
-    double total_update_counts = 0.0;
+    // double total_update_counts = 0.0;
+    tbb::atomic<double> total_update_counts_atomic = 0.0;
 
     // prepare the task_list_update 
     int nbr_task_len = 0;
@@ -1378,7 +1375,7 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplitTBB(Pa
 
     //loop over all the task_list_updates
     SafeStatus safeStat;
-    tbb::queuing_mutex tbb_mutex_update;
+    // tbb::queuing_mutex tbb_mutex_update;
 
     daal::threader_for(task_update_queue_size, task_update_queue_size, [&](int t_id)
     {
@@ -1389,11 +1386,13 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplitTBB(Pa
         int v = task_update_atomic->_vertex;
 
         //record thdworkload
-        int ompthd_id = omp_get_thread_num();
+        // int ompthd_id = omp_get_thread_num();
 
-        float* v_update_ptr = NULL;
+        // float* v_update_ptr = NULL;
+        tbb::atomic<float>* v_update_ptr_atomic = NULL;
         if (sub_id != 0)
-            v_update_ptr = dt->get_table(sub_id, v);
+            v_update_ptr_atomic = reinterpret_cast<tbb::atomic<float>*>(dt->get_table(sub_id, v));
+            // v_update_ptr = dt->get_table(sub_id, v);
 
         float* counts_a = dt->get_active(v);
         int adj_list_size = task_update_atomic->_adj_size;
@@ -1470,8 +1469,14 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplitTBB(Pa
                 if (partial_local_counts > overflow_val)
                     partial_local_counts = (-1.0)*partial_local_counts/overflow_val;
 
-                tbb::queuing_mutex::scoped_lock lock_update(tbb_mutex_update);
-                v_update_ptr[comb_num_indexes_set_thd[sub_id_thd][n]] +=  (float)partial_local_counts;
+                // tbb::queuing_mutex::scoped_lock lock_update(tbb_mutex_update);
+                // v_update_ptr[comb_num_indexes_set_thd[sub_id_thd][n]] +=  (float)partial_local_counts;
+                float atomic_tmp;
+                int atomic_update_idx = comb_num_indexes_set_thd[sub_id_thd][n];
+                do{
+                    atomic_tmp = v_update_ptr_atomic[atomic_update_idx]; 
+                }while(v_update_ptr_atomic[atomic_update_idx].compare_and_swap(atomic_tmp+(float)partial_local_counts, atomic_tmp) != atomic_tmp);
+
             }
             else
                 last_sub_count += partial_local_counts;
@@ -1480,8 +1485,12 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplitTBB(Pa
 
         if (sub_id_thd == 0)
         {
-            tbb::queuing_mutex::scoped_lock lock_update(tbb_mutex_update);
-            total_update_counts += last_sub_count; 
+            // tbb::queuing_mutex::scoped_lock lock_update(tbb_mutex_update);
+            // total_update_counts += last_sub_count; 
+            double atomic_tmp = 0.0;
+            do{
+                atomic_tmp = total_update_counts_atomic;
+            }while(total_update_counts_atomic.compare_and_swap(atomic_tmp+last_sub_count, atomic_tmp) != atomic_tmp);
         }
 
         // clear the task 
@@ -1494,12 +1503,7 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplitTBB(Pa
 
     input->task_list_update.clear();
 
-    if (sub_id == 0)
-    {
-        std::printf("Final updated counts is %e\n", total_update_counts);
-        std::printf("Finish task split pre-decompress\n");
-        std::fflush;
-    }
+    
 
     //trace the memory usage after computation
     double compute_mem = 0.0;
@@ -1509,7 +1513,14 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplitTBB(Pa
     std::fflush;
     input->peak_mem = (compute_mem > input->peak_mem) ? compute_mem : input->peak_mem;
 
-    par->_update_counts = total_update_counts;
+    par->_update_counts = total_update_counts_atomic;
+
+    if (sub_id == 0)
+    {
+        std::printf("Final updated counts is %e\n", par->_update_counts);
+        std::printf("Finish task split pre-decompress\n");
+        std::fflush;
+    }
 
     //calculate avg thread workload and stdev of thread-workload
     double thdwork_sum = 0;
@@ -1530,6 +1541,7 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsNbrSplitTBB(Pa
 template <typename interm, daal::algorithms::subgraph::Method method, CpuType cpu>
 void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplit(Parameter* &par, Input* &input)
 {/*{{{*/
+
     std::printf("Distrikernel updateRemoteCounts\n");
     std::fflush;
 
@@ -1832,6 +1844,7 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplit(Pa
 template <typename interm, daal::algorithms::subgraph::Method method, CpuType cpu>
 void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplitTBB(Parameter* &par, Input* &input)
 {/*{{{*/
+
     std::printf("Distrikernel updateRemoteCounts\n");
     std::fflush;
 
@@ -1916,7 +1929,8 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplitTBB
     // start update 
     // first loop over local v
     int effect_count = 0;
-    double total_update_counts = 0.0;
+    // double total_update_counts = 0.0;
+    tbb::atomic<double> total_update_counts_atomic = 0.0;
 
     if (input->task_list_update.size() == 0)
     {
@@ -1968,7 +1982,7 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplitTBB
     std::memset(thdwork_record, 0, thread_num*sizeof(double));
 
     SafeStatus safeStat;
-    tbb::queuing_mutex tbb_mutex_update;
+    // tbb::queuing_mutex tbb_mutex_update;
 
     //loop over all the task_list_updates
     daal::threader_for(task_update_queue_size, task_update_queue_size, [&](int t_id)
@@ -1978,13 +1992,16 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplitTBB
         //replace shared var by local var
         int**** comb_num_indexes_thd = comb_num_indexes; 
         int** comb_num_indexes_set_thd = comb_num_indexes_set;
-        float* v_update_ptr = NULL;
+
+        // float* v_update_ptr = NULL;
+        tbb::atomic<float>* v_update_ptr_atomic = NULL;
 
         task_nbr_update* task_update_atomic = task_update_queue[t_id];
         int v = task_update_atomic->_vertex;
 
         if (sub_id != 0)
-            v_update_ptr = dt->get_table(sub_id, v);
+            v_update_ptr_atomic = reinterpret_cast<tbb::atomic<float>*>(dt->get_table(sub_id, v));
+            // v_update_ptr = dt->get_table(sub_id, v);
 
         float* counts_a = dt->get_active(v);
         int adj_list_size = task_update_atomic->_adj_size;
@@ -2066,8 +2083,14 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplitTBB
                 if (partial_local_counts > overflow_val)
                     partial_local_counts = (-1.0)*partial_local_counts/overflow_val;
 
-                tbb::queuing_mutex::scoped_lock lock_update(tbb_mutex_update);
-                v_update_ptr[comb_num_indexes_set_thd[sub_id_thd][n]] +=  (float)partial_local_counts;
+                // tbb::queuing_mutex::scoped_lock lock_update(tbb_mutex_update);
+                // v_update_ptr[comb_num_indexes_set_thd[sub_id_thd][n]] +=  (float)partial_local_counts;
+                float atomic_tmp;
+                int atomic_update_idx = comb_num_indexes_set_thd[sub_id_thd][n];
+                do{
+                    atomic_tmp = v_update_ptr_atomic[atomic_update_idx]; 
+                }while(v_update_ptr_atomic[atomic_update_idx].compare_and_swap(atomic_tmp+(float)partial_local_counts, atomic_tmp) != atomic_tmp);
+
             }
             else
                 last_sub_count += partial_local_counts;
@@ -2076,8 +2099,12 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplitTBB
 
         if (sub_id_thd == 0)
         {
-            tbb::queuing_mutex::scoped_lock lock_update(tbb_mutex_update);
-            total_update_counts += last_sub_count; 
+            // tbb::queuing_mutex::scoped_lock lock_update(tbb_mutex_update);
+            // total_update_counts += last_sub_count; 
+            double atomic_tmp = 0.0;
+            do{
+                atomic_tmp = total_update_counts_atomic;
+            }while(total_update_counts_atomic.compare_and_swap(atomic_tmp+last_sub_count, atomic_tmp) != atomic_tmp);
         }
 
         // task_update list will be re-used til the last pipeline operation
@@ -2090,12 +2117,7 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplitTBB
 
     // task_update list will be re-used til the last pipeline operation
     // input->task_list_update.clear();
-    if (sub_id == 0)
-    {
-        std::printf("Final updated counts is %e\n", total_update_counts);
-        std::printf("Finish task split pre-decompress Pipeline version\n");
-        std::fflush;
-    }
+    
 
     //trace the memory usage after computation
     double compute_mem = 0.0;
@@ -2105,7 +2127,14 @@ void subgraphDistriKernel<interm, method, cpu>::updateRemoteCountsPipNbrSplitTBB
     std::fflush;
     input->peak_mem = (compute_mem > input->peak_mem) ? compute_mem : input->peak_mem;
 
-    par->_update_counts = total_update_counts;
+    par->_update_counts = total_update_counts_atomic;
+
+    if (sub_id == 0)
+    {
+        std::printf("Final updated counts is %e\n", par->_update_counts);
+        std::printf("Finish task split pre-decompress Pipeline version\n");
+        std::fflush;
+    }
 
     //calculate avg thread workload and stdev of thread-workload
     double thdwork_sum = 0;
